@@ -282,11 +282,10 @@ O `thinking_level` controla a profundidade de raciocínio na geração de imagem
 
 | Nível | Quando usar | Impacto de custo | Latência |
 |---|---|---|---|
-| `"HIGH"` | Layouts complexos, texto em imagem, composição multi-elemento | Maior (mais tokens de "pensamento") | 8–18s |
-| `"MEDIUM"` | Padrão equilibrado — texturas moderadas, cenas com modelo | Médio | 5–12s |
-| `"MINIMAL"` | ✅ Padrão implícito — iteração rápida, catálogo, fundo simples | Menor | 1–5s |
+| `"HIGH"` | Layouts complexos, texto em imagem, composição multi-elemento, texturas complexas (crochê, renda, Aran) | Maior | 8–18s |
+| `"MINIMAL"` | ✅ Padrão — iteração rápida, catálogo, fundo simples, hero com modelo sem textura complexa | Menor | 1–5s |
 
-> ⚠️ **Atenção:** O valor correto da API é `"MINIMAL"` (não `"LOW"`). Usar `"LOW"` causa erro silencioso e o modelo assume `MINIMAL` como fallback.
+> ⚠️ **ATENÇÃO — confirmado em produção (Mar/2026):** O Nano Banana 2 (`gemini-3.1-flash-image-preview`) só aceita `"MINIMAL"` e `"HIGH"`. Enviar `"MEDIUM"` ou `"LOW"` causa erro `400 INVALID_ARGUMENT`. O Gemini Flash de **texto** aceita todos os níveis, mas o modelo de **imagem** suporta apenas dois.
 
 ### Código com thinking_level
 
