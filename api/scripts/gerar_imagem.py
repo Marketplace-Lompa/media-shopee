@@ -43,6 +43,15 @@ PROPORCOES_VALIDAS = [
     "4:1", "1:4", "8:1", "1:8"  # Somente Nano Banana 2
 ]
 
+# Máxima permissividade — projeto de moda/lingerie, sem infração de TOS
+# Elimina falsos positivos em biquíni, lingerie, decotes, costas expostas
+SAFETY_CONFIG = [
+    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT",         threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH",        threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT",  threshold="BLOCK_NONE"),
+]
+
 OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -66,7 +75,8 @@ def gerar_com_nano_banana(client, modelo_id: str, prompt: str,
         image_config=types.ImageConfig(
             aspect_ratio=proporcao,
             image_size=resolucao if modelo_id != "gemini-2.5-flash-image" else None,
-        )
+        ),
+        safety_settings=SAFETY_CONFIG  # máxima permissividade para moda/lingerie
     )
 
     response = client.models.generate_content(

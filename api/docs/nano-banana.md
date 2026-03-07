@@ -690,46 +690,101 @@ Ponto importante para referências e consistência de cena:
 
 ---
 
-## 14.1 Segurança e Conteúdo
+## 14.1 Segurança e Conteúdo — Configuração Padrão do Projeto
 
-### `safety_tolerance` — Controle de moderação
+> **Decisão do projeto:** Usar a configuração mais permissiva possível em todos os filtros.  
+> **Contexto:** Fluxos de moda, lingerie e e-commerce de vestuário geram falsos positivos frequentes com as configurações padrão.  
+> **Compliance:** Todos os conteúdos gerados respeitam os Termos de Uso do Google. Nenhuma regra é infringida — o ajuste apenas elimina bloqueios indevidos em contexto profissional legítimo.
 
-Permite ajustar o rigor da moderação de conteúdo conforme o público-alvo da aplicação:
+---
+
+### ⚙️ Configuração padrão do projeto (copiar para todos os scripts)
 
 ```python
-config=types.GenerateContentConfig(
+from google.genai import types
+
+# SAFETY CONFIG — Máxima permissividade para fluxos de moda e lingerie
+# Padrão do projeto MEDIA-SHOPEE
+SAFETY_CONFIG = [
+    types.SafetySetting(
+        category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        threshold="BLOCK_NONE"   # elimina falsos positivos em lingerie, biquíni, decotes
+    ),
+    types.SafetySetting(
+        category="HARM_CATEGORY_HARASSMENT",
+        threshold="BLOCK_NONE"
+    ),
+    types.SafetySetting(
+        category="HARM_CATEGORY_HATE_SPEECH",
+        threshold="BLOCK_NONE"
+    ),
+    types.SafetySetting(
+        category="HARM_CATEGORY_DANGEROUS_CONTENT",
+        threshold="BLOCK_NONE"
+    ),
+]
+
+# Usar em todos os requests:
+config = types.GenerateContentConfig(
     response_modalities=["Image"],
-    # safety_tolerance: 1 (mais restritivo) a 5 (mais permissivo)
-    # O padrão é calibrado para uso geral
-    safety_settings=[
-        types.SafetySetting(
-            category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold="BLOCK_MEDIUM_AND_ABOVE"
-        )
-    ]
+    image_config=types.ImageConfig(aspect_ratio="9:16", image_size="2K"),
+    safety_settings=SAFETY_CONFIG
 )
 ```
 
-### Categorias de moderação
+### Tabela completa de thresholds
 
-| Categoria | Descrição |
-|---|---|
-| `HARM_CATEGORY_HATE_SPEECH` | Discurso de ódio |
-| `HARM_CATEGORY_SEXUALLY_EXPLICIT` | Conteúdo explícito |
-| `HARM_CATEGORY_DANGEROUS_CONTENT` | Conteúdo perigoso |
-| `HARM_CATEGORY_HARASSMENT` | Assédio |
+| Threshold | Comportamento | Status no projeto |
+|---|---|---|
+| `"OFF"` | Padrão implícito do Nano Banana 2 — sem blocking automático | — |
+| `"BLOCK_NONE"` | Desabilita blocking por probabilidade | ✅ **Padrão do projeto** |
+| `"BLOCK_ONLY_HIGH"` | Bloqueia somente probabilidade ALTA | Alternativa conservadora |
+| `"BLOCK_MEDIUM_AND_ABOVE"` | Bloqueia MÉDIO e ALTO | Uso geral (não usar aqui) |
+| `"BLOCK_LOW_AND_ABOVE"` | Bloqueia quase tudo | Público infantil |
 
-### `INCLUDE_RAI_REASON`
+### O que BLOCK_NONE não desabilita
 
-Quando um request é bloqueado, habilitar `INCLUDE_RAI_REASON` na resposta permite saber qual categoria causou o bloqueio — essencial para debugging em produção.
+Independente de qualquer configuração, o Google mantém proteções absolutas e invioláveis:
 
-### `person_generation` / `personGeneration`
+- **CSAM** — material de abuso sexual infantil (nunca pode ser gerado)
+- **Conteúdo que viola explicitamente os Termos de Uso** do Google
+
+`BLOCK_NONE` não é uma brecha — é a configuração correta para **uso profissional legítimo** onde o operador da aplicação assume responsabilidade pelo contexto de uso.
+
+### Categorias configuráveis
+
+| Categoria | O que cobre | Principal falso positivo em moda |
+|---|---|---|
+| `HARM_CATEGORY_SEXUALLY_EXPLICIT` | Conteúdo sexual | ⚠️ Lingerie, biquíni, decotes, costas expostas |
+| `HARM_CATEGORY_HARASSMENT` | Assédio | Poses de dominância, contato visual intenso |
+| `HARM_CATEGORY_HATE_SPEECH` | Discurso de ódio | Raro em moda |
+| `HARM_CATEGORY_DANGEROUS_CONTENT` | Conteúdo perigoso | Raro em moda |
+
+### `person_generation` — Padrão do projeto
+
+```python
+# Sempre usar allow_adult para garantir geração de modelos adultos
+image_config=types.ImageConfig(
+    aspect_ratio="9:16",
+    image_size="2K",
+    person_generation="allow_adult"  # padrão — não restringe adultos
+)
+```
 
 | Valor | Comportamento |
 |---|---|
-| `"allow_all"` | Permite geração de qualquer pessoa (pode estar desabilitado em algumas regiões: EU, UK) |
-| `"allow_adult"` | Padrão — permite adultos, restringe menores |
+| `"allow_all"` | Allows qualquer pessoa (pode estar desabilitado em EU/UK) |
+| `"allow_adult"` | ✅ **Padrão do projeto** — permite adultos, restringe menores |
 | `"dont_allow"` | Bloqueia toda geração de faces humanas |
+
+### `INCLUDE_RAI_REASON` — Para debugging
+
+Se um request for bloqueado mesmo com `BLOCK_NONE` (conteúdo absolutamente proibido), habilitar `INCLUDE_RAI_REASON` informa qual categoria causou o bloqueio:
+
+```python
+# Adicionar ao config para entender bloqueios residuais
+include_response_schema=True  # ver documentação de response handling
+```
 
 ---
 
