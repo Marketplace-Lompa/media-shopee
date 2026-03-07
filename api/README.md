@@ -64,3 +64,6 @@ Ver pasta `api/docs/`:
 | `imagen4.md` | Imagen 4 (fotorrealismo avançado) |
 | `veo.md` | Veo 3.1 (geração de vídeo) |
 | `precos.md` | Comparativo de preços e estimativas |
+| `engenharia-prompt.md` | **Framework KERNEL + Direção Cinematográfica + Thought Signatures** |
+| `otimizacao-custos.md` | **Context Caching, Batch API, Tiering, Áudio Veo** |
+| `plataformas.md` | Google AI Studio vs. Vertex AI — quando usar cada um |

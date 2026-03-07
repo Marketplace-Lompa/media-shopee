@@ -196,10 +196,27 @@ resp2 = client.models.generate_content(
 |---|---|---|---|
 | `response_modalities` | `list[str]` | `["Image"]`, `["Text", "Image"]` | Tipos de saída. Padrão: `["Text", "Image"]` |
 | `image_config` | `ImageConfig` | objeto | Configurações visuais (ver abaixo) |
+| `thinking_config` | `ThinkingConfig` | objeto | Controle do modo de raciocínio (ver abaixo) |
 | `tools` | `list[Tool]` | `[{"google_search": {}}]` | Habilitar Grounding |
 | `temperature` | `float` | `0.0`–`2.0` | Criatividade. Padrão: `1.0` |
 | `top_p` | `float` | `0.0`–`1.0` | Distribuição de tokens. Padrão: `0.95` |
 | `candidate_count` | `int` | `1` | Número de candidatos (fixo em 1) |
+
+### `ThinkingConfig`
+
+| Parâmetro | Tipo | Valores | Descrição |
+|---|---|---|---|
+| `thinking_level` | `str` | `"HIGH"`, `"MEDIUM"`, `"LOW"` | Profundidade do raciocínio antes de gerar |
+
+```python
+config=types.GenerateContentConfig(
+    response_modalities=["Image"],
+    image_config=types.ImageConfig(aspect_ratio="9:16", image_size="2K"),
+    thinking_config=types.ThinkingConfig(thinking_level="HIGH")  # para texto ou layout complexo
+)
+```
+
+> ⚠️ **Thought Signatures:** Em conversas multi-turno, sempre inclua `resp.candidates[0].content` completo no histórico. Omitir causa **erro 400**. Ver [`engenharia-prompt.md`](engenharia-prompt.md#6-thought-signatures--crítico-para-multi-turno).
 
 ### `ImageConfig`
 
