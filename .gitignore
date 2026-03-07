@@ -4,6 +4,14 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Python virtual environments
+.venv/
+venv/
+app/.venv/
+
+# Outputs de testes (imagens geradas, não versionar)
+app/tests/output/
+
 # Variáveis de ambiente — NUNCA commitar
 .env
 .env.local
