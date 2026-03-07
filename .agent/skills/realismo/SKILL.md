@@ -149,19 +149,21 @@ Useful elements:
 - Uncorrected white balance (slightly too warm or too cool)
 - Natural lens vignetting
 
-### Lever 8: Grain Injection (pós-geração — corrige AI Softness)
+### Lever 8: Grain Injection (corrige AI Softness)
 
 **Conceito:** Imagens geradas por IA às vezes sofrem de "AI Softness" — uma nitidez artificial ou suavidade excessiva nas fibras e superfícies que delata a origem digital. A Grain Injection ancora a imagem na realidade quebrando essa homogeneidade.
 
 **Quando usar:** após gerar uma imagem de tecido texturizado que parece "plástico" ou "pintado" nas fibras.
 
-**No prompt:**
+> 🔑 **Primeira linha de defesa:** antes de usar Grain Injection, tente subir o `thinking_level` de `MINIMAL` para `MEDIUM` (ou `HIGH` para texturas muito complexas como Aran, crochê, renda). O Thinking Mode executa **Plan → Evaluate → Improve** e frequentemente resolve o AI Softness sem necessidade de pós-processamento.
+
+**No prompt (quando thinking upgrade não resolver):**
 ```
 Subtle monochromatic grain (1-3%), natural fiber micro-texture visible, 
 no AI smoothing on fabric surface, yarn filaments individually distinct.
 ```
 
-**Em pós-processamento (Photoshop/Lighroom):**
+**Em pós-processamento (Photoshop/Lightroom):**
 1. Aplicar filtro de ruído monocromático (**1–3%**) sobre a imagem
 2. Usar filtro "Mínimo" na máscara de camada para esconder frangias brancas/pretas nas bordas da roupa
 3. Resultado: textura de fibra âncora na percepção de realidade
@@ -203,6 +205,19 @@ Should look like: photo taken with a good phone by someone who understands a bit
 ### Level 3 — Natural Professional (editorial, lookbook)
 Use **2-3 levers** at subtle intensity.
 Should look like: independent magazine editorial, fashion blog. Well-photographed, but not over-produced.
+
+### Level by Shot Type (quick reference)
+
+| Shot type | Realism Level | Thinking Level | Key levers |
+|---|---|---|---|
+| Hero / Wide (Shopee capa) | Level 2 | MEDIUM | Device, lighting, composition |
+| Medium / Waist-up | Level 2 | MINIMAL | Lighting, moment, texture |
+| Macro / texture close-up | Level 3 | HIGH | Surface texture, grain, imperfect depth |
+| Lifestyle / action | Level 1 | MINIMAL | All levers, high intensity |
+| Ghost mannequin (ML capa) | Level 3 | MINIMAL | Even light, no levers that add imperfection |
+| Lookbook / editorial | Level 3 | MEDIUM | Moment, composition, lighting |
+
+> 💡 **Regra rápida:** Ghost mannequin e ML compliance = menos realismo (aparência de catálogo profissional). Lifestyle e Shopee hero = mais realismo (parece foto real de pessoa real).
 
 ---
 

@@ -170,12 +170,22 @@ User Request
 │  ├─ Shopee → Apply ecommerce (standard)
 │  └─ Not specified → Ask or default to ecommerce
 │
-└─ Apply skill stack:
-   ├─ Always: realismo (authenticity layer)
-   ├─ If clothing involved: moda (garment precision)
-   ├─ If Mercado Livre: moda-ml (compliance + restrictions)
-   ├─ If e-commerce/listing/product: ecommerce (conversion optimization)
-   └─ If video/motion: frames (delta engineering)
+├─ Apply skill stack:
+│  ├─ Always: realismo (authenticity layer)
+│  ├─ If clothing involved: moda (garment precision)
+│  ├─ If Mercado Livre: moda-ml (compliance + restrictions)
+│  ├─ If e-commerce/listing/product: ecommerce (conversion optimization)
+│  └─ If video/motion: frames (delta engineering)
+│
+└─ Determine API parameters (thinking_level + resolution):
+   ├─ Has complex texture? (crochê, Aran, renda, veludo, sequins) → thinking: HIGH
+   ├─ Has text in image? (título, label, preço, infográfico) → thinking: HIGH
+   ├─ Multi-element layout? (multiple positioned objects) → thinking: HIGH
+   ├─ Standard fashion shot (modelo + cenário) → thinking: MEDIUM
+   ├─ Simple scene / catalog / volume → thinking: MINIMAL
+   ├─ Hero / final render → resolution: 2K
+   ├─ Draft / iteration → resolution: 1K
+   └─ Macro texture detail → resolution: 2K or 4K
 ```
 
 ### Skill Application Order
@@ -270,13 +280,12 @@ When the user doesn't specify something, make the decision yourself using these 
 | Leave placeholders in prompts (`[insert X]`) | User should copy-paste directly |
 | Split one prompt into multiple blocks | One block = one prompt, always |
 | Write prompts in Portuguese | English only for model performance |
-| Include aspect ratios or resolutions in prompts | Platform-dependent, user handles this |
 | Use quality tags (`8K`, `masterpiece`, `ultra HD`) | Triggers artificial AI aesthetic |
-| Include NSFW terms | Breaks platform policies |
 | Describe the body instead of the garment | Focus on clothing, not anatomy |
 | Combine more than 2 delta types for video | Causes incoherent interpolation |
 | Generate without classifying the mode first | Mode determines the entire approach |
 | Include labels inside code blocks (`=== FRAME A ===`) | Pollutes the prompt when user copy-pastes. Labels go OUTSIDE as markdown headings |
+| Use `thinking: LOW` in recommendations | Correct value is `MINIMAL` — LOW causes silent API error |
 
 ---
 
@@ -296,12 +305,31 @@ Critical information that MUST come from the user:
 - Creation vs editing intent (if ambiguous)
 - Video vs image (if ambiguous)
 
-### Step 4: Generate
+### Step 4: Scroll-Stopper Check (Hero shots only)
+Before generating a hero/cover shot, verify the prompt contains at least **3 of 5** elements:
+- [ ] Color contrast (garment pops against background)
+- [ ] Movement energy (something in motion: hair, fabric, stride)
+- [ ] Emotional expression (face communicates a feeling)
+- [ ] Depth layers (foreground / subject / background distinct)
+- [ ] Aspirational context (setting the buyer wants to be in)
+
+If fewer than 3 are present, add the missing elements before generating.
+
+### Step 5: Generate
 Apply the skill stack and generate the prompt.
 
-### Step 5: Deliver
+### Step 6: Deliver
 - Brief explanation in pt-BR of what you created (1-2 sentences max)
 - The prompt in a single ` ```text ``` ` block
+- **API parameters** (always include, in pt-BR, after the prompt block):
+
+```
+⚙️ Parâmetros recomendados:
+- Proporção: [9:16 / 1:1 / 16:9]
+- Resolução: [1K / 2K / 4K]
+- Thinking: [MINIMAL / MEDIUM / HIGH] — [motivo em 1 linha]
+```
+
 - If relevant, a brief tip about what to adjust if the result isn't perfect
 
 ### Example Interaction:

@@ -497,7 +497,7 @@ Quando você precisar calibrar o QUANTO de textura aparece na superfície:
 
 ### Textural Anchor — Técnica Multi-Referência (recomendada para textura crítica)
 
-O Nano Banana Pro e 2 suportam **até 14 imagens de referência** na mesma sessão. Para transferência fiel de textura de tecido, use a técnica **Textural Anchor**:
+O Nano Banana 2 suporta **até 14 imagens de referência** na mesma sessão. Para transferência fiel de textura de tecido, use a técnica **Textural Anchor**:
 
 **Setup de referências:**
 
@@ -506,8 +506,11 @@ O Nano Banana Pro e 2 suportam **até 14 imagens de referência** na mesma sess�
 | **Ref 1** | Autoridade de identidade/modelo | Foto da pessoa (quando reusar modelo) |
 | **Ref 2** | Autoridade de textura | Swatch ou macro close-up do tecido real |
 | **Ref 3** (opcional) | Autoridade de silhueta | Sketch ou foto do caimento desejado |
+| **Refs 4–8** | Pool de contexto (via app) | Geradas anteriores aprovadas — retroalimentam o estilo |
 
-**Interface:** Ajustar o **Influence Slider para 70–80%** ao usar referência de textura. Abaixo de 70% = textura ignorada. Acima de 80% = composição distorcida.
+> 💡 **Na app Studio Local:** o pool de referência da sessão alimenta automaticamente o contexto. Imagens geradas que o usuário aprova e adiciona ao pool se tornam autoridades adicionais de consistência — funciona como LoRA dinâmico por sessão.
+
+**Limite prático:** Enviar no máximo 8 imagens ao agente de contexto (thumbnails). Para geração final, usar até 14 refs de alta qualidade.
 
 **Template de prompt com Textural Anchor:**
 ```
@@ -525,7 +528,25 @@ construction as shown: [flat uniform crochet / brioche / Aran cable —
 descrever a vibe sem o padrão visual]. Generate [modelo + cena + pose].
 ```
 
-> ⚠️ **Limitação do Gemini App:** O app pode ficar "preso" na primeira imagem durante iterações longas. **Solução:** reiniciar o chat com todas as referências novamente é mais eficiente que insistir em prompts correção. Ferramentas como Weavy ou Higgsfield têm controle de papel por imagem mais preciso para uso profissional.
+> ⚠️ **Limitação do Gemini App (chat):** O app pode ficar "preso" na primeira imagem durante iterações longas. **Solução:** reiniciar o chat com todas as referências novamente é mais eficiente que insistir em prompts correção. Na app Studio Local esse problema é mitigado pelo gerenciamento explícito do pool.
+
+---
+
+## Thinking Level por Tipo de Textura
+
+> **Integração com Nano Banana 2:** o Thinking Mode executa **Plan → Evaluate → Improve** antes de renderizar pixels. Para texturas complexas, isso reduz drasticamente a inflação de ponto e a geração de textura "colada".
+
+| Tipo de textura | Thinking recomendado | Motivo |
+|---|---|---|
+| Tecido liso (jersey, modal, viscose) | `MINIMAL` | Sem estrutura 3D a planejar |
+| Canelado, ribbing simples | `MINIMAL` | Textura uniforme, sem variação |
+| Crochê, Aran, tranças, openwork | `HIGH` | Estrutura complexa — planejar sombras e profundidade |
+| Renda sobre forro (multi-layer) | `HIGH` | Múltiplas camadas com transparência |
+| Veludo, sequins, metallic | `MEDIUM` | Reflexos direcionais — precisam de raciocínio |
+| Close-up macro de textura (hero shot) | `HIGH` | Detalhe precisa de máxima fidelidade |
+| Catálogo em volume (mesma peça, cor diferente) | `MINIMAL` | Variação simples, velocidade > perfeição |
+
+> ⚠️ **Antes de usar Grain Injection** (skill `realismo`, Lever 8) para corrigir AI Softness em texturas: tente subir o thinking de `MINIMAL` para `MEDIUM`. Frequentemente resolve sem pós-processamento.
 
 ---
 

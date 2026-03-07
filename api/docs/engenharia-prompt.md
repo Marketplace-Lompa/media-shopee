@@ -282,9 +282,11 @@ O `thinking_level` controla a profundidade de raciocínio na geração de imagem
 
 | Nível | Quando usar | Impacto de custo | Latência |
 |---|---|---|---|
-| `"HIGH"` | Layouts complexos, texto em imagem, composição multi-elemento | Maior (mais tokens de "pensamento") | 8–15s |
-| `"MEDIUM"` | Padrão para uso geral | Médio | 5–10s |
-| `"LOW"` | Alto volume, composições simples, iteração rápida | Menor | 3–6s |
+| `"HIGH"` | Layouts complexos, texto em imagem, composição multi-elemento | Maior (mais tokens de "pensamento") | 8–18s |
+| `"MEDIUM"` | Padrão equilibrado — texturas moderadas, cenas com modelo | Médio | 5–12s |
+| `"MINIMAL"` | ✅ Padrão implícito — iteração rápida, catálogo, fundo simples | Menor | 1–5s |
+
+> ⚠️ **Atenção:** O valor correto da API é `"MINIMAL"` (não `"LOW"`). Usar `"LOW"` causa erro silencioso e o modelo assume `MINIMAL` como fallback.
 
 ### Código com thinking_level
 
@@ -315,12 +317,13 @@ response = client.models.generate_content(
 - Composições com múltiplos elementos interdependentes
 - Qualquer prompt com instruções de "coloque X aqui, Y ali"
 
-### Quando usar LOW
+### Quando usar MINIMAL
 
 - Geração em volume (catálogos, variações de cor)
-- Composições simples (produto em fundo branco)
+- Composições simples (produto em fundo branco, ghost mannequin)
 - Iteração rápida de conceitos
 - Fase de rascunho antes do render final
+- Modelos em cenário sem textura complexa de roupa
 
 ---
 
