@@ -31,6 +31,7 @@ class GeneratedImage(BaseModel):
     """Uma imagem gerada"""
     index: int
     filename: str
+    url: str          # caminho relativo servido pelo FastAPI: /outputs/{session}/{file}
     size_kb: float
     mime_type: str
 

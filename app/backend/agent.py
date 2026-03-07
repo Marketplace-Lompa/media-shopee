@@ -252,10 +252,12 @@ def run_agent(
     has_pool   = bool(pool_context and "No reference" not in pool_context)
 
     if has_images:
+        # FIX: ternário separado para não engolir o MODE 2
+        extra_text = f'User text to incorporate: "{user_prompt}".' if has_prompt else "No additional text from user."
         mode_info = (
             f"MODE 2 — User sent {len(uploaded_images)} reference image(s). "
-            "Apply Fidelity Lock. Text prompt to incorporate: "
-            f'"{user_prompt}"' if has_prompt else "No additional text."
+            f"MANDATORY: Apply Fidelity Lock as the FIRST paragraph of the prompt. "
+            f"{extra_text}"
         )
     elif has_prompt:
         mode_info = f'MODE 1 — Refine this user prompt: "{user_prompt}"'

@@ -33,6 +33,7 @@ def generate_images(
     resolution: str,
     n_images: int,
     pool_images: Optional[List[bytes]] = None,
+    uploaded_images: Optional[List[bytes]] = None,   # imagens enviadas pelo usuário
     session_id: Optional[str] = None,
 ) -> List[dict]:
     """
@@ -50,11 +51,22 @@ def generate_images(
     results = []
 
     for i in range(n_images):
-        # Montar contents: começa pelas imagens do pool (contexto visual)
+        # Montar content_parts — envio casado:
+        # 1. Pool refs (estilo/modelo/cenário de referência)
+        # 2. Imagens do usuário (referência de produto/peça)
+        # 3. Prompt textual (sempre por último — peso máximo)
         content_parts = []
 
         if pool_images:
             for img_bytes in pool_images:
+                content_parts.append(
+                    types.Part(
+                        inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)
+                    )
+                )
+
+        if uploaded_images:
+            for img_bytes in uploaded_images:
                 content_parts.append(
                     types.Part(
                         inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)
@@ -91,6 +103,7 @@ def generate_images(
                 results.append({
                     "index": i + 1,
                     "filename": filename,
+                    "url": f"/outputs/{session_id}/{filename}",
                     "path": str(filepath),
                     "size_kb": round(size_kb, 1),
                     "mime_type": part.inline_data.mime_type,

@@ -78,6 +78,7 @@ async def generate(
             resolution=resolution,
             n_images=n_images,
             pool_images=pool_images if pool_images else None,
+            uploaded_images=uploaded_bytes if uploaded_bytes else None,  # envio casado
             session_id=session_id,
         )
     except Exception as e:
