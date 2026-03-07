@@ -1,0 +1,1223 @@
+
+CANDIDATES
+[
+  {
+    "sel": "[data-framer-name=\"IPad Pro 11\"]",
+    "idx": 0,
+    "tag": "div",
+    "framerName": "IPad Pro 11",
+    "className": "framer-1ey3g80",
+    "transform": "none",
+    "opacity": "1",
+    "rect": {
+      "x": -38.35878372192383,
+      "y": 628.9096069335938,
+      "w": 1516.717529296875,
+      "h": 945.9484252929688
+    }
+  },
+  {
+    "sel": "[data-framer-name=\"Ipad Content\"]",
+    "idx": 0,
+    "tag": "div",
+    "framerName": "Ipad Content",
+    "className": "framer-yno07j",
+    "transform": "matrix3d(1, 0, 0, 0, 0, 0.959729, 0.280927, -0.000234106, 0, -0.280927, 0.959729, -0.000799774, 0, 0, 0, 1)",
+    "opacity": "1",
+    "rect": {
+      "x": -38.35878372192383,
+      "y": 628.9096069335938,
+      "w": 1516.717529296875,
+      "h": 945.9484252929688
+    }
+  },
+  {
+    "sel": "[data-framer-name*=\"IPad\"]",
+    "idx": 0,
+    "tag": "div",
+    "framerName": "IPad Pro 11",
+    "className": "framer-1ey3g80",
+    "transform": "none",
+    "opacity": "1",
+    "rect": {
+      "x": -38.35878372192383,
+      "y": 628.9096069335938,
+      "w": 1516.717529296875,
+      "h": 945.9484252929688
+    }
+  },
+  {
+    "sel": "[data-framer-name*=\"Ipad\"]",
+    "idx": 0,
+    "tag": "div",
+    "framerName": "Ipad Content",
+    "className": "framer-yno07j",
+    "transform": "matrix3d(1, 0, 0, 0, 0, 0.959729, 0.280927, -0.000234106, 0, -0.280927, 0.959729, -0.000799774, 0, 0, 0, 1)",
+    "opacity": "1",
+    "rect": {
+      "x": -38.35878372192383,
+      "y": 628.9096069335938,
+      "w": 1516.717529296875,
+      "h": 945.9484252929688
+    }
+  },
+  {
+    "sel": "[data-framer-name*=\"Pad\"]",
+    "idx": 0,
+    "tag": "div",
+    "framerName": "IPad Pro 11",
+    "className": "framer-1ey3g80",
+    "transform": "none",
+    "opacity": "1",
+    "rect": {
+      "x": -38.35878372192383,
+      "y": 628.9096069335938,
+      "w": 1516.717529296875,
+      "h": 945.9484252929688
+    }
+  },
+  {
+    "sel": "img[src*=\"ri1DEppM1Ulk4Cs9ufk6fyC4SSY\"]",
+    "idx": 0,
+    "tag": "img",
+    "framerName": null,
+    "className": "",
+    "transform": "none",
+    "opacity": "1",
+    "rect": {
+      "x": -38.35878372192383,
+      "y": 628.9096069335938,
+      "w": 1516.717529296875,
+      "h": 945.9484252929688
+    }
+  }
+]
+
+SAMPLES
+[
+  {
+    "scrollY": 0,
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "target": {
+      "tag": "div",
+      "framerName": "IPad Pro 11",
+      "className": "framer-1ey3g80",
+      "transform": "none",
+      "transformOrigin": "672px 486.43px",
+      "rect": {
+        "x": -38.35878372192383,
+        "y": 628.9096069335938,
+        "w": 1516.717529296875,
+        "h": 945.9484252929688
+      }
+    },
+    "topElemAtCenter": {
+      "tag": "img",
+      "framerName": null,
+      "className": ""
+    },
+    "chain": [
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "className": "framer-1ey3g80",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": -38.35878372192383,
+          "y": 628.9096069335938,
+          "w": 1516.717529296875,
+          "h": 945.9484252929688
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "ssr-variant hidden-1jcj5e8 hidden-ku8x1k",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "className": "framer-yno07j",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 0.959729, 0.280927, -0.000234106, 0, -0.280927, 0.959729, -0.000799774, 0, 0, 0, 1)",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": -38.35878372192383,
+          "y": 628.9096069335938,
+          "w": 1516.717529296875,
+          "h": 945.9484252929688
+        }
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "className": "framer-1qxeahf",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 1534.453125
+        }
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "className": "framer-57r2d",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 10280.203125
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-6NKkP framer-oKurQ framer-PUPWG framer-5hw8S framer-qpI2d framer-P6e3V framer-72rtr7",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-swCcU framer-5hw8S framer-PUPWG framer-1qt84x1",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 12808.34375
+        }
+      }
+    ]
+  },
+  {
+    "scrollY": 120,
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "target": {
+      "tag": "div",
+      "framerName": "IPad Pro 11",
+      "className": "framer-1ey3g80",
+      "transform": "none",
+      "transformOrigin": "672px 486.43px",
+      "rect": {
+        "x": -20.729421615600586,
+        "y": 494.71356201171875,
+        "w": 1481.458740234375,
+        "h": 955.2540893554688
+      }
+    },
+    "topElemAtCenter": {
+      "tag": "img",
+      "framerName": null,
+      "className": ""
+    },
+    "chain": [
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "className": "framer-1ey3g80",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": -20.729421615600586,
+          "y": 494.71356201171875,
+          "w": 1481.458740234375,
+          "h": 955.2540893554688
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "ssr-variant hidden-1jcj5e8 hidden-ku8x1k",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "className": "framer-yno07j",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 0.97345, 0.228899, -0.000190749, 0, -0.228899, 0.97345, -0.000811208, 0, 0, 0, 1)",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": -20.729421615600586,
+          "y": 494.71356201171875,
+          "w": 1481.458740234375,
+          "h": 955.2540893554688
+        }
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "className": "framer-1qxeahf",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -120,
+          "w": 1440,
+          "h": 1534.453125
+        }
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "className": "framer-57r2d",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -120,
+          "w": 1440,
+          "h": 10280.203125
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-6NKkP framer-oKurQ framer-PUPWG framer-5hw8S framer-qpI2d framer-P6e3V framer-72rtr7",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-swCcU framer-5hw8S framer-PUPWG framer-1qt84x1",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -120,
+          "w": 1440,
+          "h": 12808.34375
+        }
+      }
+    ]
+  },
+  {
+    "scrollY": 240,
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "target": {
+      "tag": "div",
+      "framerName": "IPad Pro 11",
+      "className": "framer-1ey3g80",
+      "transform": "none",
+      "transformOrigin": "672px 486.43px",
+      "rect": {
+        "x": -3.6916685104370117,
+        "y": 361.12591552734375,
+        "w": 1447.38330078125,
+        "h": 962.5476684570312
+      }
+    },
+    "topElemAtCenter": {
+      "tag": "img",
+      "framerName": null,
+      "className": ""
+    },
+    "chain": [
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "className": "framer-1ey3g80",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": -3.6916685104370117,
+          "y": 361.12591552734375,
+          "w": 1447.38330078125,
+          "h": 962.5476684570312
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "ssr-variant hidden-1jcj5e8 hidden-ku8x1k",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "className": "framer-yno07j",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 0.984353, 0.176209, -0.000146841, 0, -0.176209, 0.984353, -0.000820294, 0, 0, 0, 1)",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": -3.6916685104370117,
+          "y": 361.12591552734375,
+          "w": 1447.38330078125,
+          "h": 962.5476684570312
+        }
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "className": "framer-1qxeahf",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -240,
+          "w": 1440,
+          "h": 1534.453125
+        }
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "className": "framer-57r2d",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -240,
+          "w": 1440,
+          "h": 10280.203125
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-6NKkP framer-oKurQ framer-PUPWG framer-5hw8S framer-qpI2d framer-P6e3V framer-72rtr7",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-swCcU framer-5hw8S framer-PUPWG framer-1qt84x1",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -240,
+          "w": 1440,
+          "h": 12808.34375
+        }
+      }
+    ]
+  },
+  {
+    "scrollY": 360,
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "target": {
+      "tag": "div",
+      "framerName": "IPad Pro 11",
+      "className": "framer-1ey3g80",
+      "transform": "none",
+      "transformOrigin": "672px 486.43px",
+      "rect": {
+        "x": 12.733890533447266,
+        "y": 228.21514892578125,
+        "w": 1414.5322265625,
+        "h": 967.8775024414062
+      }
+    },
+    "topElemAtCenter": {
+      "tag": "img",
+      "framerName": null,
+      "className": ""
+    },
+    "chain": [
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "className": "framer-1ey3g80",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 12.733890533447266,
+          "y": 228.21514892578125,
+          "w": 1414.5322265625,
+          "h": 967.8775024414062
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "ssr-variant hidden-1jcj5e8 hidden-ku8x1k",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "className": "framer-yno07j",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 0.992406, 0.123009, -0.000102507, 0, -0.123009, 0.992406, -0.000827005, 0, 0, 0, 1)",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 12.733890533447266,
+          "y": 228.21514892578125,
+          "w": 1414.5322265625,
+          "h": 967.8775024414062
+        }
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "className": "framer-1qxeahf",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -360,
+          "w": 1440,
+          "h": 1534.453125
+        }
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "className": "framer-57r2d",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -360,
+          "w": 1440,
+          "h": 10280.203125
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-6NKkP framer-oKurQ framer-PUPWG framer-5hw8S framer-qpI2d framer-P6e3V framer-72rtr7",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-swCcU framer-5hw8S framer-PUPWG framer-1qt84x1",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -360,
+          "w": 1440,
+          "h": 12808.34375
+        }
+      }
+    ]
+  },
+  {
+    "scrollY": 480,
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "target": {
+      "tag": "div",
+      "framerName": "IPad Pro 11",
+      "className": "framer-1ey3g80",
+      "transform": "none",
+      "transformOrigin": "672px 486.43px",
+      "rect": {
+        "x": 28.533103942871094,
+        "y": 96.0556640625,
+        "w": 1382.933837890625,
+        "h": 971.280029296875
+      }
+    },
+    "topElemAtCenter": {
+      "tag": "img",
+      "framerName": null,
+      "className": ""
+    },
+    "chain": [
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "className": "framer-1ey3g80",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 28.533103942871094,
+          "y": 96.0556640625,
+          "w": 1382.933837890625,
+          "h": 971.280029296875
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "ssr-variant hidden-1jcj5e8 hidden-ku8x1k",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "className": "framer-yno07j",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 0.997585, 0.0694523, -5.78769e-05, 0, -0.0694523, 0.997585, -0.000831321, 0, 0, 0, 1)",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 28.533103942871094,
+          "y": 96.0556640625,
+          "w": 1382.933837890625,
+          "h": 971.280029296875
+        }
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "className": "framer-1qxeahf",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -480,
+          "w": 1440,
+          "h": 1534.453125
+        }
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "className": "framer-57r2d",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -480,
+          "w": 1440,
+          "h": 10280.203125
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-6NKkP framer-oKurQ framer-PUPWG framer-5hw8S framer-qpI2d framer-P6e3V framer-72rtr7",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-swCcU framer-5hw8S framer-PUPWG framer-1qt84x1",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -480,
+          "w": 1440,
+          "h": 12808.34375
+        }
+      }
+    ]
+  },
+  {
+    "scrollY": 600,
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "target": {
+      "tag": "div",
+      "framerName": "IPad Pro 11",
+      "className": "framer-1ey3g80",
+      "transform": "none",
+      "transformOrigin": "672px 486.43px",
+      "rect": {
+        "x": 43.697364807128906,
+        "y": -35.2716064453125,
+        "w": 1352.605224609375,
+        "h": 972.7789306640625
+      }
+    },
+    "topElemAtCenter": {
+      "tag": "img",
+      "framerName": null,
+      "className": ""
+    },
+    "chain": [
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "className": "framer-1ey3g80",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 43.697364807128906,
+          "y": -35.2716064453125,
+          "w": 1352.605224609375,
+          "h": 972.7789306640625
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "ssr-variant hidden-1jcj5e8 hidden-ku8x1k",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "className": "framer-yno07j",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 0.999877, 0.0156948, -1.3079e-05, 0, -0.0156948, 0.999877, -0.000833231, 0, 0, 0, 1)",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 43.697364807128906,
+          "y": -35.2716064453125,
+          "w": 1352.605224609375,
+          "h": 972.7789306640625
+        }
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "className": "framer-1qxeahf",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -600,
+          "w": 1440,
+          "h": 1534.453125
+        }
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "className": "framer-57r2d",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -600,
+          "w": 1440,
+          "h": 10280.203125
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-6NKkP framer-oKurQ framer-PUPWG framer-5hw8S framer-qpI2d framer-P6e3V framer-72rtr7",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-swCcU framer-5hw8S framer-PUPWG framer-1qt84x1",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -600,
+          "w": 1440,
+          "h": 12808.34375
+        }
+      }
+    ]
+  },
+  {
+    "scrollY": 760,
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "target": {
+      "tag": "div",
+      "framerName": "IPad Pro 11",
+      "className": "framer-1ey3g80",
+      "transform": "none",
+      "transformOrigin": "672px 486.43px",
+      "rect": {
+        "x": 48,
+        "y": -198.40625,
+        "w": 1344,
+        "h": 972.859375
+      }
+    },
+    "topElemAtCenter": {
+      "tag": "img",
+      "framerName": null,
+      "className": ""
+    },
+    "chain": [
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "className": "framer-1ey3g80",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 48,
+          "y": -198.40625,
+          "w": 1344,
+          "h": 972.859375
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "ssr-variant hidden-1jcj5e8 hidden-ku8x1k",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "className": "framer-yno07j",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.000833333, 0, 0, 0, 1)",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 48,
+          "y": -198.40625,
+          "w": 1344,
+          "h": 972.859375
+        }
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "className": "framer-1qxeahf",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -760,
+          "w": 1440,
+          "h": 1534.453125
+        }
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "className": "framer-57r2d",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -760,
+          "w": 1440,
+          "h": 10280.203125
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-6NKkP framer-oKurQ framer-PUPWG framer-5hw8S framer-qpI2d framer-P6e3V framer-72rtr7",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-swCcU framer-5hw8S framer-PUPWG framer-1qt84x1",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -760,
+          "w": 1440,
+          "h": 12808.34375
+        }
+      }
+    ]
+  },
+  {
+    "scrollY": 920,
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "target": {
+      "tag": "div",
+      "framerName": "IPad Pro 11",
+      "className": "framer-1ey3g80",
+      "transform": "none",
+      "transformOrigin": "672px 486.43px",
+      "rect": {
+        "x": 48,
+        "y": -358.40625,
+        "w": 1344,
+        "h": 972.859375
+      }
+    },
+    "topElemAtCenter": {
+      "tag": "img",
+      "framerName": null,
+      "className": ""
+    },
+    "chain": [
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "className": "framer-1ey3g80",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 48,
+          "y": -358.40625,
+          "w": 1344,
+          "h": 972.859375
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "ssr-variant hidden-1jcj5e8 hidden-ku8x1k",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "className": "framer-yno07j",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.000833333, 0, 0, 0, 1)",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 48,
+          "y": -358.40625,
+          "w": 1344,
+          "h": 972.859375
+        }
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "className": "framer-1qxeahf",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -920,
+          "w": 1440,
+          "h": 1534.453125
+        }
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "className": "framer-57r2d",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -920,
+          "w": 1440,
+          "h": 10280.203125
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-6NKkP framer-oKurQ framer-PUPWG framer-5hw8S framer-qpI2d framer-P6e3V framer-72rtr7",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-swCcU framer-5hw8S framer-PUPWG framer-1qt84x1",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -920,
+          "w": 1440,
+          "h": 12808.34375
+        }
+      }
+    ]
+  },
+  {
+    "scrollY": 1100,
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "target": {
+      "tag": "div",
+      "framerName": "IPad Pro 11",
+      "className": "framer-1ey3g80",
+      "transform": "none",
+      "transformOrigin": "672px 486.43px",
+      "rect": {
+        "x": 48,
+        "y": -538.40625,
+        "w": 1344,
+        "h": 972.859375
+      }
+    },
+    "topElemAtCenter": {
+      "tag": "nav",
+      "framerName": "Desktop - Default",
+      "className": "framer-XwW0K framer-1eckrku framer-v-1eckrku"
+    },
+    "chain": [
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "className": "framer-1ey3g80",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 48,
+          "y": -538.40625,
+          "w": 1344,
+          "h": 972.859375
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "ssr-variant hidden-1jcj5e8 hidden-ku8x1k",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "className": "framer-yno07j",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.000833333, 0, 0, 0, 1)",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 48,
+          "y": -538.40625,
+          "w": 1344,
+          "h": 972.859375
+        }
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "className": "framer-1qxeahf",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -1100,
+          "w": 1440,
+          "h": 1534.453125
+        }
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "className": "framer-57r2d",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -1100,
+          "w": 1440,
+          "h": 10280.203125
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-6NKkP framer-oKurQ framer-PUPWG framer-5hw8S framer-qpI2d framer-P6e3V framer-72rtr7",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "tag": "div",
+        "framerName": null,
+        "className": "framer-swCcU framer-5hw8S framer-PUPWG framer-1qt84x1",
+        "transform": "none",
+        "opacity": "1",
+        "filter": "none",
+        "rect": {
+          "x": 0,
+          "y": -1100,
+          "w": 1440,
+          "h": 12808.34375
+        }
+      }
+    ]
+  }
+]

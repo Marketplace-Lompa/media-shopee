@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI/UX Review"
+  short_description: "Frontend review for UX, DS, accessibility, and layout quality"
+  default_prompt: "Use $review-uiux. Review the provided frontend scope, report findings first by severity, and include actionable fixes with file/line references."

@@ -1,0 +1,73 @@
+{
+  "url": "http://127.0.0.1:3006/",
+  "label": "case2-local",
+  "generatedAt": "2026-02-25T01:44:31.539Z",
+  "durationMs": 20434,
+  "hidePromos": false,
+  "shots": [
+    {
+      "shot": "desktop-top",
+      "png": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-desktop-top.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-desktop-top.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "desktop-hero-progress",
+      "png": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-desktop-hero-progress.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-desktop-hero-progress.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "desktop-hero-aligned",
+      "png": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-desktop-hero-aligned.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-desktop-hero-aligned.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "tablet-top",
+      "png": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-tablet-top.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-tablet-top.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "tablet-mid",
+      "png": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-tablet-mid.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-tablet-mid.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "mobile-top",
+      "png": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-mobile-top.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-mobile-top.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "mobile-mid",
+      "png": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-mobile-mid.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-mobile-mid.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "mobile-feature",
+      "png": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-mobile-feature.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/taaskhub-ux-sim/analysis/ux-review/case2-local-mobile-feature.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    }
+  ]
+}

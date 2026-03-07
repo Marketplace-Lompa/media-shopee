@@ -1,0 +1,4 @@
+interface:
+  display_name: "UX High-Level Agent"
+  short_description: "Elite UX review, recreation, and component systems"
+  default_prompt: "Use $ux-high-level-agent to analyze a live UI, capture screenshots with Playwright, and propose or implement a high-fidelity UX rebuild."

@@ -1,0 +1,73 @@
+{
+  "url": "http://127.0.0.1:3008/",
+  "label": "sanny-local-pass1",
+  "generatedAt": "2026-02-25T02:27:04.139Z",
+  "durationMs": 20735,
+  "hidePromos": true,
+  "shots": [
+    {
+      "shot": "desktop-top",
+      "png": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-desktop-top.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-desktop-top.json",
+      "fullPageFile": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-desktop-fullpage.png",
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "desktop-hero-progress",
+      "png": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-desktop-hero-progress.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-desktop-hero-progress.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "desktop-hero-aligned",
+      "png": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-desktop-hero-aligned.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-desktop-hero-aligned.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "tablet-top",
+      "png": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-tablet-top.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-tablet-top.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "tablet-mid",
+      "png": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-tablet-mid.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-tablet-mid.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "mobile-top",
+      "png": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-mobile-top.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-mobile-top.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "mobile-mid",
+      "png": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-mobile-mid.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-mobile-mid.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    },
+    {
+      "shot": "mobile-feature",
+      "png": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-mobile-feature.png",
+      "json": "/Users/lompa-marketplace/Documents/Design/sanny-ux-sim/analysis/ux-review-pass1/sanny-local-pass1-mobile-feature.json",
+      "fullPageFile": null,
+      "hiddenOverlayCount": 0,
+      "overflow": false
+    }
+  ]
+}

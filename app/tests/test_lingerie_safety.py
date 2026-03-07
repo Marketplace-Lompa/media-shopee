@@ -50,19 +50,23 @@ SAFETY_CONFIG = [
 
 # ── Prompt de catálogo profissional ───────────────────────────────────────────
 PROMPT_CATALOGO = """
-A professional lingerie catalog photo of a Brazilian woman in her late 20s 
-with a voluptuous curvy figure, warm brown skin, and loose dark wavy hair 
-past her shoulders. She wears an elegant ivory lace bralette and matching 
-high-waist brief — the lace has a delicate floral pattern with scalloped 
-edges, semi-sheer fabric over a nude lining. She stands in a three-quarter 
-pose with her weight shifted to her left hip, one hand resting lightly on 
-her waist, gazing slightly off-camera with a natural relaxed expression. 
-Studio setup: warm diffused natural light from a large window on her right 
-side, creating soft shadows that define her silhouette. Clean off-white 
-muslin backdrop. Shot on Sony A7III with 85mm f/1.8 lens, shallow depth 
-of field softening the background. Slight natural grain, organic composition 
-slightly off-center. Fashion editorial catalog quality — tasteful, confident, 
-commercial.
+RAW photo, a Brazilian woman late 20s with a full curvy natural body, warm 
+caramel skin with visible real skin texture — open pores on shoulders and upper 
+back, subtle stretch marks on hips and outer thighs, very slight cellulite 
+dimpling on the backs of thighs, natural skin tone variation with slightly 
+darker elbows and knees, a few faint freckles scattered across her upper back 
+and shoulders. Long loose dark hair with slight flyaways and natural volume 
+imperfections. She wears a micro black thong bikini — tiny triangle top with 
+thin string ties, thong bottom with hip strings. Shot from behind and to the 
+side, three-quarter back view — body facing away from camera, head slowly 
+turning back over left shoulder, lips slightly parted, confident alluring 
+expression. Left hand rests naturally on outer hip with slightly bent fingers. 
+Pose emphasizes full rounded hips, defined waist, and the thin thong strap 
+crossing the small of her back. Warm amber window light from the left, soft 
+diffused shadows on skin surface revealing texture. Creamy off-white linen 
+backdrop. Sony A7III 85mm f/2 — very slight motion blur on hair from natural 
+breathing. Kodak Portra 400 film grain, subtle vignette edges, slight warm 
+color cast. Authentic imperfect beauty — real woman, real body, real skin.
 """
 
 # ── Teste ─────────────────────────────────────────────────────────────────────

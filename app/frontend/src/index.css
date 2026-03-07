@@ -1,0 +1,266 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ============================================================
+   PRIMITIVE TOKENS
+   ============================================================ */
+:root {
+  /* Colors */
+  --c-gray-50:   #fafafa;
+  --c-gray-100:  #f5f5f5;
+  --c-gray-200:  #e5e5e5;
+  --c-gray-300:  #d4d4d4;
+  --c-gray-400:  #a3a3a3;
+  --c-gray-500:  #737373;
+  --c-gray-600:  #525252;
+  --c-gray-700:  #404040;
+  --c-gray-750:  #2e2e2e;
+  --c-gray-800:  #262626;
+  --c-gray-850:  #1c1c1c;
+  --c-gray-900:  #171717;
+  --c-gray-950:  #0a0a0a;
+
+  --c-violet-300: #c4b5fd;
+  --c-violet-400: #a78bfa;
+  --c-violet-500: #8b5cf6;
+  --c-violet-600: #7c3aed;
+  --c-violet-700: #6d28d9;
+
+  --c-pink-300: #f9a8d4;
+  --c-pink-400: #f472b6;
+  --c-pink-500: #ec4899;
+
+  --c-emerald-400: #34d399;
+  --c-emerald-500: #10b981;
+
+  --c-red-400: #f87171;
+  --c-red-500: #ef4444;
+
+  --c-amber-400: #fbbf24;
+  --c-amber-500: #f59e0b;
+
+  /* Spacing scale */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+  --sp-24: 96px;
+
+  /* Font sizes */
+  --fs-xs:   12px;
+  --fs-sm:   13px;
+  --fs-base: 15px;
+  --fs-lg:   17px;
+  --fs-xl:   20px;
+  --fs-2xl:  24px;
+  --fs-3xl:  30px;
+  --fs-4xl:  36px;
+  --fs-5xl:  48px;
+
+  /* Radius */
+  --r-sm:   4px;
+  --r-md:   8px;
+  --r-lg:   12px;
+  --r-xl:   16px;
+  --r-2xl:  24px;
+  --r-full: 9999px;
+
+  /* Durations */
+  --dur-fast:   120ms;
+  --dur-normal: 250ms;
+  --dur-slow:   400ms;
+
+  /* Easing */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:     cubic-bezier(0, 0, 0.2, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================
+   SEMANTIC TOKENS — Dark Mode (default)
+   ============================================================ */
+:root {
+  --surface-bg:       var(--c-gray-950);
+  --surface-base:     var(--c-gray-900);
+  --surface-raised:   var(--c-gray-850);
+  --surface-overlay:  var(--c-gray-800);
+  --surface-border:   var(--c-gray-750);
+  --surface-border-subtle: rgba(255,255,255,0.06);
+
+  --text-primary:     var(--c-gray-50);
+  --text-secondary:   var(--c-gray-400);
+  --text-tertiary:    var(--c-gray-600);
+  --text-inverse:     var(--c-gray-950);
+
+  --brand-primary:    var(--c-violet-500);
+  --brand-hover:      var(--c-violet-400);
+  --brand-glow:       rgba(139, 92, 246, 0.25);
+  --brand-accent:     var(--c-pink-400);
+
+  --feedback-success: var(--c-emerald-400);
+  --feedback-error:   var(--c-red-400);
+  --feedback-warning: var(--c-amber-400);
+
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 24px var(--brand-glow);
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  color: var(--text-primary);
+  background-color: var(--surface-bg);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Skip link para acessibilidade */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--sp-4);
+  background: var(--brand-primary);
+  color: var(--text-primary);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  z-index: 9999;
+  text-decoration: none;
+  transition: top var(--dur-fast) var(--ease-out);
+}
+.skip-link:focus { top: var(--sp-4); }
+
+/* ============================================================
+   TYPOGRAPHY UTILITIES
+   ============================================================ */
+.t-hero    { font-size: var(--fs-5xl); font-weight: 800; line-height: 1.1; letter-spacing: -0.03em; }
+.t-h1      { font-size: var(--fs-4xl); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
+.t-h2      { font-size: var(--fs-3xl); font-weight: 700; line-height: 1.2;  letter-spacing: -0.02em; }
+.t-h3      { font-size: var(--fs-2xl); font-weight: 600; line-height: 1.25; }
+.t-h4      { font-size: var(--fs-xl);  font-weight: 600; line-height: 1.3;  }
+.t-body    { font-size: var(--fs-base); font-weight: 400; line-height: 1.6; }
+.t-sm      { font-size: var(--fs-sm);  font-weight: 400; line-height: 1.5; }
+.t-xs      { font-size: var(--fs-xs);  font-weight: 400; line-height: 1.4; }
+.t-label   { font-size: var(--fs-xs);  font-weight: 600; line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary  { color: var(--text-tertiary); }
+.text-brand     { color: var(--brand-primary); }
+.text-accent    { color: var(--brand-accent); }
+.text-success   { color: var(--feedback-success); }
+.text-error     { color: var(--feedback-error); }
+
+/* ============================================================
+   LAYOUT UTILITIES
+   ============================================================ */
+.flex        { display: flex; }
+.flex-col    { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.gap-2       { gap: var(--sp-2); }
+.gap-3       { gap: var(--sp-3); }
+.gap-4       { gap: var(--sp-4); }
+.gap-6       { gap: var(--sp-6); }
+.gap-8       { gap: var(--sp-8); }
+
+/* ============================================================
+   SCROLLBAR PERSONALIZADO
+   ============================================================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--surface-overlay);
+  border-radius: var(--r-full);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--c-gray-700); }
+
+/* ============================================================
+   FOCUS VISIBLE — Acessibilidade
+   ============================================================ */
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   SHIMMER (skeleton loader)
+   ============================================================ */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--surface-overlay) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--r-md);
+}
+
+/* ============================================================
+   SCROLLABLE AREAS
+   ============================================================ */
+.scroll-y {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================================
+   GRADIENTS & GLOWS
+   ============================================================ */
+.gradient-brand {
+  background: linear-gradient(135deg, var(--c-violet-500), var(--c-pink-400));
+}
+.gradient-text {
+  background: linear-gradient(135deg, var(--c-violet-400), var(--c-pink-400));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.glow-brand {
+  box-shadow: var(--shadow-glow);
+}

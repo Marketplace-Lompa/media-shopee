@@ -1,0 +1,2035 @@
+{
+  "targetUrl": "https://payble.framer.ai/",
+  "capturedAt": "2026-02-25T00:44:34.290Z",
+  "durationMs": 15265,
+  "blockedDetection": {
+    "note": "No hard anti-bot wall encountered during this capture. Script uses realistic browser context and webdriver masking."
+  },
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "scrollMetrics": [
+    {
+      "scrollY": 0,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 720,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 1440,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 2160,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 2880,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 3600,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 4320,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 5040,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 5760,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 6480,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 7200,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 7920,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 8640,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 9360,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 10080,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 10800,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 11520,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    },
+    {
+      "scrollY": 11908,
+      "activeTexts": [
+        "Payble",
+        "Payble",
+        "Home",
+        "Home",
+        "Features",
+        "Features",
+        "Pricing",
+        "Pricing",
+        "Blog",
+        "Blog",
+        "Contact",
+        "Contact",
+        "FREE Remix",
+        "FREE Remix",
+        "Smart AI for Your Finances",
+        "Your AI-Powered Financial Assistant",
+        "From detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedom with ease.",
+        "Start Saving Now",
+        "Start Saving Now",
+        "Presentation",
+        "Impressive Stats",
+        "Our Results in Numbers",
+        "Discover the real impact Payble has made on budgeting, saving, and financial health across our growing community.",
+        "80%",
+        "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      ]
+    }
+  ],
+  "extracted": {
+    "title": "Payble - AI SAAS Template",
+    "metaDescription": "Bring your financial platform vision to life with Payble, a sleek and versatile Framer template crafted for innovators in the personal finance space.",
+    "headings": [
+      "Your AI-Powered Financial Assistant",
+      "Our Results in Numbers",
+      "80%",
+      "$1.6M +",
+      "95%",
+      "2.8M +",
+      "Struggle Financial Situations?",
+      "Problems",
+      "Handle",
+      "Solutions",
+      "Expense Tracking",
+      "Multi-Account Sync",
+      "Custom Budgets",
+      "Optimize Your Savings Journey",
+      "Savings Goals",
+      "AI Savings Recommendations",
+      "Round-Up Savings",
+      "Automated Savings Transfers",
+      "Goal Progress Tracking",
+      "Real-Time Budget Alerts",
+      "Integrate with Your Favorite Tools",
+      "How Payble is Changing Lives",
+      "Flexible Pricing for Every Lifestyle",
+      "/month",
+      "- paid monthly",
+      "Common Questions & Answers",
+      "How do I link my bank accounts to Payble?",
+      "Is Payble secure to use with my financial information?",
+      "Can I set multiple savings goals?",
+      "How do real-time budget alerts work?",
+      "Can I use Payble with multiple accounts and credit cards?",
+      "What insights does Payble provide about my spending?",
+      "Is there a free version of Payble?",
+      "How do automated savings work?",
+      "Download Mobile App",
+      "Your Guide to Smarter Money Management",
+      "Subscribe to Newsletter"
+    ],
+    "buttons": [
+      "Payble",
+      "Home",
+      "Features",
+      "Pricing",
+      "Blog",
+      "Contact",
+      "FREE Remix",
+      "Start Saving Now",
+      "Read More About This",
+      "Savings GoalsSet, track, and achieve your financial goals with ease.",
+      "AI Savings RecommendationsGet personalized insights to boost your savings.",
+      "Goal Progress TrackingWatch your savings grow with real-time progress updates.",
+      "Read Documentation",
+      "Get this Plan",
+      "Contact Us",
+      "App Store",
+      "Google Play",
+      "Stay in Control: How AI Insights Can Prevent OverspendingOct 11, 2024",
+      "How to Manage Irregular Income with AI-Powered Financial ToolsOct 10, 2024",
+      "How AI Can Help You Create Custom Budgets Tailored to Your NeedsOct 9, 2024",
+      "View All Articles",
+      "Subscribe",
+      "email@payble.com",
+      "+44 111 333 555",
+      "Privacy Policy",
+      "Cookie Policy",
+      "Terms of Service",
+      "Refund Policy",
+      "UIhub.design",
+      "Framer",
+      "New TemplateFree Remix",
+      "New Template",
+      "Free Remix"
+    ],
+    "framerNames": [
+      "Desktop - Default",
+      "Nav",
+      "Logo Stack",
+      "Variant 1",
+      "Payble-fav-icon",
+      "Blured Element",
+      "Default",
+      "line",
+      "Menu Stack",
+      "Default - Small - Fixed - New Tab",
+      "Button Content",
+      "Button",
+      "Main",
+      "Hero Section",
+      "Header Content",
+      "Header",
+      "Bullet",
+      "CTA Group",
+      "Default - Big - New Tab",
+      "Ipad Content",
+      "IPad Pro 11",
+      "Desktop",
+      "Bluebyte",
+      "Bluebite",
+      "Nexcore",
+      "Techfusion",
+      "Datatech",
+      "Xconnect",
+      "Vyrtua",
+      "Stats",
+      "Primary",
+      "Deading Stack",
+      "Difficult to save for long-term goals?",
+      "Problems and Solutions Section",
+      "Content",
+      "Problems",
+      "Financial Management - Expense Tracking",
+      "Header Stack",
+      "Advantages",
+      "Default - Small - Fit - New Tab",
+      "Graphic Stack",
+      "Graphic Content",
+      "Recent Expenses",
+      "Financial Management - Multi-Account Sync",
+      "Variant 2",
+      "Multi-accounts-01",
+      "Variant 3",
+      "header",
+      "Financial Management - Custom Budgets",
+      "Budget Category Breakdown",
+      "Total budget-spent",
+      "Smart Savings Section",
+      "Bento Stack",
+      "Saving Goals - Desktop",
+      "Saving Goals",
+      "Vacation",
+      "Saving Goal - 01",
+      "MacBook Pro",
+      "Saving Goal - 03",
+      "Emergency",
+      "Saving Goal - 02",
+      "Invisible",
+      "Arrow",
+      "AI Savings Recommendations - Desktop",
+      "AI Savings Recommendations",
+      "AI Savings - 03",
+      "AI Savings - 01",
+      "AI Savings - 02",
+      "Round-Up Savings - Desktop",
+      "Round-Up Savings",
+      "Circle",
+      "Large - Round",
+      "Background",
+      "Groceries",
+      "Small - Round",
+      "Coffee",
+      "Gas",
+      "Automated Savings Transfers - Desktop",
+      "Automated Savings Transfers",
+      "Automated Savings",
+      "Goal Progress Tracking - Desktop",
+      "Goal Progress Tracking",
+      "Progress Notification - 02",
+      "Progress Notification - 03",
+      "Progress Notification - 01",
+      "Chart",
+      "Alerts & Insights Section",
+      "Alerts and Insights Content",
+      "Desktop - Real-Time Budget Alerts",
+      "Tabs Stack",
+      "Desktop - Selected",
+      "Underline Bar",
+      "Underline Invisible Left",
+      "Underline Content",
+      "underline",
+      "Underline Invisible Right",
+      "Smart Savings Card",
+      "App Content",
+      "Mobile App Screen",
+      "Real-Time Budget Alerts-01",
+      "Real-Time Budget Alerts-02",
+      "Real-Time Budget Alerts-03",
+      "Integrations Section",
+      "Integrations Ticker Stack",
+      "Teamwave",
+      "Feedo",
+      "Spendly",
+      "Eyeball",
+      "Mstar",
+      "Dotpoint",
+      "Upright",
+      "Substrat",
+      "Reify",
+      "Big",
+      "Testimonials",
+      "Sarah Williams",
+      "Pricing",
+      "Desktop - Monthly",
+      "Toggle",
+      "Monthly",
+      "Select",
+      "Yearly",
+      "Desktop - Free",
+      "Price",
+      "Frequency",
+      "Period",
+      "Default - Big - New Tab - Fixed Width",
+      "Desktop - Plus",
+      "Desktop - Premium",
+      "FAQ Section",
+      "Specific Questions Stack",
+      "Default - Small",
+      "FAQ/FAQ Group",
+      "Desktop - Opened",
+      "Icon",
+      "Line",
+      "Divider",
+      "Ansewr Stack",
+      "Download App Section",
+      "Buttons",
+      "App Store - Light",
+      "Logo",
+      "Apple",
+      "Google Play - Light",
+      "Google",
+      "Blog Section",
+      "Title",
+      "Newsletter Section",
+      "Only Icon",
+      "Desktop - Footer",
+      "Contact Us",
+      "Let's Connect",
+      "Email and Phone",
+      "Follow Us",
+      "Social Icons",
+      "Menu",
+      "Social",
+      "App",
+      "Bottom Stack",
+      "App Store",
+      "Google Play",
+      "left Stack",
+      "Right Stack",
+      "Close",
+      "Blur",
+      "New Template",
+      "Aerosound-01@2x",
+      "New Release",
+      "Light",
+      "Backdrop",
+      "Text",
+      "Bottom",
+      "Border"
+    ],
+    "images": [
+      "https://framerusercontent.com/images/ri1DEppM1Ulk4Cs9ufk6fyC4SSY.png?width=2611&height=1890",
+      "https://framerusercontent.com/images/OdZbzHHJGCFScAD45CHDA6pA7Q.svg",
+      "https://framerusercontent.com/images/dToNd01W5FT5ZfhcBgdtKldKj4.svg",
+      "https://framerusercontent.com/images/jq3QzanVd58AdPQt95HCjqM0.svg",
+      "https://framerusercontent.com/images/lYuEY37bnvIWqOpBwVKA06qg.svg",
+      "https://framerusercontent.com/images/J6ZDAOFRo0ShO6zaB1q0PPV0kFI.svg",
+      "https://framerusercontent.com/images/QIu5K8z7j8DjPcpzc1WpZ84wpTU.svg",
+      "https://framerusercontent.com/images/JdgFlqF0AmuZtHhL1Pj0Sq3u3Ug.svg",
+      "https://framerusercontent.com/images/yRNCJXFJl2fa036hBXaXk525a8.svg",
+      "https://framerusercontent.com/images/Zr2SiNrPhbmuxocNjhfaDcW2oYU.png",
+      "https://framerusercontent.com/images/aevLK7SVgQKq5E82D8HKfkoRKx8.png",
+      "https://framerusercontent.com/images/kqVzCtB0LvUyB1wHktXMZD6KvG0.png?width=240&height=240",
+      "https://framerusercontent.com/images/mWKBvfs6FZsdHULEcQGjf4CfhxM.png?width=240&height=240",
+      "https://framerusercontent.com/images/wDOSDFzgoKdi4zOulbXmTtadEk.png?width=240&height=240",
+      "https://framerusercontent.com/images/6tTbkXggWgQCAJ4DO2QEdXXmgM.svg?arrow=left",
+      "https://framerusercontent.com/images/11KSGbIZoRSg4pjdnUoif6MKHI.svg?arrow=right",
+      "https://framerusercontent.com/images/EYXCBXCovYj50cQcCZYzeylr6M.png?scale-down-to=1024",
+      "https://framerusercontent.com/images/7fkX9liYOc0bN6IL4rhDMtoimgQ.png?scale-down-to=1024",
+      "https://framerusercontent.com/images/yLrQRfCGkMrygRUZqGQGEFrjeow.png?scale-down-to=1024",
+      "https://framerusercontent.com/images/wtSXht7rnWOGDS3UivDigQQcwZo.png?scale-down-to=4096&width=4800&height=3600"
+    ],
+    "sections": [
+      {
+        "tag": "nav",
+        "framerName": "Desktop - Default",
+        "text": "PaybleHomeFeaturesPricingBlogContactFREE Remix"
+      },
+      {
+        "tag": "div",
+        "framerName": "Nav",
+        "text": "PaybleHomeFeaturesPricingBlogContactFREE Remix"
+      },
+      {
+        "tag": "div",
+        "framerName": "Logo Stack",
+        "text": "Payble"
+      },
+      {
+        "tag": "a",
+        "framerName": "Variant 1",
+        "text": "Payble"
+      },
+      {
+        "tag": "div",
+        "framerName": "Payble-fav-icon",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Blured Element",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Default",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "line",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "line",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Menu Stack",
+        "text": "HomeFeaturesPricingBlogContact"
+      },
+      {
+        "tag": "a",
+        "framerName": "Variant 1",
+        "text": "Home"
+      },
+      {
+        "tag": "a",
+        "framerName": "Variant 1",
+        "text": "Features"
+      },
+      {
+        "tag": "a",
+        "framerName": "Variant 1",
+        "text": "Pricing"
+      },
+      {
+        "tag": "a",
+        "framerName": "Variant 1",
+        "text": "Blog"
+      },
+      {
+        "tag": "a",
+        "framerName": "Variant 1",
+        "text": "Contact"
+      },
+      {
+        "tag": "a",
+        "framerName": "Default - Small - Fixed - New Tab",
+        "text": "FREE Remix"
+      },
+      {
+        "tag": "div",
+        "framerName": "Button Content",
+        "text": "FREE Remix"
+      },
+      {
+        "tag": "div",
+        "framerName": "Button",
+        "text": "FREE Remix"
+      },
+      {
+        "tag": "div",
+        "framerName": "Blured Element",
+        "text": ""
+      },
+      {
+        "tag": "main",
+        "framerName": "Main",
+        "text": "Smart AI for Your FinancesYour AI-Powered Financial AssistantFrom detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedo"
+      },
+      {
+        "tag": "section",
+        "framerName": "Hero Section",
+        "text": "Smart AI for Your FinancesYour AI-Powered Financial AssistantFrom detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedo"
+      },
+      {
+        "tag": "div",
+        "framerName": "Header Content",
+        "text": "Smart AI for Your FinancesYour AI-Powered Financial AssistantFrom detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedo"
+      },
+      {
+        "tag": "header",
+        "framerName": "Header",
+        "text": "Smart AI for Your FinancesYour AI-Powered Financial AssistantFrom detailed budgeting to custom savings goals, Payble seamlessly automates every step of your financial journey, helping you achieve lasting financial freedo"
+      },
+      {
+        "tag": "div",
+        "framerName": "Variant 1",
+        "text": "Smart AI for Your Finances"
+      },
+      {
+        "tag": "div",
+        "framerName": "Bullet",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "CTA Group",
+        "text": "Start Saving NowPresentation"
+      },
+      {
+        "tag": "a",
+        "framerName": "Default - Big - New Tab",
+        "text": "Start Saving Now"
+      },
+      {
+        "tag": "div",
+        "framerName": "Button Content",
+        "text": "Start Saving Now"
+      },
+      {
+        "tag": "div",
+        "framerName": "Button",
+        "text": "Start Saving Now"
+      },
+      {
+        "tag": "div",
+        "framerName": "Blured Element",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Variant 1",
+        "text": "Presentation"
+      },
+      {
+        "tag": "div",
+        "framerName": "Button Content",
+        "text": "Presentation"
+      },
+      {
+        "tag": "div",
+        "framerName": "Ipad Content",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "IPad Pro 11",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Desktop",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebyte",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebite",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebyte",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebite",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebyte",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebite",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebyte",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebite",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebyte",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Bluebite",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Nexcore",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Techfusion",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Datatech",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Xconnect",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Vyrtua",
+        "text": ""
+      },
+      {
+        "tag": "section",
+        "framerName": "Stats",
+        "text": "Impressive StatsOur Results in NumbersDiscover the real impact Payble has made on budgeting, saving, and financial health across our growing community.80%of Users Save More Each MonthOur AI-powered budgeting tools help u"
+      },
+      {
+        "tag": "header",
+        "framerName": "Header",
+        "text": "Impressive StatsOur Results in NumbersDiscover the real impact Payble has made on budgeting, saving, and financial health across our growing community."
+      },
+      {
+        "tag": "div",
+        "framerName": "Variant 1",
+        "text": "Impressive Stats"
+      },
+      {
+        "tag": "div",
+        "framerName": "Bullet",
+        "text": ""
+      },
+      {
+        "tag": "div",
+        "framerName": "Primary",
+        "text": "80%of Users Save More Each MonthOur AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      },
+      {
+        "tag": "div",
+        "framerName": "Deading Stack",
+        "text": "80%of Users Save More Each Month"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "80%"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "of Users Save More Each Month"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "Our AI-powered budgeting tools help users save an average of 20% more by identifying areas for spending reduction."
+      },
+      {
+        "tag": "div",
+        "framerName": "Primary",
+        "text": "$1.6M +Saved in GoalsPayble users have collectively saved over half a million dollars toward their financial goals, from vacations to emergency funds."
+      },
+      {
+        "tag": "div",
+        "framerName": "Deading Stack",
+        "text": "$1.6M +Saved in Goals"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "$1.6M +"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "Saved in Goals"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "Payble users have collectively saved over half a million dollars toward their financial goals, from vacations to emergency funds."
+      },
+      {
+        "tag": "div",
+        "framerName": "Primary",
+        "text": "95%of Users Report Less Financial StressWith real-time tracking and personalized financial insights, all our users experience greater peace of mind with their finances."
+      },
+      {
+        "tag": "div",
+        "framerName": "Deading Stack",
+        "text": "95%of Users Report Less Financial Stress"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "95%"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "of Users Report Less Financial Stress"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "With real-time tracking and personalized financial insights, all our users experience greater peace of mind with their finances."
+      },
+      {
+        "tag": "div",
+        "framerName": "Primary",
+        "text": "2.8M +Transactions TrackedPayble has helped users monitor over a million transactions, giving them full visibility and control over their spending habits."
+      },
+      {
+        "tag": "div",
+        "framerName": "Deading Stack",
+        "text": "2.8M +Transactions Tracked"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "2.8M +"
+      },
+      {
+        "tag": "div",
+        "framerName": "Difficult to save for long-term goals?",
+        "text": "Transactions Tracked"
+      }
+    ],
+    "bodyClass": "",
+    "pageHeight": 12808
+  },
+  "networkLog": [
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/ri1DEppM1Ulk4Cs9ufk6fyC4SSY.png?width=2611&height=1890",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/aevLK7SVgQKq5E82D8HKfkoRKx8.png",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/kqVzCtB0LvUyB1wHktXMZD6KvG0.png?width=240&height=240",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/mWKBvfs6FZsdHULEcQGjf4CfhxM.png?width=240&height=240",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/6tTbkXggWgQCAJ4DO2QEdXXmgM.svg?arrow=left",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/11KSGbIZoRSg4pjdnUoif6MKHI.svg?arrow=right",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/wDOSDFzgoKdi4zOulbXmTtadEk.png?width=240&height=240",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/wtSXht7rnWOGDS3UivDigQQcwZo.png?scale-down-to=4096&width=4800&height=3600",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/wGAHOWhVswEtWkOKTJN6s2CW0.svg?width=96&height=96",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/wGAHOWhVswEtWkOKTJN6s2CW0.svg",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/OdZbzHHJGCFScAD45CHDA6pA7Q.svg",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/assets/d3tHnaQIAeqiE5hGcRw4mmgWYU.woff2",
+      "type": "font"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/assets/1ZFS7N918ojhhd0nQWdj3jz4w.woff2",
+      "type": "font"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/rsR7_WPkg.DWaCG4pi.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/rolldown-runtime.CXBuSdYp.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/h86StUsqV.DTCwRTiW.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/wCZhaGa2u.6y5cbqfr.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/NpBpwlFEj.-PN5-egG.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/D4eO83PzX.B9z0nN-n.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/jpmZQAeJi.U5s953kB.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/Azcmc_G5J.B-sroWt_.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/augiA20Il.D8ilMHLX.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/Pattern.0FpOjg4B.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/EwyOjcDvS.CniiK5Zl.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/aumn8Z0V7.DxF1H8yQ.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/XFXvjuFbu.CLe_NBZG.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/nso5y_u7k.CC40GDZz.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/shared-lib.CojD4bY9.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/WoixvGInL.CciA3Un5.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/hW9fNYKOX.DbySo3xH.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/assets/vFzuJY0c65av44uhEKB6vyjFMg.woff2",
+      "type": "font"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/assets/syRNPWzAMIrcJ3wIlPIP43KjQs.woff2",
+      "type": "font"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/assets/v2q8JTTTs7McDMSEhnxAIBqd0.woff2",
+      "type": "font"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/assets/vQyevYAyHtARFwPqUzQGpnDs.woff2",
+      "type": "font"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/script_main.BeuCyXno.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/motion.BfBpVrxU.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/react.C608Omgo.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/vfJyLEUDnKwdC8EVmrK1050LndGrGQwnzOdyNgTmAHA.C1sX5hPP.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/xsvKuCyuU.EXIX-mIR.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/framer.IK8z3BR2.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://events.framer.com/script?v=2",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/PX9hIOIVM.vJ5Ch85H.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Play.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/CheckCircle.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/ArrowUpRight.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/edit/init.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/HandCoins.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/ArrowRight.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/PencilRuler.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/HourglassMedium.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/ChartBar.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/ArrowsClockwise.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Carrot.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Folders.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Receipt.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/CreditCard.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/ForkKnife.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/CalendarDots.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/GasPump.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Calculator.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Invoice.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Coffee.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/GameController.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/PiggyBank.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Basket.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/ag2KtnH7tMkIxmuWQxFW/KcSVdcwkM6gDBbAPb9vn/Play.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/rZQPhYV0GAfOskcW5Tdi/ZMmBHfZNABnvr9X2dJKR/CheckCircle.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/XKIet6G9reWElizdUX10/F5ixSFtjVvFlAMH3loNd/PencilRuler.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/H1lwbQXaz1Ph8eoJWuVS/qWxv7px4pnZoj6O946rs/HourglassMedium.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/vnrZ1eivwcpQAwkujSgR/LW6Shy8NP3lSzn7NToNm/HandCoins.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/mAO1nu2n6mitnnfDs3aS/gFiBth1Ao2rNvHIwzUTj/Carrot.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/D0miMMe6TE9lmzYrfVWA/PTybjnkLhIWVVaM15Nww/ArrowsClockwise.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/KXToc4n8n0VjRJoxIyl7/iepv8YZRWzIKS6xRTtLY/ArrowUpRight.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/sNtJnKPoNzXmO5lIOLAj/QU2zZQz1giSGo5RTSpWg/ChartBar.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/ympuZ2LzrF0Zp3koIMMu/8YdSodj4ja9GFcpypOYG/Folders.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/K3PeUzM4qhL5IiaYcDem/hZzGgUtf1YrXicbBr18G/ArrowRight.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/JFarNoIrjaWRKB6FcnEb/YeDrOlVHNkGRhWq5s654/Receipt.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/8QJVo4mHnuBpeu14PrAO/pq1VQYTCQJTI6vshFTVi/CreditCard.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/rHDBleoJ4KztGaBgRPnc/4XBiTQcFIwb2h3tTMVCf/ForkKnife.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/R8OsY4W3fyEsrZ2jnuT6/5GRaeIGHnF6QrMINavHr/GameController.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/KYGi5EDHhCngcU5V3GFh/QYUQmI0T1d9fAD80ARV3/PiggyBank.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/m0V9xNluCT0kgxoFXTzP/YXcz5wEFEB6pWccDcPXR/GasPump.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/aGh84hRTsVC76uIojvsa/ppRg9OTO5DGhTyqxofFO/Basket.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/HsUSQ03nXXQHm3olDecs/gVxSul4DBrnlCfBeqRC5/Calculator.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/IrKMaJeje0YxSqW5VkcQ/VtflK470mu16MTOhunTu/CalendarDots.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/kZ40BqUg5lamtaRjAWZA/3qvzGAgEy5Opwg5NhaTI/Invoice.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/39LAParvlI5JWYf7FmKb/Tt3u3KhJIpgXxxM48cVf/Coffee.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/18GOjY1kEjlirveAv1Hf/zKeH6JSPXCBRazKvY1Mt/hW9fNYKOX-chunk-default-0.framercms",
+      "type": "fetch"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/18GOjY1kEjlirveAv1Hf/zKeH6JSPXCBRazKvY1Mt/hW9fNYKOX-chunk-default-dict.framercms",
+      "type": "fetch"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/6ut1xkeFOESTMWVqcdMv/KQd8pGmqaY7TOAdw9mW5/WoixvGInL-chunk-default-0.framercms",
+      "type": "fetch"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/6ut1xkeFOESTMWVqcdMv/KQd8pGmqaY7TOAdw9mW5/WoixvGInL-chunk-default-dict.framercms",
+      "type": "fetch"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Bell.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/XLogo.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/LinkedinLogo.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/YoutubeLogo.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/FramerLogo.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/XQQDF8h867UY4HEe6Zwz/JbD1snXQNwOY7Bfyihrd/Bell.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/m/phosphor-icons/Heart.js@0.0.57",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/1ZkvldSvzWBNrFZf8aH8/sHjGZ67L04PXTqKUbxnu/XLogo.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/tee6kHv8jFWGQMdGb2Xd/IIR9IOACnkgXg7a65Wib/LinkedinLogo.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/9n1m4SYYjOmzvdghRTnQ/LqhPBKDoecG2DoqtIyVc/YoutubeLogo.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/Hn1vXtOh5ZJMbf6fEecN/oZD3QM974QikqEsPsCMM/FramerLogo.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/modules/I5ZD8lyQEdkIrZfBjCs7/uGPf9qKdqC5bYXhwsvdm/Heart.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/edit?framerSiteId=5bea833bde0362750fe84325ef4b0464808dd76a5d8b0329553df6724b7ab5dd&source=payble.framer.ai&features=%7B%22editorBarDisableFrameAncestorsSecurity%22%3Afalse%2C%22onPageLocalizationSupport%22%3Atrue%2C%22onPageMoveTool%22%3Atrue%7D&loadStart=1771980259575",
+      "type": "document"
+    },
+    {
+      "status": 200,
+      "url": "https://framer.com/bootstrap.42dea289c9132acf15ec4c2f37bd2c37d529ca38.js",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://events.framer.com/anonymous",
+      "type": "ping"
+    },
+    {
+      "status": 200,
+      "url": "https://api.framer.com/auth/web/access-token?source=editorbar",
+      "type": "fetch"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/jq3QzanVd58AdPQt95HCjqM0.svg",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/dToNd01W5FT5ZfhcBgdtKldKj4.svg",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/lYuEY37bnvIWqOpBwVKA06qg.svg",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/JdgFlqF0AmuZtHhL1Pj0Sq3u3Ug.svg",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/J6ZDAOFRo0ShO6zaB1q0PPV0kFI.svg",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/yRNCJXFJl2fa036hBXaXk525a8.svg",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/QIu5K8z7j8DjPcpzc1WpZ84wpTU.svg",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/Zr2SiNrPhbmuxocNjhfaDcW2oYU.png",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/7fkX9liYOc0bN6IL4rhDMtoimgQ.png?scale-down-to=1024",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/EYXCBXCovYj50cQcCZYzeylr6M.png?scale-down-to=1024",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/images/yLrQRfCGkMrygRUZqGQGEFrjeow.png?scale-down-to=1024",
+      "type": "image"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/gfh5e3VHIAiasnxqKKPsxhippbuUFOAC4L6amBJz4s4.U8DoUCEe.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/ygnqumtTQ.BgJp9LOk.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/5ey_DL3DxFpBfcVdMaBkM8Bg_fufvw02iY60rbaFids.mFNRFKDb.mjs",
+      "type": "script"
+    },
+    {
+      "status": 200,
+      "url": "https://framerusercontent.com/sites/24VZCoUEt6EI4ECVdR4Ife/xzEhaKXcA.DwygzjvA.mjs",
+      "type": "script"
+    }
+  ]
+}

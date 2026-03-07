@@ -1,0 +1,4 @@
+interface:
+  display_name: "Validate Frontend"
+  short_description: "Headless Playwright UX validation with screenshots and runtime evidence"
+  default_prompt: "Use $validate-frontend. Run a non-intrusive headless validation of the frontend flows and report page-by-page evidence from screenshots and runtime output."
