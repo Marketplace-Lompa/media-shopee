@@ -46,6 +46,31 @@ O Nano Banana 2 é o modelo recomendado pelo próprio Google para geração de i
 | **Recursos exclusivos** | Grounding Image Search + Thinking Mode |
 | **Status** | Ativo e recomendado pelo Google |
 
+### Especificações técnicas do modelo
+
+| Atributo | Valor |
+|---|---|
+| **ID do modelo** | `gemini-3.1-flash-image-preview` |
+| **Janela de contexto de entrada** | 131.072 tokens |
+| **Janela de contexto de saída** | 32.768 tokens |
+| **Formatos de entrada** | Texto, Imagem (PNG, JPEG, WebP, HEIC, HEIF), **PDF** |
+| **Formatos de saída** | Texto, Imagem (PNG, JPEG, WebP) |
+| **Resoluções suportadas** | `512px`, `1K`, `2K`, `4K` |
+| **Máx. imagens por prompt** | 14 |
+| **Tamanho máx. de arquivo (upload direto)** | 7 MB |
+| **Tamanho máx. de arquivo (Cloud Storage)** | 30 MB |
+| **Data de corte do conhecimento** | Janeiro/2025 (suplementado por Grounding em tempo real) |
+| **Dados do cliente em plano pago** | ❌ Não usados para treinar modelos futuros |
+
+### Latência por resolução
+
+| Resolução | Thinking Minimal | Thinking High |
+|---|---|---|
+| `512px` | 1–3s | 3–8s |
+| `1K` | 2–5s | 5–12s |
+| `2K` | 4–8s | 8–18s |
+| `4K` | 15–25s | 20–35s |
+
 ---
 
 ## 2. Endpoints e Autenticação
@@ -204,15 +229,27 @@ resp2 = client.models.generate_content(
 
 ### `ThinkingConfig`
 
-| Parâmetro | Tipo | Valores | Descrição |
-|---|---|---|---|
-| `thinking_level` | `str` | `"HIGH"`, `"MEDIUM"`, `"LOW"` | Profundidade do raciocínio antes de gerar |
+| Nível | Valor na API | Padrão? | Aplicação | Latência |
+|---|---|---|---|---|
+| **Minimal** | `"MINIMAL"` | ✅ sim | Geração diária, cenas simples, iteração rápida | Menor |
+| **Medium** | `"MEDIUM"` | — | Complexidade moderada, equilíbrio velocidade/lógica | Moderada |
+| **High / Dynamic** | `"HIGH"` | — | Infográficos, texto em imagem, layouts precisos, diagramas | Maior |
+
+> ℹ️ O Thinking Mode executa abordagem **Plan → Evaluate → Improve**: planeja composição, valida anatomia/ortografia, refina antes de renderizar pixels.
 
 ```python
+# Minimal (padrão implícito — geração rápida)
 config=types.GenerateContentConfig(
     response_modalities=["Image"],
     image_config=types.ImageConfig(aspect_ratio="9:16", image_size="2K"),
-    thinking_config=types.ThinkingConfig(thinking_level="HIGH")  # para texto ou layout complexo
+    thinking_config=types.ThinkingConfig(thinking_level="MINIMAL")
+)
+
+# High (para texto em imagem ou layout complexo)
+config=types.GenerateContentConfig(
+    response_modalities=["Image"],
+    image_config=types.ImageConfig(aspect_ratio="9:16", image_size="2K"),
+    thinking_config=types.ThinkingConfig(thinking_level="HIGH")
 )
 ```
 
@@ -256,10 +293,12 @@ config=types.GenerateContentConfig(
 
 | Resolução | Dimensão (1:1) | Tokens output | Custo |
 |---|---|---|---|
-| `"512px"` | 512×512 | ~560 tokens | ~$0.034 |
+| `"512px"` | 512×512 | ~747 tokens | ~$0.045 |
 | `"1K"` | 1024×1024 | ~1.120 tokens | **$0.067** |
 | `"2K"` | 2048×2048 | ~1.680 tokens | $0.101 |
 | `"4K"` | 4096×4096 | ~2.520 tokens | $0.151 |
+
+> `512px` corrigido: 747 tokens/$0.045 (fonte: relatório técnico Março/2026). Ideal para prototipagem.
 
 ---
 
@@ -580,7 +619,7 @@ Para geração de grande volume com tolerância de latência (até 24h), a Batch
 
 | Resolução | Tokens consumidos | Custo por imagem |
 |---|---|---|
-| `512px` (0.5K) | ~560 tokens | **~$0.034** |
+| `512px` (0.5K) | ~747 tokens | **~$0.045** |
 | `1K` (1024px) | ~1.120 tokens | **$0.067** |
 | `2K` (2048px) | ~1.680 tokens | **$0.101** |
 | `4K` (4096px) | ~2.520 tokens | **$0.151** |
@@ -619,18 +658,149 @@ Para geração de grande volume com tolerância de latência (até 24h), a Batch
 
 | Limitação | Detalhe |
 |---|---|
-| **Sem input de áudio/vídeo** | Aceita apenas texto e imagens como input |
-| **Consistência de personagens** | Máximo 4 personagens com consistência facial |
-| **Fidelidade de objetos** | Máximo 10 objetos com fidelidade garantida |
+| **Sem input de áudio/vídeo** | Aceita apenas texto, imagens e PDFs como input |
+| **Consistência de personagens** | Máximo **4** personagens com consistência facial |
+| **Fidelidade de objetos** | Máximo **10** objetos com fidelidade garantida |
 | **Imagens de referência** | Máximo 14 imagens em um único request |
 | **Texto em imagens** | Melhor resultado: gerar texto primeiro, depois pedir imagem com o texto |
 | **Contagem de imagens** | O modelo pode não seguir exatamente o número solicitado de imagens |
 | **Idiomas** | Melhor performance em: EN, pt-BR, es, fr, de, ja, ko, zh, ar, hi, id, it, ru, uk, vi |
 | **SynthID watermark** | **Todas** as imagens geradas incluem marca d'água digital invisível (SynthID) |
+| **C2PA credentials** | Metadados C2PA incluídos indicando uso de IA na geração |
 
-### SynthID Watermark
+### Comparativo: Nano Banana 2 vs Nano Banana Pro
 
-Todas as imagens do Nano Banana 2 contêm uma marca d'água digital **invisível** (não afeta a qualidade visual), criada pelo Google para identificar conteúdo gerado por IA. Não é possível desativar.
+Ponto importante para referências e consistência de cena:
+
+| Capacidade | Nano Banana 2 (3.1 Flash) | Nano Banana Pro (3 Pro) |
+|---|---|---|
+| Personagens simultâneos | **4** personagens | 5 personagens |
+| Objetos com fidelidade | **10** objetos | 6 objetos |
+| Imagens de referência | 14 | 14 |
+| Grounding Image Search | ✅ Exclusivo | ❌ |
+| Thinking Mode | ✅ | ✅ |
+| Status | ✅ Ativo | ⚠️ Deprecated |
+
+> O Nano Banana 2 suporta **mais objetos** (10 vs 6), ideal para e-commerce com múltiplos produtos por cena. O Pro suportava 1 personagem a mais, mas está deprecated.
+
+### SynthID e C2PA
+
+- **SynthID:** Marca d'água digital **invisível** em todas as imagens. Persiste após edições comuns (corte, compressão). Não afeta qualidade visual. Não é possível desativar.
+- **C2PA (Content Credentials):** Metadados padronizados que identificam a imagem como gerada por IA, detalhando como e quando foi gerada. Compatível com ferramentas de verificação de autenticidade de conteúdo.
+
+---
+
+## 14.1 Segurança e Conteúdo
+
+### `safety_tolerance` — Controle de moderação
+
+Permite ajustar o rigor da moderação de conteúdo conforme o público-alvo da aplicação:
+
+```python
+config=types.GenerateContentConfig(
+    response_modalities=["Image"],
+    # safety_tolerance: 1 (mais restritivo) a 5 (mais permissivo)
+    # O padrão é calibrado para uso geral
+    safety_settings=[
+        types.SafetySetting(
+            category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold="BLOCK_MEDIUM_AND_ABOVE"
+        )
+    ]
+)
+```
+
+### Categorias de moderação
+
+| Categoria | Descrição |
+|---|---|
+| `HARM_CATEGORY_HATE_SPEECH` | Discurso de ódio |
+| `HARM_CATEGORY_SEXUALLY_EXPLICIT` | Conteúdo explícito |
+| `HARM_CATEGORY_DANGEROUS_CONTENT` | Conteúdo perigoso |
+| `HARM_CATEGORY_HARASSMENT` | Assédio |
+
+### `INCLUDE_RAI_REASON`
+
+Quando um request é bloqueado, habilitar `INCLUDE_RAI_REASON` na resposta permite saber qual categoria causou o bloqueio — essencial para debugging em produção.
+
+### `person_generation` / `personGeneration`
+
+| Valor | Comportamento |
+|---|---|
+| `"allow_all"` | Permite geração de qualquer pessoa (pode estar desabilitado em algumas regiões: EU, UK) |
+| `"allow_adult"` | Padrão — permite adultos, restringe menores |
+| `"dont_allow"` | Bloqueia toda geração de faces humanas |
+
+---
+
+## 14.2 Tipografia e Tradução In-Image
+
+Um dos avanços mais significativos do Nano Banana 2: **renderização de texto legível e tradução dentro de imagens**.
+
+### Texto em imagens
+
+```python
+# Gerar texto estilizado dentro da imagem com thinking HIGH
+response = client.models.generate_content(
+    model="gemini-3.1-flash-image-preview",
+    contents=[
+        """
+        Crie um banner de promoção com:
+        - Título em serif bold: 'FINAL DE TEMPORADA'
+        - Subtítulo menor: 'Até 60% OFF'
+        - Fundo degradê azul marinho para azul claro
+        - Estilo tipográfico premium, sem outros elementos
+        """
+    ],
+    config=types.GenerateContentConfig(
+        response_modalities=["Image"],
+        image_config=types.ImageConfig(aspect_ratio="16:9", image_size="2K"),
+        thinking_config=types.ThinkingConfig(thinking_level="HIGH")  # obrigatório para texto preciso
+    )
+)
+```
+
+### Tradução de texto dentro da imagem
+
+O modelo pode traduzir texto em uma imagem mantendo estilo de fonte, perspectiva e integração visual:
+
+```python
+# Turno 1: imagem com texto em português
+historico = []
+historico.append(types.Content(role="user", parts=[
+    types.Part.from_text(
+        "Banner com texto 'Oferta Especial - Frete Grátis' em português, "
+        "fonte sans-serif bold, fundo branco, letras azuis"
+    )
+]))
+resp1 = client.models.generate_content(
+    model="gemini-3.1-flash-image-preview",
+    contents=historico,
+    config=types.GenerateContentConfig(
+        response_modalities=["Image"],
+        thinking_config=types.ThinkingConfig(thinking_level="HIGH")
+    )
+)
+historico.append(resp1.candidates[0].content)
+
+# Turno 2: traduzir para espanhol mantendo estilo
+historico.append(types.Content(role="user", parts=[
+    types.Part.from_text(
+        "Traduza o texto para espanhol. Mantenha exatamente o mesmo estilo, "
+        "fonte, cor e layout. Apenas o texto muda."
+    )
+]))
+resp2 = client.models.generate_content(
+    model="gemini-3.1-flash-image-preview",
+    contents=historico,
+    config=types.GenerateContentConfig(
+        response_modalities=["Image"],
+        thinking_config=types.ThinkingConfig(thinking_level="HIGH")
+    )
+)
+```
+
+> ✅ Idiomas suportados para tipografia: EN, pt-BR, es, fr, de, ja, ko, zh, ar e outros. Ideal para localização internacional de campanhas.
 
 ---
 
