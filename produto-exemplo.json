@@ -1,0 +1,15 @@
+{
+  "nome_base": "Camiseta Modal Feminina Manga Longa Básica",
+  "categoria": "Roupas Femininas > Camisetas e Blusas > Camisetas",
+  "descricao": "✨ Camiseta Modal Feminina Manga Longa Básica\n\n📐 MEDIDAS E TAMANHOS:\n| Tamanho | Busto | Cintura | Comprimento |\n|---------|-------|---------|-------------|\n| P       | 88cm  | 70cm    | 60cm        |\n| M       | 92cm  | 74cm    | 61cm        |\n| G       | 96cm  | 78cm    | 62cm        |\n| GG      | 104cm | 86cm    | 63cm        |\n\n🧵 COMPOSIÇÃO E CUIDADOS:\n• Material: 95% Modal + 5% Elastano\n• Lavagem: À mão ou máquina em ciclo delicado\n• Não use alvejante\n• Secar à sombra\n\n📦 SOBRE O PRODUTO:\n• Tecido modal ultra macio e confortável\n• Caimento perfeito e levemente ajustado\n• Versatil para o dia a dia e trabalho\n• Não transparece e não marca lingerie\n\n🚚 ENVIO:\n• Enviamos por Shopee Envios — rastreamento garantido\n• Prazo de postagem: 1 dia útil após confirmação do pagamento\n\n🔄 TROCA E DEVOLUÇÃO:\n• Trocas em até 7 dias conforme Código de Defesa do Consumidor\n• Produto com defeito: cobertura total\n\n💬 Dúvidas? Fale com a gente no chat da Shopee! ✉️",
+  "preco": 49.90,
+  "estoque_por_cor": {
+    "vermelho": 10,
+    "preto": 15,
+    "branco": 10,
+    "azul": 8
+  },
+  "estoque": 10,
+  "tamanhos": ["P", "M", "G", "GG"],
+  "pasta_fotos": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/input"
+}

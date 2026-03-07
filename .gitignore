@@ -1,0 +1,28 @@
+# Dependências
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+
+# Variáveis de ambiente — NUNCA commitar
+.env
+.env.local
+.env.*
+
+# Pastas de imagens (arquivos grandes, não versionar)
+input/
+output/
+shopee_downloads/
+relatorios/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Outputs gerados
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mp4
+*.zip
