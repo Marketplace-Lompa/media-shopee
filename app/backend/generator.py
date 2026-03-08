@@ -32,9 +32,11 @@ def generate_images(
     aspect_ratio: str,
     resolution: str,
     n_images: int,
-    pool_images: Optional[List[bytes]] = None,
+    pool_images: Optional[List[bytes]] = None,       # compat legado (ignorado em runtime)
     uploaded_images: Optional[List[bytes]] = None,   # imagens enviadas pelo usuário
+    grounded_images: Optional[List[bytes]] = None,   # refs visuais coletadas no grounding full
     session_id: Optional[str] = None,
+    start_index: int = 1,
 ) -> List[dict]:
     """
     Gera n_images imagens com o Nano Banana 2.
@@ -51,22 +53,23 @@ def generate_images(
     results = []
 
     for i in range(n_images):
-        # Montar content_parts — envio casado:
-        # 1. Pool refs (estilo/modelo/cenário de referência)
-        # 2. Imagens do usuário (referência de produto/peça)
-        # 3. Prompt textual (sempre por último — peso máximo)
+        image_index = start_index + i
+        # Montar content_parts:
+        # 1. Imagens do usuário (autoridade da peça)
+        # 2. Refs visuais de grounding (silhueta/caimento)
+        # 3. Prompt textual (sempre por último — maior peso semântico)
         content_parts = []
 
-        if pool_images:
-            for img_bytes in pool_images:
+        if uploaded_images:
+            for img_bytes in uploaded_images:
                 content_parts.append(
                     types.Part(
                         inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)
                     )
                 )
 
-        if uploaded_images:
-            for img_bytes in uploaded_images:
+        if grounded_images:
+            for img_bytes in grounded_images[:3]:
                 content_parts.append(
                     types.Part(
                         inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)
@@ -80,7 +83,7 @@ def generate_images(
             model=MODEL_IMAGE,
             contents=[types.Content(role="user", parts=content_parts)],
             config=types.GenerateContentConfig(
-                response_modalities=["IMAGE"],
+                response_modalities=["TEXT", "IMAGE"],
                 image_config=types.ImageConfig(
                     aspect_ratio=aspect_ratio,
                     image_size=resolution,
@@ -91,23 +94,27 @@ def generate_images(
         )
 
         # Extrair imagem da resposta
+        image_found = False
         for part in response.parts:
             if part.inline_data and part.inline_data.mime_type.startswith("image/"):
                 ext = part.inline_data.mime_type.split("/")[-1]
-                filename = f"gen_{session_id}_{i+1}.{ext}"
+                filename = f"gen_{session_id}_{image_index}.{ext}"
                 filepath = session_dir / filename
 
                 filepath.write_bytes(part.inline_data.data)
                 size_kb = filepath.stat().st_size / 1024
 
                 results.append({
-                    "index": i + 1,
+                    "index": image_index,
                     "filename": filename,
                     "url": f"/outputs/{session_id}/{filename}",
                     "path": str(filepath),
                     "size_kb": round(size_kb, 1),
                     "mime_type": part.inline_data.mime_type,
                 })
+                image_found = True
                 break  # só uma imagem por chamada
+        if not image_found:
+            raise RuntimeError(f"Nano retornou sem imagem na posição {image_index}")
 
     return results

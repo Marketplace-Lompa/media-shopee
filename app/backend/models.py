@@ -38,7 +38,9 @@ class GeneratedImage(BaseModel):
 
 class GenerateResponse(BaseModel):
     """Resposta do POST /generate"""
+    session_id: Optional[str] = Field(default=None, description="ID da sessão de geração")
     optimized_prompt: str = Field(description="Prompt otimizado pelo agente")
+    pipeline_mode: str = Field(default="text_mode", description="Modo aplicado: reference_mode | text_mode")
     thinking_level: str   = Field(description="Nível de thinking decidido pelo agente")
     thinking_reason: str  = Field(description="Justificativa do thinking em pt-BR")
     shot_type: str        = Field(default="auto", description="Tipo de shot decidido pelo agente: wide, medium, close-up, auto")
@@ -46,7 +48,18 @@ class GenerateResponse(BaseModel):
     aspect_ratio: str
     resolution: str
     images: List[GeneratedImage]
+    failed_indices: Optional[List[int]] = Field(default=None, description="Índices que falharam em lote (quando houver)")
     pool_refs_used: int   = Field(description="Qtd de refs do pool enviadas ao Nano")
+    grounding: Optional[dict] = Field(default=None, description="Metadados de grounding aplicados")
+    quality_contract: Optional[dict] = Field(default=None, description="Contrato de qualidade e score global")
+    fidelity_score: Optional[float] = Field(default=None, description="Score de fidelidade da peça")
+    commercial_score: Optional[float] = Field(default=None, description="Score de qualidade comercial")
+    diversity_score: Optional[float] = Field(default=None, description="Score de diversidade de modelo")
+    grounding_reliability: Optional[float] = Field(default=None, description="Score de robustez do grounding")
+    reason_codes: Optional[List[str]] = Field(default=None, description="Códigos de motivo para diagnóstico")
+    repair_applied: Optional[bool] = Field(default=None, description="Se aplicou repair pass")
+    reference_pack_stats: Optional[dict] = Field(default=None, description="Stats da curadoria de referências")
+    classifier_summary: Optional[dict] = Field(default=None, description="Resumo do classificador visual")
 
 
 class PoolItem(BaseModel):

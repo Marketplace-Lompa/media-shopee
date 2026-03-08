@@ -39,7 +39,7 @@ câmera em ângulo médio-americano (da cintura para cima), luz dourada natural,
 fotografia editorial de moda e-commerce, cores vibrantes, nitidez profissional
 ```
 
-### 2. MEDIUM (Meio do Anúncio) — 4:5 ou 9:16
+### 2. MEDIUM (Meio do Anúncio) — 3:4, 4:5 ou 9:16
 Foto de cintura para cima. Destaca o produto com mais detalhe.
 
 **Estrutura:**
@@ -142,11 +142,21 @@ modelo masculino brasileiro, [idade] anos, [tom de pele], cabelos [tipo + cor],
 
 ## Parâmetros API para Cada Tipo
 
+### Compatibilidade por modo
+
+- `Studio Local (app/backend)`: `1:1`, `3:4`, `4:3`, `9:16`, `16:9`
+- `Scripts API (api/scripts/gerar_imagem.py)`: inclui também `4:5`, `5:4` e formatos ultra-wide
+
+Se estiver no Studio Local e quiser um enquadramento vertical tipo `4:5`, use `3:4` como substituto mais próximo.
+
 ```python
 # HERO (capa Shopee)
 config = ImageConfig(aspect_ratio="9:16", image_size="2K")
 
-# MEDIUM (cintura p/ cima)
+# MEDIUM (cintura p/ cima) - Studio Local
+config = ImageConfig(aspect_ratio="3:4", image_size="2K")
+
+# MEDIUM (cintura p/ cima) - Scripts API diretos
 config = ImageConfig(aspect_ratio="4:5", image_size="2K")
 
 # MACRO (textura)

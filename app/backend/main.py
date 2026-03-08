@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from routers import generate, pool as pool_router
+from routers import generate, pool as pool_router, stream, history as history_router
 from config import OUTPUTS_DIR
 
 app = FastAPI(
@@ -26,7 +26,9 @@ app.add_middleware(
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(generate.router)
+app.include_router(stream.router)
 app.include_router(pool_router.router)
+app.include_router(history_router.router)
 
 # ── Serve imagens geradas como estático ──────────────────────────────────────
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -41,9 +43,12 @@ async def root():
         "docs": "/docs",
         "endpoints": {
             "POST /generate": "Gera imagens via Agent → Nano Banana 2",
-            "GET  /pool":     "Lista reference pool",
-            "POST /pool/add": "Adiciona referência ao pool (modelo/roupa/cenario)",
+            "POST /generate/stream": "SSE stream com progresso real",
+            "GET  /pool":     "Lista dataset pool (cadastro local)",
+            "POST /pool/add": "Adiciona imagem ao pool de dataset (modelo/roupa/cenario)",
             "DELETE /pool/{id}": "Remove referência do pool",
+            "GET  /history": "Histórico de gerações (paginado)",
+            "DELETE /history/{id}": "Remove entry do histórico",
         },
     }
 

@@ -1,25 +1,32 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { X, Copy, Download, Clock } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { ChatInput } from './components/ChatInput';
 import { Gallery } from './components/Gallery';
 import { PoolPanel } from './components/PoolPanel';
-import { generateImages, listPool } from './lib/api';
+import { listPool, listHistory, deleteHistoryEntry } from './lib/api';
 import type {
   GenerationStatus,
   PoolItem,
   AspectRatio,
   Resolution,
+  GroundingStrategy,
+  MediaHistoryItem,
 } from './types';
 import './App.css';
 
 type Tab = 'generate' | 'pool' | 'settings';
 
+/* ── App ──────────────────────────────────────────────────── */
 export default function App() {
   const [tab, setTab] = useState<Tab>('generate');
   const [status, setStatus] = useState<GenerationStatus>({ type: 'idle' });
   const [pool, setPool] = useState<PoolItem[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
+  const [mediaHistory, setMediaHistory] = useState<MediaHistoryItem[]>([]);
+  const [hadResearch, setHadResearch] = useState(false);
+  const [lightbox, setLightbox] = useState<{ url: string; item?: MediaHistoryItem } | null>(null);
 
   const fetchPool = useCallback(async () => {
     setPoolLoading(true);
@@ -33,7 +40,39 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => { fetchPool(); }, [fetchPool]);
+  const fetchHistory = useCallback(async () => {
+    try {
+      const data = await listHistory();
+      const items: MediaHistoryItem[] = (data.items ?? []).map((e: Record<string, unknown>) => ({
+        id: e.id as string,
+        session_id: e.session_id as string | undefined,
+        filename: e.filename as string,
+        url: e.url as string,
+        prompt: e.prompt as string | undefined,
+        optimized_prompt: e.prompt as string | undefined,
+        thinking_level: e.thinking_level as string | undefined,
+        shot_type: e.shot_type as string | undefined,
+        aspect_ratio: e.aspect_ratio as string | undefined,
+        resolution: e.resolution as string | undefined,
+        grounding_effective: e.grounding_effective as boolean | undefined,
+        created_at: e.created_at as number,
+      }));
+      setMediaHistory(items);
+    } catch {
+      console.warn('Histórico não disponível no backend');
+    }
+  }, []);
+
+  useEffect(() => { fetchPool(); fetchHistory(); }, [fetchPool, fetchHistory]);
+
+  async function handleHistoryDelete(id: string) {
+    try {
+      await deleteHistoryEntry(id);
+      setMediaHistory(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      console.error('Erro ao deletar:', err);
+    }
+  }
 
   async function handleGenerate(payload: {
     prompt: string;
@@ -41,34 +80,122 @@ export default function App() {
     n_images: number;
     aspect_ratio: AspectRatio;
     resolution: Resolution;
+    grounding_strategy: GroundingStrategy;
   }) {
-    setStatus({ type: 'thinking' });
+    setStatus({ type: 'analyzing', message: 'Iniciando…' });
+    setHadResearch(false);
 
     const fd = new FormData();
     if (payload.prompt) fd.append('prompt', payload.prompt);
     fd.append('n_images', String(payload.n_images));
     fd.append('aspect_ratio', payload.aspect_ratio);
     fd.append('resolution', payload.resolution);
-    payload.files.forEach(f => fd.append('uploads', f));
+    fd.append('grounding_strategy', payload.grounding_strategy);
+    if (payload.grounding_strategy === 'on') fd.append('use_grounding', 'true');
+    payload.files.forEach(f => fd.append('images', f));
 
     try {
-      // Simula progress enquanto espera
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress = Math.min(progress + Math.random() * 12, 88);
-        setStatus({ type: 'generating', progress: Math.round(progress) });
-      }, 300);
-
-      const res = await generateImages(fd);
-      clearInterval(progressInterval);
+      const res = await fetch('/generate/stream', {
+        method: 'POST',
+        body: fd,
+      });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
         throw new Error(err.detail ?? `HTTP ${res.status}`);
       }
 
-      const data = await res.json();
-      setStatus({ type: 'done', response: data });
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('Stream não disponível');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const json = line.slice(6).trim();
+          if (!json) continue;
+
+          try {
+            const event = JSON.parse(json);
+
+            switch (event.stage) {
+              case 'mode_selected':
+                setStatus({
+                  type: 'mode_selected',
+                  message: event.message,
+                  pipeline_mode: event.pipeline_mode,
+                });
+                break;
+              case 'researching':
+                setStatus({ type: 'researching', message: event.message });
+                setHadResearch(true);
+                break;
+              case 'analyzing':
+                setStatus({ type: 'analyzing', message: event.message });
+                break;
+              case 'triage_done':
+                setStatus({
+                  type: 'triage_done',
+                  message: event.message,
+                  grounding_mode: event.grounding_mode,
+                  grounding_score: event.grounding_score,
+                  garment_hypothesis: event.garment_hypothesis,
+                  complexity_score: event.complexity_score,
+                  hint_confidence: event.hint_confidence,
+                  trigger_reason: event.trigger_reason,
+                  classifier_summary: event.classifier_summary,
+                  reason_codes: event.reason_codes,
+                });
+                break;
+              case 'prompt_ready':
+                if (event.grounding?.effective) setHadResearch(true);
+                setStatus({
+                  type: 'prompt_ready',
+                  message: event.message,
+                  prompt: event.prompt,
+                  image_analysis: event.image_analysis,
+                  grounding: event.grounding,
+                  quality_contract: event.quality_contract,
+                  classifier_summary: event.classifier_summary,
+                  reference_pack_stats: event.reference_pack_stats,
+                });
+                break;
+              case 'generating':
+                setStatus({
+                  type: 'generating',
+                  message: event.message,
+                  current: event.current,
+                  total: event.total,
+                });
+                break;
+              case 'done_partial':
+                if (event.data?.grounding?.effective) setHadResearch(true);
+                setStatus({ type: 'done_partial', response: event.data });
+                fetchHistory();
+                break;
+              case 'done':
+                if (event.data?.grounding?.effective) setHadResearch(true);
+                setStatus({ type: 'done', response: event.data });
+                fetchHistory();
+                break;
+              case 'error':
+                setStatus({ type: 'error', message: event.message });
+                break;
+            }
+          } catch {
+            // JSON parse error — ignorar chunk incompleto
+          }
+        }
+      }
 
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Erro inesperado';
@@ -102,7 +229,14 @@ export default function App() {
                 </header>
 
                 <div className="generate-content scroll-y" aria-live="polite">
-                  <Gallery status={status} />
+                  <Gallery
+                    status={status}
+                    hadResearch={hadResearch}
+                    mediaHistory={mediaHistory}
+                    onHistoryDelete={handleHistoryDelete}
+                    onLightbox={(url) => setLightbox({ url })}
+                    onLightboxItem={(item) => setLightbox({ url: item.url.startsWith('http') ? item.url : `${window.location.origin}${item.url}`, item })}
+                  />
                 </div>
 
                 <ChatInput status={status} onSubmit={handleGenerate} />
@@ -137,13 +271,108 @@ export default function App() {
               >
                 <div className="settings-placeholder">
                   <span className="t-h4 text-secondary">Configurações</span>
-                  <p className="t-sm text-tertiary">Em breve — API key, defaults globais e temas.</p>
+                  <p className="t-sm text-tertiary">Foco atual: efetividade da geração por job (score no retorno).</p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Lightbox global com detalhes */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            className="lightbox"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setLightbox(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Imagem ampliada"
+          >
+            <button
+              className="lightbox-close"
+              onClick={() => setLightbox(null)}
+              aria-label="Fechar"
+            >
+              <X size={20} />
+            </button>
+
+            <div className={`lightbox-content ${lightbox.item ? 'lightbox-content--with-details' : ''}`} onClick={e => e.stopPropagation()}>
+              <motion.img
+                src={lightbox.url}
+                alt="Imagem ampliada"
+                className="lightbox-img"
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.9 }}
+              />
+
+              {lightbox.item && (
+                <motion.div
+                  className="lightbox-details"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <div className="lightbox-details-header">
+                    <span className="t-label text-secondary">Detalhes da geração</span>
+                    <div className="lightbox-details-actions">
+                      <a href={lightbox.url} download={lightbox.item.filename} className="lightbox-action-btn" title="Baixar">
+                        <Download size={14} />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Configs como badges */}
+                  <div className="lightbox-badges">
+                    {lightbox.item.aspect_ratio && <span className="badge">{lightbox.item.aspect_ratio}</span>}
+                    {lightbox.item.resolution && <span className="badge">{lightbox.item.resolution}</span>}
+                    {lightbox.item.thinking_level && <span className="badge badge--accent">{lightbox.item.thinking_level}</span>}
+                    {lightbox.item.shot_type && <span className="badge">{lightbox.item.shot_type}</span>}
+                    {lightbox.item.grounding_effective != null && (
+                      <span className={`badge ${lightbox.item.grounding_effective ? 'badge--success' : ''}`}>
+                        {lightbox.item.grounding_effective ? '🌐 Pesquisa web ativa' : 'Sem pesquisa web'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Prompt */}
+                  {(lightbox.item.prompt || lightbox.item.optimized_prompt) && (
+                    <div className="lightbox-prompt-section">
+                      <div className="lightbox-prompt-header">
+                        <span className="t-xs text-tertiary">Prompt</span>
+                        <button
+                          className="lightbox-copy-btn"
+                          onClick={() => navigator.clipboard.writeText(lightbox.item?.prompt || lightbox.item?.optimized_prompt || '')}
+                          title="Copiar prompt"
+                        >
+                          <Copy size={12} /> Copiar
+                        </button>
+                      </div>
+                      <p className="lightbox-prompt-text">
+                        {lightbox.item.prompt || lightbox.item.optimized_prompt}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Timestamp */}
+                  {lightbox.item.created_at && (
+                    <div className="lightbox-timestamp">
+                      <Clock size={11} />
+                      <span className="t-xs text-tertiary">
+                        {new Date(lightbox.item.created_at).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

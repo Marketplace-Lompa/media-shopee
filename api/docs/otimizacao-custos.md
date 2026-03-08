@@ -43,10 +43,12 @@
 
 | Modo | Custo por segundo | Custo por clipe 8s |
 |---|---|---|
-| Veo 3.1 Quality | $0.40 – $0.75 | $3.20 – $6.00 |
-| Veo 3.1 Fast | $0.15 | **$1.20** |
+| Veo 3.1 Standard (720p/1080p) | $0.40 | $3.20 |
+| Veo 3.1 Standard (4k) | $0.60 | $4.80 |
+| Veo 3.1 Fast (720p/1080p) | $0.15 | **$1.20** |
+| Veo 3.1 Fast (4k) | $0.35 | $2.80 |
 
-> ⚠️ **Regra:** Use `Fast` durante desenvolvimento. Reserve `Quality` apenas para render final.
+> ⚠️ **Regra:** Use `Fast` durante desenvolvimento. Reserve `Standard` para render final.
 
 ### Grounding com Google Search
 
@@ -64,7 +66,7 @@ O modelo de desenvolvimento deve seguir um pipeline progressivo:
 
 ```
 Rascunho → Conceito → Aprovação → Render Final
-  Flash       Flash      Flash         Pro/Quality
+  Flash       Flash      Flash         Standard
   ($0.034)   ($0.067)   ($0.034)      ($0.101–0.151)
 ```
 
@@ -75,12 +77,12 @@ MODELOS = {
     "rascunho": {
         "model": "gemini-3.1-flash-image-preview",
         "image_size": "512px",    # mais barato, só para verificar composição
-        "thinking_level": "LOW"
+        "thinking_level": "MINIMAL"
     },
     "conceito": {
         "model": "gemini-3.1-flash-image-preview",
         "image_size": "1K",       # qualidade suficiente para aprovação
-        "thinking_level": "MEDIUM"
+        "thinking_level": "MINIMAL"
     },
     "producao": {
         "model": "gemini-3.1-flash-image-preview",
@@ -205,7 +207,7 @@ operation = await ai.models.generateVideos(
     config={
         "aspectRatio": "9:16",
         "resolution": "1080p",
-        "duration": 8,
+        "durationSeconds": 8,
         "generateAudio": False  # ← desabilitar para economizar
     }
 )
@@ -230,18 +232,17 @@ operation = await ai.models.generateVideos(
 
 O `thinking_level` impacta diretamente o custo (tokens de "pensamento" são cobrados):
 
-| Nível | Uso recomendado | Tokens extras | Impacto no custo |
+| Nível (imagem) | Uso recomendado | Tokens extras | Impacto no custo |
 |---|---|---|---|
-| `"LOW"` | Volume alto, composições simples | Mínimo | ~5–10% a mais |
-| `"MEDIUM"` | Uso geral, padrão | Médio | ~15–25% a mais |
-| `"HIGH"` | Texto em imagem, layouts complexos | Máximo | ~30–50% a mais |
+| `"MINIMAL"` | Volume alto, composições simples | Menor | menor custo |
+| `"HIGH"` | Texto em imagem, layouts complexos | Maior | maior custo |
 
 ### Regra prática
 
 ```
-Rascunho → LOW
-Conceito para aprovação → MEDIUM  
-Render final com texto/layout → HIGH
+Rascunho → MINIMAL
+Conceito para aprovação → MINIMAL  
+Render final com texto/layout complexo → HIGH
 ```
 
 ---
@@ -262,8 +263,8 @@ Render final com texto/layout → HIGH
 | Fase | Modo | Clipes | Custo/clipe | Total |
 |---|---|---|---|---|
 | Teste de conceito | Fast ($1.20/clipe) | 10 variações | $1.20 | $12.00 |
-| **Render final** | Quality ($6.00/clipe) | 5 | $6.00 | **$30.00** |
-| **Total** | | **15** | | **$42.00** |
+| **Render final** | Standard ($3.20/clipe) | 5 | $3.20 | **$16.00** |
+| **Total** | | **15** | | **$28.00** |
 
 ### Regra de ouro
 

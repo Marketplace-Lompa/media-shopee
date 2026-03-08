@@ -645,12 +645,13 @@ Para geração de grande volume com tolerância de latência (até 24h), a Batch
 
 ### Estimativa mensal — uso típico Shopee
 
-| Cenário | Imagens/mês | Resolução | Custo |
+| Cenário | Imagens/mês | Resolução | Custo aproximado |
 |---|---|---|---|
-| Free tier máximo | 500/dia × 30 = 15.000 | 1K | **$0** |
-| 100 produtos, 5 fotos cada | 500 | 2K | $50.50 |
-| 500 produtos, 3 fotos cada | 1.500 | 1K | $100.50 |
-| Alto volume (batch) | 5.000 | 1K | **$167.50** (c/ 50% desc.) |
+| 100 produtos, 5 fotos cada | 500 | 2K | ~$50.50 |
+| 500 produtos, 3 fotos cada | 1.500 | 1K | ~$100.50 |
+| Alto volume (batch) | 5.000 | 1K | ~$167.50 (batch) |
+
+> Observação: disponibilidade de free tier para modelos preview pode mudar. Validar no pricing oficial.
 
 ---
 
@@ -679,9 +680,9 @@ Ponto importante para referências e consistência de cena:
 | Imagens de referência | 14 | 14 |
 | Grounding Image Search | ✅ Exclusivo | ❌ |
 | Thinking Mode | ✅ | ✅ |
-| Status | ✅ Ativo | ⚠️ Deprecated |
+| Status | ✅ Ativo (preview) | ⚠️ Preview |
 
-> O Nano Banana 2 suporta **mais objetos** (10 vs 6), ideal para e-commerce com múltiplos produtos por cena. O Pro suportava 1 personagem a mais, mas está deprecated.
+> O Nano Banana 2 suporta **mais objetos** (10 vs 6), ideal para e-commerce com múltiplos produtos por cena. Como ambos são modelos preview, valide periodicamente a página de depreciações antes de congelar arquitetura.
 
 ### SynthID e C2PA
 

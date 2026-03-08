@@ -1,84 +1,78 @@
-# Comparativo de Preços — Google AI Image & Video API
+# Comparativo de Preços — Gemini API (Snapshot)
 
-> Atualizada em: Março/2026  
-> Fonte: https://ai.google.dev/pricing
-
----
-
-## Geração de Imagem
-
-### Familia Nano Banana (Gemini Image)
-
-| Modelo | Resolução | Custo por imagem | Free tier/dia |
-|---|---|---|---|
-| `gemini-2.5-flash-image` | 1K (1024×1024) | ~$0.039 | ~500 |
-| `gemini-3-pro-image-preview` | 1K–2K | ~$0.134 | Limitado |
-| `gemini-3-pro-image-preview` | 4K | ~$0.240 | Limitado |
-| `gemini-3.1-flash-image-preview` | 1K | ~$0.039 | ~500 |
-| `gemini-3.1-flash-image-preview` | 4K | ~$0.180 | Limitado |
-
-### Família Imagen 4
-
-| Modelo | Custo por imagem | Free tier/dia | Melhor para |
-|---|---|---|---|
-| `imagen-4.0-fast-generate-001` | **$0.02** | ~50–100 | Volume alto, lookbooks |
-| `imagen-4.0-generate-001` | **$0.04** | ~50 | Qualidade/custo balanceados |
-| `imagen-4.0-ultra-generate-001` | **$0.06** | ~50 | Máximo fotorrealismo |
+> Data de verificação: **2026-03-07**
+>
+> Fonte oficial: [Gemini Developer API pricing](https://ai.google.dev/gemini-api/docs/pricing)
+>
+> Observação: preços e disponibilidade podem mudar. Sempre valide no link oficial antes de orçamento final.
 
 ---
 
-## Geração de Vídeo (Veo)
+## 1) Imagem — Gemini
 
-| Modelo | Custo por segundo | 4s | 6s | 8s |
-|---|---|---|---|---|
-| `veo-3.1-generate-preview` | $0.75/s | $3.00 | $4.50 | $6.00 |
-| `veo-3.1-fast-generate-preview` | ~$0.40/s | ~$1.60 | ~$2.40 | ~$3.20 |
-| `veo-2.0-generate-001` | $0.35/s | $1.40 | $2.10 | $2.80 |
+### `gemini-3.1-flash-image-preview` (Nano Banana 2, Preview)
 
-> ⚠️ Veo não tem free tier via API — requer billing habilitado.
+**Tier:** apenas pago (free tier indisponível para este modelo na tabela oficial).
 
----
+| Modalidade | Preço oficial |
+|---|---|
+| Output de imagem (standard) | `$60.00 / 1.000.000 tokens` |
+| Equivalente 0.5K | `~$0.045 / imagem` |
+| Equivalente 1K | `~$0.067 / imagem` |
+| Equivalente 2K | `~$0.101 / imagem` |
+| Equivalente 4K | `~$0.151 / imagem` |
+| Batch output de imagem | `$30.00 / 1.000.000 tokens` |
+| Batch equivalente 1K | `~$0.034 / imagem` |
+| Batch equivalente 2K | `~$0.050 / imagem` |
+| Batch equivalente 4K | `~$0.076 / imagem` |
 
-## Estimativa de Custo Mensal por Cenário
+### `gemini-2.5-flash-image`
 
-### Cenário 1: Pequena loja Shopee (10 produtos/mês)
-| Tarefa | Qtd | Modelo | Custo |
-|---|---|---|---|
-| Cover 9:16 por cor | 30 imagens | Imagen 4 Fast | $0.60 |
-| Detalhes textura | 10 imagens | Imagen 4 Ultra | $0.60 |
-| **Total** | | | **$1.20/mês** |
-
-### Cenário 2: Loja média (50 produtos/mês)
-| Tarefa | Qtd | Modelo | Custo |
-|---|---|---|---|
-| Covers 9:16 (3 por produto) | 150 | Imagen 4 Fast | $3.00 |
-| Fotos lifestyle | 50 | Nano Banana 2 | $1.95 |
-| Vídeos produto (6s) | 10 | Veo 2 | $21.00 |
-| **Total** | | | **~$26/mês** |
-
-### Cenário 3: Uso free tier máximo (sem custo)
-| Canal | Modelo | Limite diário |
-|---|---|---|
-| Gemini API | Nano Banana 2 | ~500 imagens |
-| AI Studio web | Nano Banana Pro | ~100 imagens |
-| Gemini App (Ultra) | Nano Banana Pro | ~1.000 imagens |
-| **Total combinado** | | **~1.600 imagens/dia grátis** |
+| Modalidade | Preço oficial |
+|---|---|
+| Geração de imagem (paid) | `~$0.039 / imagem` |
+| Free tier | disponível na tabela oficial |
 
 ---
 
-## Créditos Google Cloud Disponíveis
+## 2) Imagem — Imagen 4
 
-| Fonte | Valor | Validade | Equivalência (Imagen 4 Fast) |
-|---|---|---|---|
-| Google Cloud Trial | R$ 1.759 (~$300) | Jun/2026 | ~15.000 imagens |
-| Developer Program Ultra* | $100/mês | Mensal | ~5.000 imagens/mês |
+| Modelo | Preço por imagem (paid) |
+|---|---|
+| `imagen-4.0-fast-generate-001` | `$0.02` |
+| `imagen-4.0-generate-001` | `$0.04` |
+| `imagen-4.0-ultra-generate-001` | `$0.06` |
 
-> *Disponível apenas para assinantes Google AI Ultra com conta pessoal @gmail.com
+Na tabela oficial de pricing do Gemini API, os modelos Imagen 4 aparecem sem free tier.
 
 ---
 
-## Links
+## 3) Vídeo — Veo
 
-- 💰 [Pricing oficial Gemini API](https://ai.google.dev/pricing)
-- 💰 [Pricing Vertex AI (Imagen)](https://cloud.google.com/vertex-ai/generative-ai/pricing)
-- 📊 [Billing Dashboard](https://console.cloud.google.com/billing)
+| Modelo | Preço por segundo (paid) |
+|---|---|
+| `veo-3.1-generate-preview` (720p/1080p) | `$0.40/s` |
+| `veo-3.1-generate-preview` (4k) | `$0.60/s` |
+| `veo-3.1-fast-generate-preview` (720p/1080p) | `$0.15/s` |
+| `veo-3.1-fast-generate-preview` (4k) | `$0.35/s` |
+| `veo-2.0-generate-001` | `$0.35/s` |
+
+Exemplos rápidos:
+- Veo 3.1 standard 6s (1080p): `~$2.40`
+- Veo 3.1 fast 6s (1080p): `~$0.90`
+- Veo 2 6s: `~$2.10`
+
+---
+
+## 4) Grounding (Google Search)
+
+Para modelos que suportam grounding por busca, a tabela oficial indica franquia mensal e depois cobrança por query de busca. Verifique o bloco do modelo específico no pricing.
+
+---
+
+## 5) Regras práticas de orçamento
+
+1. Use preview/rascunho em resolução baixa antes do render final.
+2. Use batch para jobs não urgentes (desconto significativo).
+3. Para vídeo, diferencie claramente custo de `standard` vs `fast`.
+4. Trate este documento como snapshot; o link oficial é a verdade final.

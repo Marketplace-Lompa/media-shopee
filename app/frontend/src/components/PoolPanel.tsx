@@ -71,7 +71,7 @@ export function PoolPanel({ items, loading, onRefresh }: Props) {
                 <div>
                     <h2 className="t-h4">Reference Pool</h2>
                     <p className="t-sm text-tertiary" style={{ marginTop: 2 }}>
-                        Imagens de referência para o Agente — estilo LoRA
+                        Biblioteca para dataset de treino futuro (não influencia a geração nesta versão)
                     </p>
                 </div>
                 <span className="pool-count t-label text-tertiary">{items.length} refs</span>

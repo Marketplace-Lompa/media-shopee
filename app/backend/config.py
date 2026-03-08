@@ -38,6 +38,46 @@ VALID_N_IMAGES      = [1, 2, 3, 4]
 # Valores válidos (MEDIUM não existe no modelo de imagem):
 VALID_THINKING_LEVELS = ["MINIMAL", "HIGH"]
 
+# ── Grounding ──────────────────────────────────────────────────────────────────
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+ENABLE_GROUNDING = os.getenv("ENABLE_GROUNDING", "true").strip().lower() == "true"
+DEFAULT_GROUNDING_STRATEGY = os.getenv("DEFAULT_GROUNDING_STRATEGY", "auto").strip().lower()
+if DEFAULT_GROUNDING_STRATEGY not in {"auto", "on", "off"}:
+    DEFAULT_GROUNDING_STRATEGY = "auto"
+
+GROUNDING_THRESHOLD_LOW = _env_float("GROUNDING_THRESHOLD_LOW", 0.45)
+GROUNDING_THRESHOLD_HIGH = _env_float("GROUNDING_THRESHOLD_HIGH", 0.65)
+AUTO_FULL_COMPLEXITY_THRESHOLD = _env_float("AUTO_FULL_COMPLEXITY_THRESHOLD", 0.60)
+
+# ── Quality contract + reference pack ─────────────────────────────────────────
+QUALITY_MIN_FIDELITY = _env_float("QUALITY_MIN_FIDELITY", 0.62)
+QUALITY_MIN_COMMERCIAL = _env_float("QUALITY_MIN_COMMERCIAL", 0.60)
+REFERENCE_ANALYSIS_MAX = _env_int("REFERENCE_ANALYSIS_MAX", 3)
+REFERENCE_GENERATION_MAX = _env_int("REFERENCE_GENERATION_MAX", 6)
+
+# ── Diversity scheduler ────────────────────────────────────────────────────────
+DIVERSITY_WINDOW = _env_int("DIVERSITY_WINDOW", 30)
+DIVERSITY_MAX_SHARE = _env_float("DIVERSITY_MAX_SHARE", 0.40)
+
 # ── Pool de referências ───────────────────────────────────────────────────────
 POOL_TYPES = ["modelo", "roupa", "cenario"]
 POOL_MAX_REFS = 8   # máximo de imagens passadas como contexto visual ao Nano

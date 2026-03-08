@@ -1,0 +1,390 @@
+"""
+Router: POST /generate/stream
+SSE (Server-Sent Events) com pipeline de efetividade V4.
+"""
+import asyncio
+import json
+import uuid
+from pathlib import Path
+from typing import List, Optional
+
+from fastapi import APIRouter, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
+
+from agent import run_agent
+from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
+from generator import generate_images
+from history import add_entry as history_add, purge_oldest as history_purge
+from pipeline_effectiveness import (
+    assess_generated_image,
+    build_reference_pack,
+    build_repair_prompt,
+    classify_visual_context,
+    compute_quality_contract,
+    decide_grounding_mode,
+    enrich_quality_with_generation,
+    log_effectiveness_event,
+    select_diversity_target,
+)
+from config import VALID_ASPECT_RATIOS, VALID_RESOLUTIONS, VALID_N_IMAGES
+
+router = APIRouter(prefix="/generate", tags=["generate-stream"])
+
+
+def _sse_event(stage: str, data: dict) -> str:
+    payload = json.dumps({"stage": stage, **data}, ensure_ascii=False)
+    return f"data: {payload}\n\n"
+
+
+@router.post("/stream")
+async def generate_stream(
+    prompt: Optional[str] = Form(default=None),
+    aspect_ratio: str = Form(default="1:1"),
+    resolution: str = Form(default="1K"),
+    n_images: int = Form(default=1),
+    grounding_strategy: Optional[str] = Form(default=None),
+    use_grounding: bool = Form(default=False),
+    images: List[UploadFile] = File(default=[]),
+):
+    # UploadFile precisa ser lido no contexto do request
+    uploaded_bytes = []
+    for img in images[:14]:
+        uploaded_bytes.append(await img.read())
+
+    async def event_generator():
+        if aspect_ratio not in VALID_ASPECT_RATIOS:
+            yield _sse_event("error", {"message": f"aspect_ratio inválido. Use: {VALID_ASPECT_RATIOS}"})
+            return
+        if resolution not in VALID_RESOLUTIONS:
+            yield _sse_event("error", {"message": f"resolution inválida. Use: {VALID_RESOLUTIONS}"})
+            return
+        if n_images not in VALID_N_IMAGES:
+            yield _sse_event("error", {"message": f"n_images inválido. Use: {VALID_N_IMAGES}"})
+            return
+
+        n_uploads = len(uploaded_bytes)
+        pipeline_mode = "reference_mode" if n_uploads > 0 else "text_mode"
+        pool_context = "POOL_RUNTIME_DISABLED"
+
+        reference_pack = build_reference_pack(uploaded_bytes)
+        analysis_images = reference_pack.get("analysis_images", [])
+        generation_images = reference_pack.get("generation_images", [])
+        reference_pack_stats = reference_pack.get("stats", {})
+
+        diversity_target = select_diversity_target(seed_hint=prompt or "")
+
+        yield _sse_event("mode_selected", {
+            "message": "Modo com referência ativado" if pipeline_mode == "reference_mode" else "Modo sem referência ativado",
+            "pipeline_mode": pipeline_mode,
+            "reference_pack_stats": reference_pack_stats,
+            "model_profile_id": diversity_target.get("profile_id"),
+        })
+
+        strategy = normalize_grounding_strategy(grounding_strategy, use_grounding)
+        yield _sse_event("analyzing", {
+            "message": f"Agente analisando {len(analysis_images)} imagem(ns) curada(s)…" if n_uploads > 0 else "Agente criando prompt…",
+            "n_uploads": n_uploads,
+        })
+
+        applied_mode = "off"
+        triage = {}
+        classifier_summary = {}
+        decision = {"reason_codes": [], "trigger_reason": "unknown"}
+
+        try:
+            baseline_result = await asyncio.to_thread(
+                run_agent,
+                user_prompt=prompt,
+                uploaded_images=analysis_images if analysis_images else None,
+                pool_context=pool_context,
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                use_grounding=False,
+                diversity_target=diversity_target,
+            )
+
+            triage = compute_grounding_triage(
+                user_prompt=prompt,
+                image_analysis=baseline_result.get("image_analysis", ""),
+                has_images=n_uploads > 0,
+            )
+            classifier_summary = classify_visual_context(
+                user_prompt=prompt,
+                image_analysis=baseline_result.get("image_analysis", ""),
+                has_images=n_uploads > 0,
+                reference_pack_stats=reference_pack_stats,
+            )
+            decision = decide_grounding_mode(
+                strategy=strategy,
+                has_images=n_uploads > 0,
+                triage=triage,
+                classifier_summary=classifier_summary,
+            )
+            applied_mode = decision.get("grounding_mode", "off")
+
+            yield _sse_event("triage_done", {
+                "message": "Triage de grounding concluído",
+                "requested_strategy": strategy,
+                "pipeline_mode": triage.get("pipeline_mode", pipeline_mode),
+                "grounding_mode": applied_mode,
+                "grounding_score": triage.get("grounding_score"),
+                "garment_hypothesis": triage.get("garment_hypothesis"),
+                "complexity_score": classifier_summary.get("complexity_score", triage.get("complexity_score")),
+                "hint_confidence": classifier_summary.get("confidence", triage.get("hint_confidence")),
+                "trigger_reason": decision.get("trigger_reason", triage.get("trigger_reason")),
+                "classifier_summary": classifier_summary,
+                "reason_codes": decision.get("reason_codes", []),
+            })
+
+            if applied_mode == "off":
+                agent_result = baseline_result
+            else:
+                yield _sse_event("researching", {
+                    "message": "Pesquisando referências na web…",
+                    "grounding_mode": applied_mode,
+                })
+                try:
+                    agent_result = await asyncio.to_thread(
+                        run_agent,
+                        user_prompt=prompt,
+                        uploaded_images=analysis_images if analysis_images else None,
+                        pool_context=pool_context,
+                        aspect_ratio=aspect_ratio,
+                        resolution=resolution,
+                        use_grounding=True,
+                        grounding_mode=applied_mode,
+                        grounding_context_hint=triage.get("garment_hypothesis"),
+                        diversity_target=diversity_target,
+                    )
+                except Exception as grounding_error:
+                    print(f"[STREAM] ⚠️ Grounding failed, fallback baseline: {grounding_error}")
+                    agent_result = baseline_result
+                    applied_mode = "off"
+        except Exception as e:
+            yield _sse_event("error", {"message": f"Erro no Prompt Agent: {str(e)}"})
+            return
+
+        optimized_prompt = agent_result.get("prompt", "")
+        thinking_level = agent_result.get("thinking_level", "MINIMAL")
+        thinking_reason = agent_result.get("thinking_reason", "")
+        shot_type = agent_result.get("shot_type", "auto")
+        realism_level = agent_result.get("realism_level", 2)
+        pipeline_mode = agent_result.get("pipeline_mode", pipeline_mode)
+        grounded_images = list(agent_result.pop("_grounded_images", []) or [])
+        image_analysis = agent_result.get("image_analysis", "")
+
+        grounding_sources = (agent_result.get("grounding", {}) or {}).get("sources", []) or []
+        grounded_images_count = int((agent_result.get("grounding", {}) or {}).get("grounded_images_count", 0) or 0)
+        grounding_effective = bool(len(grounding_sources) >= 2 or grounded_images_count >= 1)
+        grounding_attempted = applied_mode != "off"
+
+        grounding_info = {
+            **(agent_result.get("grounding", {}) or {}),
+            "requested_strategy": strategy,
+            "applied_mode": applied_mode,
+            "pipeline_mode": triage.get("pipeline_mode", pipeline_mode),
+            "grounding_score": triage.get("grounding_score"),
+            "complexity_score": classifier_summary.get("complexity_score", triage.get("complexity_score")),
+            "garment_hypothesis": triage.get("garment_hypothesis"),
+            "garment_hint": triage.get("garment_hint"),
+            "hint_confidence": classifier_summary.get("confidence", triage.get("hint_confidence")),
+            "trigger_reason": decision.get("trigger_reason", triage.get("trigger_reason")),
+            "attempted": grounding_attempted,
+            "effective": grounding_effective,
+        }
+
+        quality_contract = compute_quality_contract(
+            prompt=optimized_prompt,
+            pipeline_mode=pipeline_mode,
+            classifier_summary=classifier_summary,
+            grounding_info=grounding_info,
+            diversity_target=diversity_target,
+        )
+
+        yield _sse_event("prompt_ready", {
+            "message": "Prompt criado pelo agente",
+            "prompt": optimized_prompt,
+            "image_analysis": image_analysis,
+            "thinking_level": thinking_level,
+            "shot_type": shot_type,
+            "pipeline_mode": pipeline_mode,
+            "grounding": grounding_info,
+            "quality_contract": quality_contract,
+            "classifier_summary": classifier_summary,
+            "reference_pack_stats": reference_pack_stats,
+        })
+
+        session_id = str(uuid.uuid4())[:8]
+        generated_images = []
+        failed_indices = []
+        image_assessments = []
+        repair_applied = False
+        reason_codes = set((decision.get("reason_codes", []) or []) + (quality_contract.get("reason_codes", []) or []))
+
+        for i in range(n_images):
+            yield _sse_event("generating", {
+                "message": f"Gerando imagem {i+1}/{n_images} via Nano…",
+                "current": i + 1,
+                "total": n_images,
+            })
+
+            ok = False
+            last_error = None
+            selected_batch = None
+            selected_assessment = None
+
+            for attempt in range(2):
+                try:
+                    batch = await asyncio.to_thread(
+                        generate_images,
+                        prompt=optimized_prompt,
+                        thinking_level=thinking_level,
+                        aspect_ratio=aspect_ratio,
+                        resolution=resolution,
+                        n_images=1,
+                        uploaded_images=generation_images if generation_images else None,
+                        grounded_images=grounded_images if grounded_images else None,
+                        session_id=session_id,
+                        start_index=i + 1,
+                    )
+                    selected_batch = batch
+                    selected_assessment = assess_generated_image(
+                        batch[0]["path"], optimized_prompt, classifier_summary
+                    )
+                    ok = True
+                    break
+                except Exception as e:
+                    last_error = e
+                    print(f"[STREAM] ⚠️ generation attempt {attempt+1} failed for {i+1}/{n_images}: {e}")
+
+            if not ok or not selected_batch or not selected_assessment:
+                failed_indices.append(i + 1)
+                yield _sse_event("generating", {
+                    "message": f"Imagem {i+1}/{n_images} falhou após retry e será marcada como parcial.",
+                    "current": i + 1,
+                    "total": n_images,
+                })
+                continue
+
+            best_batch = selected_batch
+            best_assessment = selected_assessment
+
+            if not selected_assessment.get("pass", False):
+                repair_prompt = build_repair_prompt(
+                    optimized_prompt,
+                    classifier_summary,
+                    list(reason_codes.union(set(selected_assessment.get("reason_codes", []) or []))),
+                )
+                img_path = Path(selected_batch[0]["path"])
+                first_bytes = img_path.read_bytes() if img_path.exists() else b""
+                first_score = float(selected_assessment.get("candidate_score", 0.0) or 0.0)
+                try:
+                    repaired_batch = await asyncio.to_thread(
+                        generate_images,
+                        prompt=repair_prompt,
+                        thinking_level=thinking_level,
+                        aspect_ratio=aspect_ratio,
+                        resolution=resolution,
+                        n_images=1,
+                        uploaded_images=generation_images if generation_images else None,
+                        grounded_images=grounded_images if grounded_images else None,
+                        session_id=session_id,
+                        start_index=i + 1,
+                    )
+                    repaired_assessment = assess_generated_image(
+                        repaired_batch[0]["path"], repair_prompt, classifier_summary
+                    )
+                    repaired_score = float(repaired_assessment.get("candidate_score", 0.0) or 0.0)
+                    if repaired_score >= first_score:
+                        best_batch = repaired_batch
+                        best_assessment = repaired_assessment
+                        repair_applied = True
+                    else:
+                        if first_bytes:
+                            img_path.write_bytes(first_bytes)
+                except Exception as repair_err:
+                    print(f"[STREAM] ⚠️ repair attempt failed on image {i+1}: {repair_err}")
+                    if first_bytes:
+                        img_path.write_bytes(first_bytes)
+
+            generated_images.extend(best_batch)
+            image_assessments.append(best_assessment)
+            reason_codes.update(best_assessment.get("reason_codes", []) or [])
+
+        if not generated_images:
+            yield _sse_event("error", {"message": "Nenhuma imagem foi gerada."})
+            return
+
+        quality_contract = enrich_quality_with_generation(quality_contract, image_assessments)
+        reason_codes.update(quality_contract.get("reason_codes", []) or [])
+
+        response_data = {
+            "session_id": session_id,
+            "optimized_prompt": optimized_prompt,
+            "pipeline_mode": pipeline_mode,
+            "thinking_level": thinking_level,
+            "thinking_reason": thinking_reason,
+            "shot_type": shot_type,
+            "realism_level": realism_level,
+            "aspect_ratio": aspect_ratio,
+            "resolution": resolution,
+            "images": generated_images,
+            "failed_indices": failed_indices or None,
+            "pool_refs_used": 0,
+            "grounding": grounding_info,
+            "quality_contract": quality_contract,
+            "fidelity_score": quality_contract.get("fidelity_score"),
+            "commercial_score": quality_contract.get("commercial_score"),
+            "diversity_score": quality_contract.get("diversity_score"),
+            "grounding_reliability": quality_contract.get("grounding_reliability"),
+            "reason_codes": sorted(reason_codes),
+            "repair_applied": repair_applied,
+            "reference_pack_stats": reference_pack_stats,
+            "classifier_summary": classifier_summary,
+        }
+
+        grounding_eff = grounding_info.get("effective", False) if isinstance(grounding_info, dict) else False
+        for img in generated_images:
+            try:
+                history_add(
+                    session_id=session_id,
+                    filename=img["filename"],
+                    url=img["url"],
+                    prompt=optimized_prompt,
+                    thinking_level=thinking_level,
+                    shot_type=shot_type,
+                    aspect_ratio=aspect_ratio,
+                    resolution=resolution,
+                    grounding_effective=grounding_eff,
+                )
+            except Exception as hist_err:
+                print(f"[HISTORY] ⚠️ Falha ao persistir: {hist_err}")
+
+        log_effectiveness_event({
+            "session_id": session_id,
+            "category": quality_contract.get("category", "general"),
+            "global_score": quality_contract.get("global_score", 0.0),
+            "reason_codes": sorted(reason_codes),
+            "repair_applied": repair_applied,
+            "pipeline_mode": pipeline_mode,
+        })
+
+        try:
+            history_purge()
+        except Exception as purge_err:
+            print(f"[CLEANUP] ⚠️ Falha no purge: {purge_err}")
+
+        if failed_indices:
+            yield _sse_event("done_partial", {"data": response_data})
+        else:
+            yield _sse_event("done", {"data": response_data})
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

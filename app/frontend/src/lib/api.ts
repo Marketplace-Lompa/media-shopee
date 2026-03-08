@@ -23,6 +23,18 @@ export async function removeFromPool(id: string) {
     return r.json();
 }
 
+export async function listHistory(limit = 200, offset = 0) {
+    const r = await fetch(`${BASE}/history?limit=${limit}&offset=${offset}`);
+    if (!r.ok) throw new Error('Falha ao carregar histórico');
+    return r.json();
+}
+
+export async function deleteHistoryEntry(id: string) {
+    const r = await fetch(`${BASE}/history/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error(`Falha ao remover entry: ${r.statusText}`);
+    return r.json();
+}
+
 export function imageUrl(url: string) {
     // URLs absolutas passam direto; relativas usam o origin atual
     if (url.startsWith('http')) return url;

@@ -13,11 +13,14 @@
   background: var(--surface-bg);
 }
 
-/* Generate layout */
+/* ============================================================
+   Generate layout — coluna única, scroll vertical
+   ============================================================ */
 .generate-layout {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 }
 
 .generate-header {

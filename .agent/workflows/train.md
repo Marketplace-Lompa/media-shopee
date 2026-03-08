@@ -5,7 +5,7 @@ description: Registra aprendizados da sessão atual — erros corrigidos, compor
 # Workflow /train — Auto-aprendizado da sessão
 
 ## Objetivo
-Consolidar os aprendizados práticos da sessão atual (erros, correções, descobertas) em um arquivo de referência persistente (`docs/learnings/api-discoveries.md`) que será consultado automaticamente em sessões futuras.
+Consolidar os aprendizados práticos da sessão atual (erros, correções, descobertas) nos arquivos de referência corretos por categoria, consultados automaticamente em sessões futuras.
 
 ## Quando usar
 - Ao final de uma sessão de desenvolvimento
@@ -17,24 +17,36 @@ Consolidar os aprendizados práticos da sessão atual (erros, correções, desco
 
 ## Passos
 
-### 1. Ler o log de aprendizados existente
-Leia o arquivo `docs/learnings/api-discoveries.md` para entender o que já foi registrado e evitar duplicatas.
+### 1. Ler os logs de aprendizados existentes
+Leia **todos** os arquivos em `docs/learnings/` para entender o que já foi registrado e evitar duplicatas.
 
 ### 2. Identificar os aprendizados da sessão
 Analise a conversa atual e identifique:
 - ❌ **Erros cometidos** → o que estava errado e por quê
 - ✅ **Correções aplicadas** → o que foi feito para corrigir
-- 🔍 **Descobertas** → comportamentos de API não documentados
+- 🔍 **Descobertas** → comportamentos não documentados
 - ⚙️ **Padrões identificados** → boas práticas emergentes do uso real
 
-### 3. Formatar e adicionar ao arquivo de learnings
-Adicione cada aprendizado no formato padrão abaixo ao arquivo `docs/learnings/api-discoveries.md`:
+### 3. Classificar e rotear para o arquivo correto
+
+Cada aprendizado vai para o arquivo da sua categoria:
+
+| Categoria | Arquivo | Conteúdo |
+|---|---|---|
+| `api` | `docs/learnings/api-discoveries.md` | Erros/comportamentos da Google AI API, modelos, billing, safety |
+| `agente` | `docs/learnings/agent-pipeline.md` | Bugs do pipeline agent→generator→frontend, Pydantic, modos |
+| `frontend` / `ux` | `docs/learnings/frontend-ux.md` | CSS, cascade, componentes, estados, UX |
+| `tooling` / `devops` | `docs/learnings/tooling.md` | Git, venv, terminal, CI/CD, ambiente |
+
+**Regra de ouro:** se o aprendizado é sobre como a API se comporta → `api-discoveries.md`. Se é sobre como o nosso código orquestra a API → `agent-pipeline.md`. Se é visual → `frontend-ux.md`. Se é infra/ferramentas → `tooling.md`.
+
+### 4. Formatar e adicionar
+
+Adicione ao índice rápido do arquivo e crie a seção detalhada:
 
 ```markdown
 ### [YYYY-MM-DD] Título curto do aprendizado
 
-**Categoria:** `api` | `skill` | `agente` | `tooling` | `fluxo`
-**Modelo afetado:** (ex: gemini-3.1-flash-image-preview, gemini-3-flash-preview)
 **Severidade:** 🔴 Crítico (causa erro) | 🟡 Importante (comportamento inesperado) | 🟢 Dica (otimização)
 
 **Contexto:** O que estava sendo feito quando o problema foi encontrado.
@@ -43,34 +55,46 @@ Adicione cada aprendizado no formato padrão abaixo ao arquivo `docs/learnings/a
 
 **Solução:** O que foi feito para corrigir.
 
-**Valor para sessões futuras:** Como isso evita retrabalho.
+**Regra:**
+> Frase imperativa para sessões futuras.
 ```
 
-### 4. Atualizar documentações impactadas (se necessário)
-Se o aprendizado corrige uma documentação existente (ex: `api/docs/engenharia-prompt.md`, skills, agente), edite o arquivo com a correção.
+### 5. Atualizar documentações impactadas (se necessário)
+Se o aprendizado corrige uma documentação existente (ex: skills, agente, configs), edite o arquivo com a correção.
 
-### 5. Confirmar com o usuário
-Liste os aprendizados registrados e pergunte se há mais algo da sessão a documentar antes de fechar.
+### 6. Confirmar com o usuário
+Liste os aprendizados registrados por arquivo e pergunte se há mais algo a documentar.
 
 ---
 
-## Estrutura do arquivo de saída
+## Estrutura dos arquivos
 
 ```
 docs/
 └── learnings/
-    └── api-discoveries.md   ← arquivo principal de aprendizados
+    ├── api-discoveries.md    ← API: modelos, billing, safety, rate limits
+    ├── agent-pipeline.md     ← Pipeline: agent.py, generator.py, modos, Pydantic
+    ├── frontend-ux.md        ← Frontend: CSS, componentes, estados, UX
+    └── tooling.md            ← Tooling: git, venv, terminal, CI/CD
 ```
 
 ## Exemplo de resposta esperada
 
 ```
-📚 /train executado — 3 aprendizados registrados:
+📚 /train executado — 5 aprendizados registrados:
 
-1. 🔴 [API] Nano Banana 2: MEDIUM não existe → só MINIMAL e HIGH
-2. 🟡 [API] Billing obrigatório para modelos de imagem (free tier = limit 0)
-3. 🟢 [Tooling] venv deve ser adicionado ao .gitignore antes do primeiro commit
+api-discoveries.md:
+  1. 🔴 Nano Banana 2: MEDIUM não existe → só MINIMAL e HIGH
 
-Arquivo atualizado: docs/learnings/api-discoveries.md
+agent-pipeline.md:
+  2. 🔴 GeneratedImage sem campo url → imagens pretas
+  3. 🔴 Ternário Python engole MODE 2
+
+frontend-ux.md:
+  4. 🟡 :focus-visible global cria borda dupla
+
+tooling.md:
+  5. 🟡 2>&1 mascara progresso
+
 Algum outro aprendizado da sessão a documentar?
 ```

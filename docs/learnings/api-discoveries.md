@@ -14,7 +14,6 @@ Atualizado via comando `/train` ao final de cada sessão relevante.
 | 2026-03-07 | `api` | 🔴 | Model name errado — gemini-3.1-flash não existe |
 | 2026-03-07 | `api` | 🟡 | Billing obrigatório para modelos de imagem Nano Banana 2 |
 | 2026-03-07 | `api` | 🟡 | Flash retorna JSON com markdown — parser precisa de regex |
-| 2026-03-07 | `tooling` | 🟡 | venv não estava no .gitignore — commit desnecessário de 2375 files |
 | 2026-03-07 | `api` | 🟢 | Safety BLOCK_NONE confirmado: lingerie/catálogo sem bloqueio |
 
 ---
@@ -139,27 +138,6 @@ resultado = json.loads(raw)
 
 **Regra para sessões futuras:** Nunca usar `json.loads(response.text)` diretamente — sempre aplicar o parser robusto acima.
 
----
-
-### [2026-03-07] venv não estava no .gitignore — commit poluído com 2375 arquivos
-
-**Categoria:** `tooling`
-**Afeta:** Repositório `media-shopee`
-**Severidade:** 🟡 Importante (commits poluídos, pushes lentos)
-
-**Contexto:** O venv foi criado em `app/.venv/` mas o `.gitignore` não tinha a entrada `app/.venv/`.
-
-**Solução:** Adicionar ao `.gitignore`:
-```
-# Python venv
-app/.venv/
-.venv/
-venv/
-```
-
-**Ação corretiva pendente:** Remover o `.venv` trackado com `git rm -r --cached app/.venv/` no próximo commit.
-
----
 
 ### [2026-03-07] Safety BLOCK_NONE confirmado para catálogo de lingerie
 
@@ -184,3 +162,4 @@ SAFETY_CONFIG = [
 ---
 
 *Próxima entrada: adicionar via `/train` na próxima sessão.*
+
