@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, ZoomIn, X, CheckCircle, Search, Sparkles, Image, Globe, Layers, AlertTriangle, Clock, Trash2, Copy } from 'lucide-react';
-import type { GenerationStatus, MediaHistoryItem } from '../types';
+import type {
+    ClassifierSummary,
+    GenerationStatus,
+    GroundingInfo,
+    MediaHistoryItem,
+    QualityContract,
+} from '../types';
 import { imageUrl } from '../lib/api';
 import './Gallery.css';
 import React from 'react'; // Added React import for React.memo
@@ -370,7 +376,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
                     <div className="unified-grid" role="list">
                         <AnimatePresence initial={false}>
                             {mediaHistory.map((item, i) => (
-                                <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={() => onDelete(item.id)} onReuse={() => onReuse(item)} />
+                                <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={() => onDelete(item.id)} onReuse={() => onReuse?.(item)} />
                             ))}
                         </AnimatePresence>
                     </div>
@@ -383,20 +389,21 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
     /* ── Done / Idle — grid unificado ──────────────────────── */
     let currentImages: Array<{ url: string; filename: string }> = [];
     let promptInfo: {
+        session_id?: string;
         optimized_prompt: string;
         thinking_level?: string;
         generation_time?: number;
-        grounding?: { trigger_reason?: string;[key: string]: unknown };
+        grounding?: GroundingInfo;
         pipeline_mode?: string;
         failed_indices?: number[] | null;
-        quality_contract?: { global_score?: number;[key: string]: unknown };
+        quality_contract?: QualityContract;
         fidelity_score?: number;
         commercial_score?: number;
         diversity_score?: number;
         grounding_reliability?: number;
         reason_codes?: string[];
         repair_applied?: boolean;
-        classifier_summary?: Record<string, unknown>;
+        classifier_summary?: ClassifierSummary;
         reference_pack_stats?: Record<string, number>;
     } | null = null;
 
@@ -404,6 +411,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
         const resp = status.response;
         currentImages = resp.images || [];
         promptInfo = {
+            session_id: resp.session_id,
             optimized_prompt: resp.optimized_prompt,
             thinking_level: resp.thinking_level,
             generation_time: resp.generation_time,
@@ -458,6 +466,11 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
                     <div className="flex items-center gap-2" style={{ marginBottom: 6, paddingRight: 32 }}>
                         <CheckCircle size={14} className="text-success" aria-hidden="true" />
                         <span className="t-label text-success">Prompt otimizado pelo Agente</span>
+                        {promptInfo.session_id && (
+                            <span className="badge" style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7 }} title="Session ID">
+                                #{promptInfo.session_id}
+                            </span>
+                        )}
                         {promptInfo.pipeline_mode && (
                             <span className="badge">
                                 {promptInfo.pipeline_mode === 'reference_mode' ? 'Com referência' : 'Sem referência'}
@@ -559,7 +572,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
 
                     {/* Histórico — mesmos cards, mesma grid */}
                     {filteredHistory.map((item, i) => (
-                        <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={() => onDelete(item.id)} onReuse={() => onReuse(item)} />
+                        <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={() => onDelete(item.id)} onReuse={() => onReuse?.(item)} />
                     ))}
                 </AnimatePresence>
             </div>

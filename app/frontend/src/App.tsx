@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Copy, Download, Clock } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
@@ -29,6 +29,8 @@ export default function App() {
   const [hadResearch, setHadResearch] = useState(false);
   const [lightbox, setLightbox] = useState<{ url: string; item?: MediaHistoryItem } | null>(null);
   const [reuseData, setReuseData] = useState<{ prompt?: string; references?: string[] } | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
+  const activeJobRef = useRef<string | null>(null);
 
   const fetchPool = useCallback(async () => {
     setPoolLoading(true);
@@ -68,6 +70,71 @@ export default function App() {
 
   useEffect(() => { fetchPool(); fetchHistory(); }, [fetchPool, fetchHistory]);
 
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current != null) {
+        window.clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  function applyStageEvent(event: Record<string, any>) {
+    switch (event.stage) {
+      case 'mode_selected':
+        setStatus({
+          type: 'mode_selected',
+          message: event.message,
+          pipeline_mode: event.pipeline_mode,
+        });
+        break;
+      case 'researching':
+        setStatus({ type: 'researching', message: event.message });
+        setHadResearch(true);
+        break;
+      case 'analyzing':
+        setStatus({ type: 'analyzing', message: event.message });
+        break;
+      case 'triage_done':
+        setStatus({
+          type: 'triage_done',
+          message: event.message,
+          grounding_mode: event.grounding_mode,
+          grounding_score: event.grounding_score,
+          garment_hypothesis: event.garment_hypothesis,
+          complexity_score: event.complexity_score,
+          hint_confidence: event.hint_confidence,
+          trigger_reason: event.trigger_reason,
+          classifier_summary: event.classifier_summary,
+          reason_codes: event.reason_codes || [],
+        });
+        break;
+      case 'prompt_ready':
+        if (event.grounding?.effective) setHadResearch(true);
+        setStatus({
+          type: 'prompt_ready',
+          message: event.message,
+          prompt: event.prompt,
+          image_analysis: event.image_analysis,
+          grounding: event.grounding,
+          quality_contract: event.quality_contract,
+          classifier_summary: event.classifier_summary,
+          reference_pack_stats: event.reference_pack_stats,
+          guided_applied: event.guided_applied,
+          guided_summary: event.guided_summary,
+        });
+        break;
+      case 'generating':
+        setStatus({
+          type: 'generating',
+          message: event.message,
+          current: event.current,
+          total: event.total,
+        });
+        break;
+    }
+  }
+
   async function handleHistoryDelete(id: string) {
     try {
       await deleteHistoryEntry(id);
@@ -95,6 +162,10 @@ export default function App() {
     grounding_strategy: GroundingStrategy;
     guided_brief?: GuidedBrief;
   }) {
+    if (pollTimerRef.current != null) {
+      window.clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
     setStatus({ type: 'analyzing', message: 'Iniciando…' });
     setHadResearch(false);
 
@@ -111,7 +182,7 @@ export default function App() {
     payload.files.forEach(f => fd.append('images', f));
 
     try {
-      const res = await fetch('/generate/stream', {
+      const res = await fetch('/generate/async', {
         method: 'POST',
         body: fd,
       });
@@ -121,99 +192,62 @@ export default function App() {
         throw new Error(err.detail ?? `HTTP ${res.status}`);
       }
 
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('Stream não disponível');
+      const submit = await res.json();
+      const jobId = String(submit?.job_id || '').trim();
+      if (!jobId) throw new Error('Job assíncrono inválido');
+      activeJobRef.current = jobId;
+      setStatus({ type: 'analyzing', message: `Job enfileirado (${jobId})…` });
 
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (!json) continue;
-
-          try {
-            const event = JSON.parse(json);
-
-            switch (event.stage) {
-              case 'mode_selected':
-                setStatus({
-                  type: 'mode_selected',
-                  message: event.message,
-                  pipeline_mode: event.pipeline_mode,
-                });
-                break;
-              case 'researching':
-                setStatus({ type: 'researching', message: event.message });
-                setHadResearch(true);
-                break;
-              case 'analyzing':
-                setStatus({ type: 'analyzing', message: event.message });
-                break;
-              case 'triage_done':
-                setStatus({
-                  type: 'triage_done',
-                  message: event.message,
-                  grounding_mode: event.grounding_mode,
-                  grounding_score: event.grounding_score,
-                  garment_hypothesis: event.garment_hypothesis,
-                  complexity_score: event.complexity_score,
-                  hint_confidence: event.hint_confidence,
-                  trigger_reason: event.trigger_reason,
-                  classifier_summary: event.classifier_summary,
-                  reason_codes: event.reason_codes || [],
-                });
-                break;
-              case 'prompt_ready':
-                if (event.grounding?.effective) setHadResearch(true);
-                setStatus({
-                  type: 'prompt_ready',
-                  message: event.message,
-                  prompt: event.prompt,
-                  image_analysis: event.image_analysis,
-                  grounding: event.grounding,
-                  quality_contract: event.quality_contract,
-                  classifier_summary: event.classifier_summary,
-                  reference_pack_stats: event.reference_pack_stats,
-                  guided_applied: event.guided_applied,
-                  guided_summary: event.guided_summary,
-                });
-                break;
-              case 'generating':
-                setStatus({
-                  type: 'generating',
-                  message: event.message,
-                  current: event.current,
-                  total: event.total,
-                });
-                break;
-              case 'done_partial':
-                if (event.data?.grounding?.effective) setHadResearch(true);
-                setStatus({ type: 'done_partial', response: event.data });
-                fetchHistory();
-                break;
-              case 'done':
-                if (event.data?.grounding?.effective) setHadResearch(true);
-                setStatus({ type: 'done', response: event.data });
-                fetchHistory();
-                break;
-              case 'error':
-                setStatus({ type: 'error', message: event.message });
-                break;
-            }
-          } catch {
-            // JSON parse error — ignorar chunk incompleto
+      let polling = false;
+      pollTimerRef.current = window.setInterval(async () => {
+        if (polling) return;
+        polling = true;
+        try {
+          const statusRes = await fetch(`/generate/jobs/${jobId}`);
+          if (!statusRes.ok) {
+            throw new Error(`Falha ao consultar job (${statusRes.status})`);
           }
+          const job = await statusRes.json();
+          const stage = job?.stage as string | undefined;
+          const event = (job?.event || {}) as Record<string, any>;
+          if (stage && !event.stage) event.stage = stage;
+
+          if (job?.status === 'queued') {
+            setStatus({ type: 'analyzing', message: 'Job na fila…' });
+          } else if (job?.status === 'running') {
+            if (event.stage) applyStageEvent(event);
+            else setStatus({ type: 'analyzing', message: 'Processando job…' });
+          } else if (job?.status === 'done') {
+            const response = job?.response;
+            if (response?.grounding?.effective) setHadResearch(true);
+            setStatus({
+              type: Array.isArray(response?.failed_indices) && response.failed_indices.length > 0 ? 'done_partial' : 'done',
+              response,
+            });
+            fetchHistory();
+            if (pollTimerRef.current != null) {
+              window.clearInterval(pollTimerRef.current);
+              pollTimerRef.current = null;
+            }
+          } else if (job?.status === 'error') {
+            const message = String(job?.error || 'Erro no job assíncrono');
+            setStatus({ type: 'error', message });
+            if (pollTimerRef.current != null) {
+              window.clearInterval(pollTimerRef.current);
+              pollTimerRef.current = null;
+            }
+          }
+        } catch (pollErr: unknown) {
+          const msg = pollErr instanceof Error ? pollErr.message : 'Falha ao consultar job';
+          setStatus({ type: 'error', message: msg });
+          if (pollTimerRef.current != null) {
+            window.clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
+          }
+        } finally {
+          polling = false;
         }
-      }
+      }, 1200);
 
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Erro inesperado';
@@ -343,6 +377,11 @@ export default function App() {
                 >
                   <div className="lightbox-details-header">
                     <span className="t-label text-secondary">Detalhes da geração</span>
+                    {lightbox.item.session_id && (
+                      <span className="badge" style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7 }} title="Session ID">
+                        #{lightbox.item.session_id}
+                      </span>
+                    )}
                     <div className="lightbox-details-actions">
                       <a href={lightbox.url} download={lightbox.item.filename} className="lightbox-action-btn" title="Baixar">
                         <Download size={14} />
