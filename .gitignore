@@ -27,7 +27,10 @@ relatorios/
 .DS_Store
 Thumbs.db
 
-# Outputs gerados
+# Runtime state + outputs gerados pelo backend
+app/outputs/
+
+# Arquivos de mídia (não versionar)
 *.png
 *.jpg
 *.jpeg
