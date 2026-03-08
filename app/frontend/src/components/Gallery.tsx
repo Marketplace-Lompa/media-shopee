@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, ZoomIn, X, CheckCircle, Search, Sparkles, Image, Globe, Layers, AlertTriangle, Clock, Trash2 } from 'lucide-react';
+import { Download, ZoomIn, X, CheckCircle, Search, Sparkles, Image, Globe, Layers, AlertTriangle, Clock, Trash2, Copy } from 'lucide-react';
 import type { GenerationStatus, MediaHistoryItem } from '../types';
 import { imageUrl } from '../lib/api';
 import './Gallery.css';
+import React from 'react'; // Added React import for React.memo
 
 interface Props {
     status: GenerationStatus;
     hadResearch: boolean;
     mediaHistory: MediaHistoryItem[];
-    onHistoryDelete?: (id: string) => void;
-    onLightbox?: (url: string) => void;
-    onLightboxItem?: (item: MediaHistoryItem) => void;
+    onDelete: (id: string) => void; // Renamed from onHistoryDelete
+    onReuse?: (item: MediaHistoryItem) => void; // Made optional
+    onLightbox: (url: string) => void;
+    onLightboxItem: (item: MediaHistoryItem) => void;
 }
 
 /* ── Helpers ───────────────────────────────────────────────── */
@@ -26,7 +28,7 @@ function timeAgo(ts: number): string {
     return `${days}d`;
 }
 
-function setDragPayload(e: any, url: string, filename: string) {
+function setDragPayload(e: React.DragEvent, url: string, filename: string) {
     if (!e?.dataTransfer) return;
     e.dataTransfer.setData('text/plain', url);
     e.dataTransfer.setData('application/x-studio-image', JSON.stringify({ url, filename }));
@@ -154,7 +156,7 @@ function PipelineStepper({ status, hasResearch }: { status: GenerationStatus; ha
                                                     {status.classifier_summary?.atypical ? ' · Atípica' : ''}
                                                 </p>
                                             )}
-                                            {status.reason_codes?.length ? (
+                                            {Array.isArray(status.reason_codes) && status.reason_codes.length > 0 ? (
                                                 <p className="step-detail-text">
                                                     Códigos: {status.reason_codes.slice(0, 3).join(', ')}
                                                 </p>
@@ -204,18 +206,58 @@ function PipelineStepper({ status, hasResearch }: { status: GenerationStatus; ha
     );
 }
 
+/* ── Copy Action ─────────────────────────────────────────── */
+function CopyAction({ text }: { text: string }) {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error('Falha ao copiar:', err);
+        }
+    };
+
+    return (
+        <button
+            onClick={handleCopy}
+            style={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: 6,
+                padding: 6,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-text-secondary)',
+                transition: 'all 0.2s'
+            }}
+            title="Copiar prompt"
+            aria-label="Copiar prompt"
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+        >
+            {copied ? <CheckCircle size={14} className="text-success" /> : <Copy size={14} />}
+        </button>
+    );
+}
+
 /* ── History Grid Card ────────────────────────────────────── */
-function HistoryCard({
-    item,
-    index,
-    onLightboxItem,
-    onDelete,
-}: {
+interface HistoryCardProps {
     item: MediaHistoryItem;
     index: number;
     onLightboxItem?: (item: MediaHistoryItem) => void;
-    onDelete?: (id: string) => void;
-}) {
+    onDelete?: () => void;
+    onReuse?: () => void;
+}
+
+const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse }: HistoryCardProps) => {
     const src = imageUrl(item.url);
 
     return (
@@ -223,7 +265,7 @@ function HistoryCard({
             className="image-card image-card--history"
             role="listitem"
             draggable
-            onDragStart={e => setDragPayload(e, src, item.filename)}
+            onDragStart={(e: unknown) => setDragPayload(e as React.DragEvent<Element>, src, item.filename)}
             onClick={() => onLightboxItem?.(item)}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -251,18 +293,31 @@ function HistoryCard({
                 <a href={src} download={item.filename} className="img-action-btn" title="Baixar" onClick={e => e.stopPropagation()}>
                     <Download size={14} />
                 </a>
+                {onReuse && (
+                    <button
+                        className="history-action-btn"
+                        onClick={(e) => { e.stopPropagation(); onReuse(); }}
+                        title="Reutilizar (Prompt e Referências)"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                    </button>
+                )}
                 {onDelete && (
-                    <button className="img-action-btn img-action-btn--danger" onClick={() => onDelete(item.id)} title="Remover">
+                    <button
+                        className="history-action-btn history-action-btn--danger"
+                        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                        title="Remover"
+                    >
                         <Trash2 size={14} />
                     </button>
                 )}
             </div>
         </motion.div>
     );
-}
+});
 
 /* ── Main Gallery (grid unificado) ───────────────────────── */
-export function Gallery({ status, hadResearch, mediaHistory, onHistoryDelete, onLightbox, onLightboxItem }: Props) {
+export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, onLightbox, onLightboxItem }: Props) {
     const [localLightbox, setLocalLightbox] = useState<string | null>(null);
     const openLightbox = onLightbox ?? ((url: string) => setLocalLightbox(url));
     const openLightboxWithItem = onLightboxItem ?? ((item: MediaHistoryItem) => setLocalLightbox(imageUrl(item.url)));
@@ -291,7 +346,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onHistoryDelete, on
                     <div className="unified-grid" role="list" aria-label="Histórico de gerações">
                         <AnimatePresence initial={false}>
                             {mediaHistory.map((item, i) => (
-                                <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={onHistoryDelete} />
+                                <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={() => onDelete(item.id)} onReuse={() => onReuse?.(item)} />
                             ))}
                         </AnimatePresence>
                     </div>
@@ -315,7 +370,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onHistoryDelete, on
                     <div className="unified-grid" role="list">
                         <AnimatePresence initial={false}>
                             {mediaHistory.map((item, i) => (
-                                <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={onHistoryDelete} />
+                                <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={() => onDelete(item.id)} onReuse={() => onReuse(item)} />
                             ))}
                         </AnimatePresence>
                     </div>
@@ -331,23 +386,23 @@ export function Gallery({ status, hadResearch, mediaHistory, onHistoryDelete, on
         optimized_prompt: string;
         thinking_level?: string;
         generation_time?: number;
-        grounding?: any;
+        grounding?: { trigger_reason?: string;[key: string]: unknown };
         pipeline_mode?: string;
         failed_indices?: number[] | null;
-        quality_contract?: any;
+        quality_contract?: { global_score?: number;[key: string]: unknown };
         fidelity_score?: number;
         commercial_score?: number;
         diversity_score?: number;
         grounding_reliability?: number;
         reason_codes?: string[];
         repair_applied?: boolean;
-        classifier_summary?: any;
+        classifier_summary?: Record<string, unknown>;
         reference_pack_stats?: Record<string, number>;
     } | null = null;
 
-    if (isDone) {
+    if (isDone && status.response) {
         const resp = status.response;
-        currentImages = resp.images;
+        currentImages = resp.images || [];
         promptInfo = {
             optimized_prompt: resp.optimized_prompt,
             thinking_level: resp.thinking_level,
@@ -394,11 +449,13 @@ export function Gallery({ status, hadResearch, mediaHistory, onHistoryDelete, on
             {promptInfo && (
                 <motion.div
                     className="prompt-result-card"
+                    style={{ position: 'relative' }}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
                 >
-                    <div className="flex items-center gap-2" style={{ marginBottom: 6 }}>
+                    <CopyAction text={promptInfo.optimized_prompt} />
+                    <div className="flex items-center gap-2" style={{ marginBottom: 6, paddingRight: 32 }}>
                         <CheckCircle size={14} className="text-success" aria-hidden="true" />
                         <span className="t-label text-success">Prompt otimizado pelo Agente</span>
                         {promptInfo.pipeline_mode && (
@@ -437,7 +494,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onHistoryDelete, on
                             Repair pass aplicado automaticamente.
                         </p>
                     )}
-                    {promptInfo.reason_codes?.length ? (
+                    {Array.isArray(promptInfo.reason_codes) && promptInfo.reason_codes.length > 0 ? (
                         <p className="t-xs text-tertiary" style={{ marginBottom: 6 }}>
                             Códigos: {promptInfo.reason_codes.slice(0, 4).join(', ')}
                         </p>
@@ -453,7 +510,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onHistoryDelete, on
                             </p>
                         </div>
                     ) : null}
-                    <p className="t-sm text-secondary prompt-text">{promptInfo.optimized_prompt}</p>
+                    <p className="t-sm text-secondary prompt-text" style={{ paddingRight: 10 }}>{promptInfo.optimized_prompt}</p>
                 </motion.div>
             )}
 
@@ -467,7 +524,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onHistoryDelete, on
                             className="image-card image-card--current"
                             role="listitem"
                             draggable
-                            onDragStart={e => setDragPayload(e, imageUrl(img.url), img.filename)}
+                            onDragStart={(e: unknown) => setDragPayload(e as React.DragEvent<Element>, imageUrl(img.url), img.filename)}
                             onClick={() => openLightbox(imageUrl(img.url))}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
@@ -502,7 +559,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onHistoryDelete, on
 
                     {/* Histórico — mesmos cards, mesma grid */}
                     {filteredHistory.map((item, i) => (
-                        <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={onHistoryDelete} />
+                        <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={() => onDelete(item.id)} onReuse={() => onReuse(item)} />
                     ))}
                 </AnimatePresence>
             </div>

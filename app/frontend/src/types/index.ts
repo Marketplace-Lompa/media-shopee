@@ -3,6 +3,31 @@ export type Resolution = '1K' | '2K' | '4K';
 export type PoolType = 'modelo' | 'roupa' | 'cenario';
 export type GroundingStrategy = 'auto' | 'on' | 'off';
 export type PipelineMode = 'reference_mode' | 'text_mode';
+export type GuidedAgeRange = '18-24' | '25-34' | '35-44' | '45+';
+export type GuidedSetMode = 'unica' | 'conjunto';
+export type GuidedSceneType = 'interno' | 'externo';
+export type GuidedPoseStyle = 'tradicional' | 'criativa';
+export type GuidedCaptureDistance = 'distante' | 'media' | 'proxima';
+
+export interface GuidedBrief {
+    enabled: boolean;
+    model: { age_range: GuidedAgeRange };
+    garment: { set_mode: GuidedSetMode; components: string[] };
+    scene: { type: GuidedSceneType };
+    pose: { style: GuidedPoseStyle };
+    capture: { distance: GuidedCaptureDistance };
+    fidelity_mode?: 'balanceada' | 'estrita';
+}
+
+export interface GuidedSummary {
+    applied: boolean;
+    shot_type: 'wide' | 'medium' | 'close-up' | 'auto';
+    set_mode: GuidedSetMode;
+    components: string[];
+    age_range: GuidedAgeRange;
+    scene: GuidedSceneType;
+    pose: GuidedPoseStyle;
+}
 
 export interface GenerateRequest {
     prompt?: string;
@@ -85,6 +110,8 @@ export interface GenerateResponse {
     repair_applied?: boolean;
     reference_pack_stats?: Record<string, number>;
     classifier_summary?: ClassifierSummary;
+    guided_applied?: boolean;
+    guided_summary?: GuidedSummary;
 }
 
 export interface MediaHistoryItem {
@@ -99,6 +126,7 @@ export interface MediaHistoryItem {
     aspect_ratio?: string;
     resolution?: string;
     grounding_effective?: boolean;
+    references?: string[];
     created_at: number;
 }
 
@@ -127,7 +155,7 @@ export type GenerationStatus =
         trigger_reason?: string;
         classifier_summary?: ClassifierSummary;
         reason_codes?: string[];
-      }
+    }
     | {
         type: 'prompt_ready';
         message: string;
@@ -137,7 +165,9 @@ export type GenerationStatus =
         quality_contract?: QualityContract;
         classifier_summary?: ClassifierSummary;
         reference_pack_stats?: Record<string, number>;
-      }
+        guided_applied?: boolean;
+        guided_summary?: GuidedSummary;
+    }
     | { type: 'generating'; message: string; current: number; total: number }
     | { type: 'done'; response: GenerateResponse }
     | { type: 'done_partial'; response: GenerateResponse }

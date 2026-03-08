@@ -12,5 +12,8 @@ export default defineConfig({
       '/health': 'http://localhost:8000',
       '/history': 'http://localhost:8000',
     },
+    watch: {
+      ignored: ['**/outputs/**', '**/.venv/**', '**/.git/**'],
+    },
   },
 })

@@ -62,18 +62,18 @@ _PROFILE_POOL = [
 ]
 
 _SCENARIO_POOL = [
-    {"id": "SC01", "prompt": "bright modern downtown with clean architecture"},
-    {"id": "SC02", "prompt": "minimalist indoor studio corner with soft window light"},
-    {"id": "SC03", "prompt": "upscale shopping district at golden hour"},
-    {"id": "SC04", "prompt": "cozy premium cafe terrace with tidy composition"},
-    {"id": "SC05", "prompt": "bright minimalist apartment with neutral decor"},
+    {"id": "SC01", "prompt": "bright modern downtown with clean architecture", "scene_type": "externo"},
+    {"id": "SC02", "prompt": "minimalist indoor studio corner with soft window light", "scene_type": "interno"},
+    {"id": "SC03", "prompt": "upscale shopping district at golden hour", "scene_type": "externo"},
+    {"id": "SC04", "prompt": "cozy premium cafe terrace with tidy composition", "scene_type": "externo"},
+    {"id": "SC05", "prompt": "bright minimalist apartment with neutral decor", "scene_type": "interno"},
 ]
 
 _POSE_POOL = [
-    {"id": "PO01", "prompt": "3/4 stance with relaxed shoulders and near-camera gaze"},
-    {"id": "PO02", "prompt": "natural standing pose with one hand relaxed, direct eye contact"},
-    {"id": "PO03", "prompt": "mid-step subtle movement while maintaining garment visibility"},
-    {"id": "PO04", "prompt": "front-facing confident posture with clean silhouette reveal"},
+    {"id": "PO01", "prompt": "3/4 stance with relaxed shoulders and near-camera gaze", "style": "tradicional"},
+    {"id": "PO02", "prompt": "natural standing pose with one hand relaxed, direct eye contact", "style": "tradicional"},
+    {"id": "PO03", "prompt": "mid-step subtle movement while maintaining garment visibility", "style": "criativa"},
+    {"id": "PO04", "prompt": "front-facing confident posture with clean silhouette reveal", "style": "tradicional"},
 ]
 
 _CATEGORY_THRESHOLDS = {
@@ -394,7 +394,7 @@ def _safe_state() -> dict:
     return state
 
 
-def select_diversity_target(seed_hint: str = "") -> dict:
+def select_diversity_target(seed_hint: str = "", guided_brief: Optional[dict] = None) -> dict:
     state = _safe_state()
     history = list(state.get("history", []))
     window = max(8, DIVERSITY_WINDOW)
@@ -420,8 +420,27 @@ def select_diversity_target(seed_hint: str = "") -> dict:
     cursor_profile = int(state.get("cursor_profile", 0))
     profile = least_used[(cursor_profile + seed) % len(least_used)]
 
-    scenario_candidates = [s for s in _SCENARIO_POOL if s["id"] != last_scenario] or list(_SCENARIO_POOL)
-    pose_candidates = [p for p in _POSE_POOL if p["id"] != last_pose] or list(_POSE_POOL)
+    guided_scene_type = str(((guided_brief or {}).get("scene") or {}).get("type", "")).strip().lower()
+    guided_pose_style = str(((guided_brief or {}).get("pose") or {}).get("style", "")).strip().lower()
+    guided_age_range = str(((guided_brief or {}).get("model") or {}).get("age_range", "")).strip()
+
+    scenario_pool = (
+        [s for s in _SCENARIO_POOL if s.get("scene_type") == guided_scene_type]
+        if guided_scene_type in {"interno", "externo"}
+        else list(_SCENARIO_POOL)
+    )
+    if not scenario_pool:
+        scenario_pool = list(_SCENARIO_POOL)
+    scenario_candidates = [s for s in scenario_pool if s["id"] != last_scenario] or scenario_pool
+
+    pose_pool = (
+        [p for p in _POSE_POOL if p.get("style") == guided_pose_style]
+        if guided_pose_style in {"tradicional", "criativa"}
+        else list(_POSE_POOL)
+    )
+    if not pose_pool:
+        pose_pool = list(_POSE_POOL)
+    pose_candidates = [p for p in pose_pool if p["id"] != last_pose] or pose_pool
 
     cursor_scenario = int(state.get("cursor_scenario", 0))
     cursor_pose = int(state.get("cursor_pose", 0))
@@ -442,16 +461,30 @@ def select_diversity_target(seed_hint: str = "") -> dict:
     }
     _save_json(_DIVERSITY_STATE_FILE, next_state)
 
+    age_prefix_map = {
+        "18-24": "early 20s",
+        "25-34": "late 20s to early 30s",
+        "35-44": "late 30s to early 40s",
+        "45+": "45+",
+    }
+    age_prefix = age_prefix_map.get(guided_age_range, "")
+    profile_prompt = profile["prompt"]
+    if age_prefix:
+        profile_prompt = f"{age_prefix}, {profile_prompt}"
+
     profile_share = _clamp((counts.get(profile["id"], 0) + 1) / float(window))
     diversity_score = _clamp(1.0 - max(0.0, profile_share - max_share) / max(max_share, 1e-6))
 
     return {
         "profile_id": profile["id"],
-        "profile_prompt": profile["prompt"],
+        "profile_prompt": profile_prompt,
         "scenario_id": scenario["id"],
         "scenario_prompt": scenario["prompt"],
         "pose_id": pose["id"],
         "pose_prompt": pose["prompt"],
+        "age_range": guided_age_range or None,
+        "scene_type": guided_scene_type or None,
+        "pose_style": guided_pose_style or None,
         "window": window,
         "max_share": max_share,
         "profile_share": round(profile_share, 3),

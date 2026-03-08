@@ -25,6 +25,10 @@ class GenerateRequest(BaseModel):
         le=4,
         description="Número de imagens a gerar (1-4)"
     )
+    guided_brief: Optional[dict] = Field(
+        default=None,
+        description="Brief guiado opcional para parametrização determinística do agente"
+    )
 
 
 class GeneratedImage(BaseModel):
@@ -60,6 +64,8 @@ class GenerateResponse(BaseModel):
     repair_applied: Optional[bool] = Field(default=None, description="Se aplicou repair pass")
     reference_pack_stats: Optional[dict] = Field(default=None, description="Stats da curadoria de referências")
     classifier_summary: Optional[dict] = Field(default=None, description="Resumo do classificador visual")
+    guided_applied: Optional[bool] = Field(default=None, description="Se o modo guiado foi aplicado no job")
+    guided_summary: Optional[dict] = Field(default=None, description="Resumo do brief guiado efetivamente aplicado")
 
 
 class PoolItem(BaseModel):

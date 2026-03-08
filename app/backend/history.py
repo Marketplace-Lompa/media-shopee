@@ -46,6 +46,7 @@ def add_entry(
     aspect_ratio: Optional[str] = None,
     resolution: Optional[str] = None,
     grounding_effective: bool = False,
+    references: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     """Adiciona uma entrada ao histórico e retorna a entry criada."""
     entry = {
@@ -59,6 +60,7 @@ def add_entry(
         "aspect_ratio": aspect_ratio,
         "resolution": resolution,
         "grounding_effective": grounding_effective,
+        "references": references or [],
         "created_at": int(time.time() * 1000),
     }
     entries = _load()

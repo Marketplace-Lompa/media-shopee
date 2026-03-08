@@ -12,6 +12,7 @@ import type {
   AspectRatio,
   Resolution,
   GroundingStrategy,
+  GuidedBrief,
   MediaHistoryItem,
 } from './types';
 import './App.css';
@@ -27,6 +28,7 @@ export default function App() {
   const [mediaHistory, setMediaHistory] = useState<MediaHistoryItem[]>([]);
   const [hadResearch, setHadResearch] = useState(false);
   const [lightbox, setLightbox] = useState<{ url: string; item?: MediaHistoryItem } | null>(null);
+  const [reuseData, setReuseData] = useState<{ prompt?: string; references?: string[] } | null>(null);
 
   const fetchPool = useCallback(async () => {
     setPoolLoading(true);
@@ -55,6 +57,7 @@ export default function App() {
         aspect_ratio: e.aspect_ratio as string | undefined,
         resolution: e.resolution as string | undefined,
         grounding_effective: e.grounding_effective as boolean | undefined,
+        references: e.references as string[] | undefined,
         created_at: e.created_at as number,
       }));
       setMediaHistory(items);
@@ -74,6 +77,15 @@ export default function App() {
     }
   }
 
+  function handleReuse(item: MediaHistoryItem) {
+    setReuseData({
+      prompt: item.prompt || item.optimized_prompt,
+      references: item.references || [],
+    });
+    // Rola para o topo onde está o input
+    document.querySelector('.generate-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   async function handleGenerate(payload: {
     prompt: string;
     files: File[];
@@ -81,6 +93,7 @@ export default function App() {
     aspect_ratio: AspectRatio;
     resolution: Resolution;
     grounding_strategy: GroundingStrategy;
+    guided_brief?: GuidedBrief;
   }) {
     setStatus({ type: 'analyzing', message: 'Iniciando…' });
     setHadResearch(false);
@@ -92,6 +105,9 @@ export default function App() {
     fd.append('resolution', payload.resolution);
     fd.append('grounding_strategy', payload.grounding_strategy);
     if (payload.grounding_strategy === 'on') fd.append('use_grounding', 'true');
+    if (payload.guided_brief?.enabled) {
+      fd.append('guided_brief', JSON.stringify(payload.guided_brief));
+    }
     payload.files.forEach(f => fd.append('images', f));
 
     try {
@@ -153,7 +169,7 @@ export default function App() {
                   hint_confidence: event.hint_confidence,
                   trigger_reason: event.trigger_reason,
                   classifier_summary: event.classifier_summary,
-                  reason_codes: event.reason_codes,
+                  reason_codes: event.reason_codes || [],
                 });
                 break;
               case 'prompt_ready':
@@ -167,6 +183,8 @@ export default function App() {
                   quality_contract: event.quality_contract,
                   classifier_summary: event.classifier_summary,
                   reference_pack_stats: event.reference_pack_stats,
+                  guided_applied: event.guided_applied,
+                  guided_summary: event.guided_summary,
                 });
                 break;
               case 'generating':
@@ -233,13 +251,19 @@ export default function App() {
                     status={status}
                     hadResearch={hadResearch}
                     mediaHistory={mediaHistory}
-                    onHistoryDelete={handleHistoryDelete}
+                    onDelete={handleHistoryDelete}
+                    onReuse={handleReuse}
                     onLightbox={(url) => setLightbox({ url })}
                     onLightboxItem={(item) => setLightbox({ url: item.url.startsWith('http') ? item.url : `${window.location.origin}${item.url}`, item })}
                   />
                 </div>
 
-                <ChatInput status={status} onSubmit={handleGenerate} />
+                <ChatInput
+                  status={status}
+                  onSubmit={handleGenerate}
+                  externalData={reuseData}
+                  onClearExternalData={() => setReuseData(null)}
+                />
               </motion.div>
             )}
 

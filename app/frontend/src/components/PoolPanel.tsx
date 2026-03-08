@@ -29,7 +29,7 @@ export function PoolPanel({ items, loading, onRefresh }: Props) {
         ? items
         : items.filter(i => i.type === activeType);
 
-    async function handleUpload(files: FileList | null, type: PoolType) {
+    const handleUpload = useCallback(async (files: FileList | null, type: PoolType) => {
         if (!files?.length) return;
         setUploading(true);
         try {
@@ -45,7 +45,7 @@ export function PoolPanel({ items, loading, onRefresh }: Props) {
         } finally {
             setUploading(false);
         }
-    }
+    }, [onRefresh]);
 
     async function handleRemove(id: string) {
         setRemoving(id);
@@ -63,7 +63,7 @@ export function PoolPanel({ items, loading, onRefresh }: Props) {
         e.preventDefault();
         setDragging(false);
         handleUpload(e.dataTransfer.files, type);
-    }, []);
+    }, [handleUpload]);
 
     return (
         <div className="pool-panel">

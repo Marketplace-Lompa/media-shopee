@@ -4,6 +4,7 @@ Gerencia o Reference Pool (LoRA-like).
 """
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
+from typing import Optional
 
 from models import PoolAddResponse, PoolListResponse, PoolItem
 from pool import add_reference, list_references, remove_reference
@@ -13,11 +14,11 @@ router = APIRouter(prefix="/pool", tags=["pool"])
 
 
 @router.get("", response_model=PoolListResponse)
-async def list_pool(type: str = None):
+async def list_pool(type: Optional[str] = None):
     """Lista imagens do pool, opcionalmente filtradas por tipo."""
     if type and type not in POOL_TYPES:
         raise HTTPException(400, f"Tipo inválido. Use: {POOL_TYPES}")
-    items = list_references(ref_type=type)
+    items = list_references(ref_type=type) # type: ignore
     return PoolListResponse(
         items=[PoolItem(**i) for i in items],
         total=len(items),
@@ -37,9 +38,9 @@ async def add_to_pool(
     if len(content) == 0:
         raise HTTPException(400, "Arquivo vazio.")
 
-    item = add_reference(
+    item = add_reference( # type: ignore
         file_bytes=content,
-        original_filename=file.filename,
+        original_filename=file.filename or "unknown",
         ref_type=type,
     )
     return PoolAddResponse(
@@ -53,7 +54,7 @@ async def add_to_pool(
 @router.delete("/{item_id}")
 async def delete_from_pool(item_id: str):
     """Remove uma referência do pool pelo ID."""
-    removed = remove_reference(item_id)
+    removed = remove_reference(item_id) # type: ignore
     if not removed:
         raise HTTPException(404, f"Item '{item_id}' não encontrado no pool.")
     return {"message": f"Referência '{item_id}' removida com sucesso."}

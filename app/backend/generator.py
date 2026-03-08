@@ -82,35 +82,39 @@ def generate_images(
         response = client.models.generate_content(
             model=MODEL_IMAGE,
             contents=[types.Content(role="user", parts=content_parts)],
-            config=types.GenerateContentConfig(
-                response_modalities=["TEXT", "IMAGE"],
-                image_config=types.ImageConfig(
-                    aspect_ratio=aspect_ratio,
-                    image_size=resolution,
-                ),
-                thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
-                safety_settings=SAFETY_CONFIG,
+        config=types.GenerateContentConfig(
+            response_modalities=["TEXT", "IMAGE"],
+            image_config=types.ImageConfig(
+                aspect_ratio=aspect_ratio,
+                image_size=resolution,
             ),
+            thinking_config=types.ThinkingConfig(thinking_level=thinking_level) if thinking_level else None, # type: ignore
+            safety_settings=SAFETY_CONFIG,
+        ),
         )
 
         # Extrair imagem da resposta
         image_found = False
-        for part in response.parts:
-            if part.inline_data and part.inline_data.mime_type.startswith("image/"):
-                ext = part.inline_data.mime_type.split("/")[-1]
+        parts = response.parts if response.parts else []
+        for part in parts:
+            if getattr(part, "inline_data", None) and getattr(part.inline_data, "mime_type", None) and part.inline_data.mime_type.startswith("image/"): # type: ignore
+                ext = part.inline_data.mime_type.split("/")[-1] # type: ignore
                 filename = f"gen_{session_id}_{image_index}.{ext}"
                 filepath = session_dir / filename
 
-                filepath.write_bytes(part.inline_data.data)
+                data = getattr(part.inline_data, "data", None)
+                if data:
+                    filepath.write_bytes(data)
                 size_kb = filepath.stat().st_size / 1024
 
+                mime_type_val = getattr(part.inline_data, "mime_type", "image/png")
                 results.append({
                     "index": image_index,
                     "filename": filename,
                     "url": f"/outputs/{session_id}/{filename}",
                     "path": str(filepath),
                     "size_kb": round(size_kb, 1),
-                    "mime_type": part.inline_data.mime_type,
+                    "mime_type": str(mime_type_val),
                 })
                 image_found = True
                 break  # só uma imagem por chamada

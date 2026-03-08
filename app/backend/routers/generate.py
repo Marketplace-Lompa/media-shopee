@@ -10,6 +10,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
 from models import GenerateResponse, GeneratedImage
 from agent import run_agent
+from guided_mode import guided_force_grounding_floor, guided_summary, normalize_guided_brief
 from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
 from generator import generate_images
 from pipeline_effectiveness import (
@@ -36,6 +37,7 @@ async def generate(
     n_images: int = Form(default=1),
     grounding_strategy: Optional[str] = Form(default=None),
     use_grounding: bool = Form(default=False),
+    guided_brief: Optional[str] = Form(default=None),
     images: List[UploadFile] = File(default=[]),
 ):
     if aspect_ratio not in VALID_ASPECT_RATIOS:
@@ -52,12 +54,13 @@ async def generate(
     pool_context = "POOL_RUNTIME_DISABLED"
     pipeline_mode = "reference_mode" if uploaded_bytes else "text_mode"
     strategy = normalize_grounding_strategy(grounding_strategy, use_grounding)
+    normalized_guided = normalize_guided_brief(guided_brief)
 
     reference_pack = build_reference_pack(uploaded_bytes)
     analysis_images = reference_pack.get("analysis_images", [])
     generation_images = reference_pack.get("generation_images", [])
     reference_pack_stats = reference_pack.get("stats", {})
-    diversity_target = select_diversity_target(seed_hint=prompt or "")
+    diversity_target = select_diversity_target(seed_hint=prompt or "", guided_brief=normalized_guided)
 
     triage = {}
     classifier_summary = {}
@@ -71,6 +74,7 @@ async def generate(
             resolution=resolution,
             use_grounding=False,
             diversity_target=diversity_target,
+            guided_brief=normalized_guided,  # type: ignore
         )
         triage = compute_grounding_triage(
             user_prompt=prompt,
@@ -90,6 +94,12 @@ async def generate(
             classifier_summary=classifier_summary,
         )
         applied_mode = decision.get("grounding_mode", "off")
+        if strategy == "auto" and applied_mode == "off" and guided_force_grounding_floor(
+            normalized_guided, bool(uploaded_bytes)
+        ):
+            applied_mode = "lexical"
+            decision["trigger_reason"] = "guided_floor_forced_grounding"
+            decision["reason_codes"] = sorted(set((decision.get("reason_codes", []) or []) + ["guided_floor_forced_grounding"]))
         if applied_mode == "off":
             agent_result = baseline_result
         else:
@@ -104,6 +114,7 @@ async def generate(
                     grounding_mode=applied_mode,
                     grounding_context_hint=triage.get("garment_hypothesis"),
                     diversity_target=diversity_target,
+                    guided_brief=normalized_guided,  # type: ignore
                 )
             except Exception:
                 agent_result = baseline_result
@@ -118,6 +129,7 @@ async def generate(
     thinking_reason = agent_result.get("thinking_reason", "")
     shot_type = agent_result.get("shot_type", "auto")
     realism_level = agent_result.get("realism_level", 2)
+    guided_sum = agent_result.get("guided_summary") or guided_summary(normalized_guided, shot_type)
 
     grounding_sources = (agent_result.get("grounding", {}) or {}).get("sources", []) or []
     grounded_images_count = int((agent_result.get("grounding", {}) or {}).get("grounded_images_count", 0) or 0)
@@ -264,4 +276,6 @@ async def generate(
         repair_applied=repair_applied,
         reference_pack_stats=reference_pack_stats,
         classifier_summary=classifier_summary,
+        guided_applied=bool(guided_sum),
+        guided_summary=guided_sum,
     )

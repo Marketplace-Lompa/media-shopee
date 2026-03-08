@@ -1,0 +1,14 @@
+{
+    "include": [
+        "app/backend"
+    ],
+    "extraPaths": [
+        "app/backend"
+    ],
+    "venvPath": "app",
+    "venv": ".venv",
+    "pythonVersion": "3.12",
+    "reportMissingImports": "warning",
+    "reportMissingModuleSource": "none",
+    "reportAttributeAccessIssue": "warning"
+}

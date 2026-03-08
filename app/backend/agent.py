@@ -30,6 +30,7 @@ from google import genai
 from google.genai import types
 
 from config import GOOGLE_AI_API_KEY, MODEL_AGENT, SAFETY_CONFIG
+from guided_mode import guided_capture_to_shot, guided_summary
 
 client = genai.Client(api_key=GOOGLE_AI_API_KEY)
 
@@ -94,11 +95,7 @@ MODE 2 — User sent reference images (with or without text):
     category, color(s), material family, silhouette/fit.
     DO NOT describe texture patterns, stitches, prints — these CONFUSE the model.
   STEP 2: Start prompt with Fidelity Lock verbatim:
-    "REFERENCE IMAGE IS THE AUTHORITY FOR THE GARMENT. KEEP ONLY THE GARMENT from the
-    reference photo — reproduce its exact texture, stitch pattern, color, and construction.
-    REPLACE EVERYTHING ELSE: use a completely different human model (different ethnicity,
-    body type, hair, age), a completely new pose, and a completely different background
-    and scenario. Do NOT replicate the model, pose, or environment from the reference."
+    "REFERENCE IMAGE IS THE AUTHORITY FOR THE GARMENT. KEEP ONLY THE GARMENT from the reference photo — reproduce its exact texture, stitch pattern, color, and construction. REPLACE EVERYTHING ELSE: use a completely different human model (different ethnicity, body type, hair, age), a completely new pose, and a completely different background and scenario. Do NOT replicate the model, pose, or environment from the reference."
   ANTI-CLONING: NEVER reuse person, background, or pose from reference. Always contrast.
   After lock: add MAX 2 reinforcement sentences on fiber/material type and construction — NOT visual patterns.
   NEVER describe in text: stripes, prints, zigzag, diamond, lace pattern, crochet loops.
@@ -256,8 +253,8 @@ def _parse_json(raw: str) -> dict:
     # 1) Tentativa direta
     try:
         return _safe_json_loads(text)
-    except Exception:
-        pass
+    except Exception as e1:
+        error_msg = str(e1)
 
     # 2) Tentativa em bloco markdown ```json ... ```
     if "```" in text:
@@ -266,8 +263,8 @@ def _parse_json(raw: str) -> dict:
             candidate = match.group(1)
             try:
                 return _safe_json_loads(candidate)
-            except Exception:
-                pass
+            except Exception as e2:
+                error_msg += f" | {e2}"
 
     # 3) Extrair objeto balanceado
     candidate = _extract_balanced_json(text)
@@ -275,11 +272,11 @@ def _parse_json(raw: str) -> dict:
         try:
             return _safe_json_loads(candidate)
         except Exception as e:
-            preview = candidate[:240].replace("\n", "\\n")
-            raise ValueError(f"AGENT_JSON_INVALID: {e}. candidate={preview}") from e
+            preview = candidate[:1000].replace("\n", "\\n")
+            raise ValueError(f"AGENT_JSON_INVALID: fallbacks failed. Errors: {error_msg} | {e}. candidate={preview}") from e
 
-    preview = text[:240].replace("\n", "\\n")
-    raise ValueError(f"AGENT_JSON_INVALID: no-json-object. raw={preview}")
+    preview = text[:1000].replace("\n", "\\n")
+    raise ValueError(f"AGENT_JSON_INVALID: no balanced JSON found. Errors: {error_msg}. raw={preview}")
 
 
 def _extract_response_text(response: Any) -> str:
@@ -383,6 +380,64 @@ def _apply_quality_locks(
     # Evita prompts exageradamente longos
     if len(merged) > 2200:
         merged = merged[:2200].rstrip() + "..."
+    return merged
+
+
+def _apply_guided_locks(prompt: str, guided_brief: Optional[dict], has_images: bool) -> str:
+    if not prompt or not guided_brief:
+        return prompt
+
+    garment = guided_brief.get("garment", {}) or {}
+    scene = guided_brief.get("scene", {}) or {}
+    pose = guided_brief.get("pose", {}) or {}
+    capture = guided_brief.get("capture", {}) or {}
+    fidelity_mode = str(guided_brief.get("fidelity_mode", "balanceada")).strip().lower()
+
+    set_mode = str(garment.get("set_mode", "unica")).strip().lower()
+    components = list(garment.get("components", []) or [])
+    scene_type = str(scene.get("type", "")).strip().lower()
+    pose_style = str(pose.get("style", "")).strip().lower()
+    capture_distance = str(capture.get("distance", "")).strip().lower()
+
+    locks: List[str] = []
+    if set_mode == "conjunto":
+        locks.append(
+            "GUIDED SET LOCK: treat the outfit as a coordinated set and preserve all declared components without omission."
+        )
+        if "cachecol" in components:
+            locks.append(
+                "GUIDED COMPONENT LOCK: include a matching scarf as a separate coordinated piece, not fused into the main garment."
+            )
+
+    if scene_type == "interno":
+        locks.append("GUIDED SCENE LOCK: use an indoor environment only.")
+    elif scene_type == "externo":
+        locks.append("GUIDED SCENE LOCK: use an outdoor environment only.")
+
+    if pose_style == "tradicional":
+        locks.append("GUIDED POSE LOCK: use a traditional catalog pose with stable stance and clear garment visibility.")
+    elif pose_style == "criativa":
+        locks.append("GUIDED POSE LOCK: use a creative pose while keeping full garment readability for e-commerce.")
+
+    shot = guided_capture_to_shot(capture_distance)
+    if shot == "wide":
+        locks.append("GUIDED CAPTURE LOCK: framing must be wide/full-body.")
+    elif shot == "medium":
+        locks.append("GUIDED CAPTURE LOCK: framing must be medium/waist-up.")
+    elif shot == "close-up":
+        locks.append("GUIDED CAPTURE LOCK: framing must be close-up/detail-focused.")
+
+    if has_images and (set_mode == "conjunto" or fidelity_mode == "estrita"):
+        locks.append("GUIDED NEGATIVE LOCK: no extra pockets not present in references.")
+        locks.append("GUIDED NEGATIVE LOCK: no front closure if reference garment is open-front.")
+        locks.append("GUIDED NEGATIVE LOCK: do not reinterpret texture/stitch when references are present.")
+
+    merged = prompt.strip()
+    for lock in locks:
+        if lock[:28] not in merged:
+            merged += f" {lock}"
+    if len(merged) > 2400:
+        merged = merged[:2400].rstrip() + "..."
     return merged
 
 
@@ -727,11 +782,13 @@ def _run_grounding_research(
 
     # Log grounding metadata
     try:
-        candidate = response.candidates[0]
-        gm = candidate.grounding_metadata
-        print(f"[GROUNDING] 🌐 Metadata present: {gm is not None}")
-        if gm:
-            queries = list(getattr(gm, "web_search_queries", None) or [])
+        candidates = getattr(response, "candidates", None)
+        if candidates and len(candidates) > 0:
+            candidate = candidates[0]
+            gm = getattr(candidate, "grounding_metadata", None)
+            print(f"[GROUNDING] 🌐 Metadata present: {gm is not None}")
+            if gm:
+                queries = list(getattr(gm, "web_search_queries", None) or [])
             print(f"[GROUNDING] 🌐 Search queries: {queries}")
             chunks = getattr(gm, 'grounding_chunks', None)
             if chunks:
@@ -816,6 +873,7 @@ def run_agent(
     grounding_mode: str = "lexical",
     grounding_context_hint: Optional[str] = None,
     diversity_target: Optional[dict] = None,
+    guided_brief: Optional[dict] = None,
 ) -> dict:
     """
     Executa o Prompt Agent e retorna:
@@ -830,6 +888,7 @@ def run_agent(
     has_prompt = bool(user_prompt and user_prompt.strip())
     has_images = bool(uploaded_images)
     pipeline_mode = "reference_mode" if has_images else "text_mode"
+    guided_enabled = bool(guided_brief and guided_brief.get("enabled"))
     has_pool = bool(
         pool_context
         and "No reference" not in pool_context
@@ -886,6 +945,26 @@ def run_agent(
         f" Use pose guidance: {pose}. "
         "Do not replicate person/background/pose from references."
     )
+
+    if guided_enabled:
+        garment = (guided_brief or {}).get("garment", {}) or {}
+        model = (guided_brief or {}).get("model", {}) or {}
+        scene = (guided_brief or {}).get("scene", {}) or {}
+        pose_cfg = (guided_brief or {}).get("pose", {}) or {}
+        capture = (guided_brief or {}).get("capture", {}) or {}
+        fidelity_mode = str((guided_brief or {}).get("fidelity_mode", "balanceada")).strip().lower()
+        components = ", ".join(garment.get("components", []) or []) or "none"
+        context_text += (
+            "\n\n[GUIDED BRIEF — deterministic constraints, must obey]\n"
+            f"- model_age_range: {model.get('age_range', '25-34')}\n"
+            f"- set_mode: {garment.get('set_mode', 'unica')}\n"
+            f"- components: {components}\n"
+            f"- scene_type: {scene.get('type', 'externo')}\n"
+            f"- pose_style: {pose_cfg.get('style', 'tradicional')}\n"
+            f"- capture_distance: {capture.get('distance', 'media')}\n"
+            f"- fidelity_mode: {fidelity_mode}\n"
+            "If set_mode is conjunto, do not omit declared components."
+        )
 
     # Grounding: chamada separada de pesquisa antes do agente
     grounding_research = ""
@@ -971,7 +1050,7 @@ def run_agent(
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
                     temperature=temperature,
-                    max_output_tokens=2048,
+                    max_output_tokens=8192,
                     safety_settings=SAFETY_CONFIG,
                     response_mime_type="application/json",
                     response_json_schema=AGENT_RESPONSE_SCHEMA,
@@ -986,7 +1065,7 @@ def run_agent(
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_INSTRUCTION,
                     temperature=temperature,
-                    max_output_tokens=2048,
+                    max_output_tokens=8192,
                     safety_settings=SAFETY_CONFIG,
                     response_mime_type="application/json",
                 ),
@@ -1042,7 +1121,11 @@ def run_agent(
     if result.get("shot_type") not in ["wide", "medium", "close-up", "auto"]:
         result["shot_type"] = "auto"
 
-    if pipeline_mode == "text_mode" and result.get("shot_type") == "auto":
+    guided_distance = str(((guided_brief or {}).get("capture") or {}).get("distance", "")).strip().lower()
+    guided_shot = guided_capture_to_shot(guided_distance) if guided_enabled else None
+    if guided_shot:
+        result["shot_type"] = guided_shot
+    elif pipeline_mode == "text_mode" and result.get("shot_type") == "auto":
         result["shot_type"] = _infer_text_mode_shot(user_prompt)
 
     if result.get("realism_level") not in [1, 2, 3]:
@@ -1054,11 +1137,17 @@ def run_agent(
         grounding_mode=grounding_mode,
         pipeline_mode=pipeline_mode,
     )
+    result["prompt"] = _apply_guided_locks(
+        prompt=result.get("prompt", ""),
+        guided_brief=guided_brief if guided_enabled else None,
+        has_images=has_images,
+    )
 
     result["grounding"] = grounding_meta
     result["pipeline_mode"] = pipeline_mode
     result["model_profile_id"] = diversity_target.get("profile_id") if diversity_target else None
     result["diversity_target"] = diversity_target or {}
+    result["guided_summary"] = guided_summary(guided_brief if guided_enabled else None, result.get("shot_type"))
     result["_grounded_images"] = grounded_images
 
     # ── Log de observabilidade ─────────────────────────────────────

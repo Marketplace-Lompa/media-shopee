@@ -12,9 +12,10 @@ from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 
 from agent import run_agent
+from guided_mode import guided_force_grounding_floor, guided_summary, normalize_guided_brief
 from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
 from generator import generate_images
-from history import add_entry as history_add, purge_oldest as history_purge
+from history import add_entry as history_add, purge_oldest as history_purge  # type: ignore
 from pipeline_effectiveness import (
     assess_generated_image,
     build_reference_pack,
@@ -44,6 +45,7 @@ async def generate_stream(
     n_images: int = Form(default=1),
     grounding_strategy: Optional[str] = Form(default=None),
     use_grounding: bool = Form(default=False),
+    guided_brief: Optional[str] = Form(default=None),
     images: List[UploadFile] = File(default=[]),
 ):
     # UploadFile precisa ser lido no contexto do request
@@ -62,16 +64,29 @@ async def generate_stream(
             yield _sse_event("error", {"message": f"n_images inválido. Use: {VALID_N_IMAGES}"})
             return
 
+        session_id = str(uuid.uuid4())[:8]
+        from config import OUTPUTS_DIR
+        reference_urls = []
+        if uploaded_bytes:
+            session_dir = OUTPUTS_DIR / session_id
+            session_dir.mkdir(parents=True, exist_ok=True)
+            for idx, img_bytes in enumerate(uploaded_bytes):
+                ref_filename = f"ref_{idx+1}.jpg"
+                img_path = session_dir / ref_filename
+                img_path.write_bytes(img_bytes)
+                reference_urls.append(f"/outputs/{session_id}/{ref_filename}")
+
         n_uploads = len(uploaded_bytes)
         pipeline_mode = "reference_mode" if n_uploads > 0 else "text_mode"
         pool_context = "POOL_RUNTIME_DISABLED"
+        normalized_guided = normalize_guided_brief(guided_brief)
 
         reference_pack = build_reference_pack(uploaded_bytes)
         analysis_images = reference_pack.get("analysis_images", [])
         generation_images = reference_pack.get("generation_images", [])
         reference_pack_stats = reference_pack.get("stats", {})
 
-        diversity_target = select_diversity_target(seed_hint=prompt or "")
+        diversity_target = select_diversity_target(seed_hint=prompt or "", guided_brief=normalized_guided)
 
         yield _sse_event("mode_selected", {
             "message": "Modo com referência ativado" if pipeline_mode == "reference_mode" else "Modo sem referência ativado",
@@ -101,6 +116,7 @@ async def generate_stream(
                 resolution=resolution,
                 use_grounding=False,
                 diversity_target=diversity_target,
+                guided_brief=normalized_guided,  # type: ignore
             )
 
             triage = compute_grounding_triage(
@@ -121,6 +137,12 @@ async def generate_stream(
                 classifier_summary=classifier_summary,
             )
             applied_mode = decision.get("grounding_mode", "off")
+            if strategy == "auto" and applied_mode == "off" and guided_force_grounding_floor(
+                normalized_guided, n_uploads > 0
+            ):
+                applied_mode = "lexical"
+                decision["trigger_reason"] = "guided_floor_forced_grounding"
+                decision["reason_codes"] = sorted(set((decision.get("reason_codes", []) or []) + ["guided_floor_forced_grounding"]))
 
             yield _sse_event("triage_done", {
                 "message": "Triage de grounding concluído",
@@ -155,6 +177,7 @@ async def generate_stream(
                         grounding_mode=applied_mode,
                         grounding_context_hint=triage.get("garment_hypothesis"),
                         diversity_target=diversity_target,
+                        guided_brief=normalized_guided,  # type: ignore
                     )
                 except Exception as grounding_error:
                     print(f"[STREAM] ⚠️ Grounding failed, fallback baseline: {grounding_error}")
@@ -172,6 +195,7 @@ async def generate_stream(
         pipeline_mode = agent_result.get("pipeline_mode", pipeline_mode)
         grounded_images = list(agent_result.pop("_grounded_images", []) or [])
         image_analysis = agent_result.get("image_analysis", "")
+        guided_sum = agent_result.get("guided_summary") or guided_summary(normalized_guided, shot_type)
 
         grounding_sources = (agent_result.get("grounding", {}) or {}).get("sources", []) or []
         grounded_images_count = int((agent_result.get("grounding", {}) or {}).get("grounded_images_count", 0) or 0)
@@ -212,9 +236,10 @@ async def generate_stream(
             "quality_contract": quality_contract,
             "classifier_summary": classifier_summary,
             "reference_pack_stats": reference_pack_stats,
+            "guided_applied": bool(guided_sum),
+            "guided_summary": guided_sum,
         })
 
-        session_id = str(uuid.uuid4())[:8]
         generated_images = []
         failed_indices = []
         image_assessments = []
@@ -341,6 +366,8 @@ async def generate_stream(
             "repair_applied": repair_applied,
             "reference_pack_stats": reference_pack_stats,
             "classifier_summary": classifier_summary,
+            "guided_applied": bool(guided_sum),
+            "guided_summary": guided_sum,
         }
 
         grounding_eff = grounding_info.get("effective", False) if isinstance(grounding_info, dict) else False
@@ -356,6 +383,7 @@ async def generate_stream(
                     aspect_ratio=aspect_ratio,
                     resolution=resolution,
                     grounding_effective=grounding_eff,
+                    references=reference_urls,
                 )
             except Exception as hist_err:
                 print(f"[HISTORY] ⚠️ Falha ao persistir: {hist_err}")

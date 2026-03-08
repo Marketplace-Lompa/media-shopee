@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send, ImagePlus, X, Loader2,
-    SlidersHorizontal, ChevronDown, ChevronUp, Globe
+    SlidersHorizontal, ChevronDown, ChevronUp, Globe, Wand2
 } from 'lucide-react';
-import type { AspectRatio, Resolution, GenerationStatus, GroundingStrategy } from '../types';
+import type { AspectRatio, Resolution, GenerationStatus, GroundingStrategy, GuidedBrief } from '../types';
 import './ChatInput.css';
 
 interface Props {
@@ -17,12 +17,24 @@ interface Props {
         aspect_ratio: AspectRatio;
         resolution: Resolution;
         grounding_strategy: GroundingStrategy;
+        guided_brief?: GuidedBrief;
     }) => void;
+    externalData?: {
+        prompt?: string;
+        references?: string[];
+    } | null;
+    onClearExternalData?: () => void;
 }
 
 const AR_OPTIONS: AspectRatio[] = ['1:1', '9:16', '16:9', '4:3', '3:4'];
 const RES_OPTIONS: Resolution[] = ['1K', '2K', '4K'];
 const N_OPTIONS = [1, 2, 3, 4];
+const AGE_OPTIONS = ['18-24', '25-34', '35-44', '45+'] as const;
+const SET_OPTIONS = ['unica', 'conjunto'] as const;
+const COMPONENT_OPTIONS = ['cardigan/ruana', 'cachecol', 'top', 'calca', 'saia'] as const;
+const SCENE_OPTIONS = ['interno', 'externo'] as const;
+const POSE_OPTIONS = ['tradicional', 'criativa'] as const;
+const CAPTURE_OPTIONS = ['distante', 'media', 'proxima'] as const;
 
 interface HistoryDragPayload {
     url: string;
@@ -30,7 +42,7 @@ interface HistoryDragPayload {
     prompt?: string;
 }
 
-export function ChatInput({ status, onSubmit }: Props) {
+export function ChatInput({ status, onSubmit, externalData, onClearExternalData }: Props) {
     const [prompt, setPrompt] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     const [showParams, setShowParams] = useState(false);
@@ -38,6 +50,14 @@ export function ChatInput({ status, onSubmit }: Props) {
     const [res, setRes] = useState<Resolution>('1K');
     const [n, setN] = useState(1);
     const [groundingStrategy, setGroundingStrategy] = useState<GroundingStrategy>('auto');
+    const [guidedEnabled, setGuidedEnabled] = useState(false);
+    const [guidedExpanded, setGuidedExpanded] = useState(true);
+    const [guidedAgeRange, setGuidedAgeRange] = useState<(typeof AGE_OPTIONS)[number]>('25-34');
+    const [guidedSetMode, setGuidedSetMode] = useState<(typeof SET_OPTIONS)[number]>('unica');
+    const [guidedComponents, setGuidedComponents] = useState<string[]>([]);
+    const [guidedSceneType, setGuidedSceneType] = useState<(typeof SCENE_OPTIONS)[number]>('externo');
+    const [guidedPoseStyle, setGuidedPoseStyle] = useState<(typeof POSE_OPTIONS)[number]>('tradicional');
+    const [guidedCaptureDistance, setGuidedCaptureDistance] = useState<(typeof CAPTURE_OPTIONS)[number]>('media');
     const [dragOver, setDragOver] = useState(false);
     const [dropMessage, setDropMessage] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -48,6 +68,36 @@ export function ChatInput({ status, onSubmit }: Props) {
         status.type === 'triage_done' ||
         status.type === 'prompt_ready' ||
         status.type === 'generating';
+
+    // Hook para carregar dados externos (botão Reuse do histórico)
+    useEffect(() => {
+        if (externalData) {
+            if (externalData.prompt) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
+                setPrompt(externalData.prompt);
+            }
+            if (externalData.references && externalData.references.length > 0) {
+                // Carregar todas as refs simultaneamente
+                Promise.all(externalData.references.map(async (url) => {
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) return null;
+                        const blob = await response.blob();
+                        const filename = url.split('/').pop() || 'reference.jpg';
+                        return new File([blob], filename, { type: blob.type || 'image/jpeg' });
+                    } catch {
+                        return null;
+                    }
+                })).then((newFiles) => {
+                    const validFiles = newFiles.filter((f): f is File => f !== null);
+                    if (validFiles.length > 0) {
+                        setFiles(prev => [...prev, ...validFiles].slice(0, 14));
+                    }
+                });
+            }
+            onClearExternalData?.();
+        }
+    }, [externalData, onClearExternalData]);
 
     function handleFiles(incoming: FileList | null) {
         if (!incoming) return;
@@ -61,7 +111,31 @@ export function ChatInput({ status, onSubmit }: Props) {
 
     function handleSubmit() {
         if (busy) return;
-        onSubmit({ prompt, files, n_images: n, aspect_ratio: ar, resolution: res, grounding_strategy: groundingStrategy });
+        const guidedBrief: GuidedBrief | undefined = guidedEnabled
+            ? {
+                enabled: true,
+                model: { age_range: guidedAgeRange },
+                garment: {
+                    set_mode: guidedSetMode,
+                    components: guidedSetMode === 'conjunto'
+                        ? COMPONENT_OPTIONS.filter(c => guidedComponents.includes(c))
+                        : [],
+                },
+                scene: { type: guidedSceneType },
+                pose: { style: guidedPoseStyle },
+                capture: { distance: guidedCaptureDistance },
+                fidelity_mode: files.length > 0 && guidedSetMode === 'conjunto' ? 'estrita' : 'balanceada',
+            }
+            : undefined;
+        onSubmit({
+            prompt,
+            files,
+            n_images: n,
+            aspect_ratio: ar,
+            resolution: res,
+            grounding_strategy: groundingStrategy,
+            guided_brief: guidedBrief,
+        });
         setPrompt('');
         setFiles([]);
     }
@@ -126,6 +200,20 @@ export function ChatInput({ status, onSubmit }: Props) {
         setDropMessage(message);
         window.setTimeout(() => setDropMessage(null), 2200);
     }
+
+    function toggleGuidedComponent(component: string) {
+        setGuidedComponents(prev => {
+            if (prev.includes(component)) return prev.filter(c => c !== component);
+            return [...prev, component];
+        });
+    }
+
+    function toggleGuidedMode() {
+        setGuidedEnabled(v => !v);
+        setGuidedExpanded(true);
+    }
+
+    const guidedSummary = `Idade ${guidedAgeRange} · ${guidedSetMode === 'conjunto' ? `Conjunto (${guidedComponents.length > 0 ? guidedComponents.join(', ') : 'sem componentes'})` : 'Peça única'} · ${guidedSceneType} · ${guidedPoseStyle} · ${guidedCaptureDistance}`;
 
     function handleDragOver(event: DragEvent<HTMLDivElement>) {
         if (busy) return;
@@ -263,6 +351,149 @@ export function ChatInput({ status, onSubmit }: Props) {
                 )}
             </AnimatePresence>
 
+            {/* Modo guiado */}
+            <AnimatePresence>
+                {guidedEnabled && (
+                    <motion.div
+                        className="guided-panel"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                        <div className="guided-panel-head">
+                            <span className="guided-panel-title">Modo Guiado</span>
+                            <button
+                                type="button"
+                                className="guided-toggle-btn"
+                                onClick={() => setGuidedExpanded(v => !v)}
+                                disabled={busy}
+                                aria-expanded={guidedExpanded}
+                                aria-label={guidedExpanded ? 'Recolher modo guiado' : 'Expandir modo guiado'}
+                            >
+                                {guidedExpanded ? 'Recolher' : 'Editar'}
+                            </button>
+                        </div>
+
+                        {guidedExpanded && (
+                            <div className="guided-grid">
+                                <fieldset className="param-group">
+                                    <legend className="t-label text-tertiary">Faixa etária</legend>
+                                    <div className="param-chips">
+                                        {AGE_OPTIONS.map(v => (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                className={`chip ${guidedAgeRange === v ? 'chip--active' : ''}`}
+                                                onClick={() => setGuidedAgeRange(v)}
+                                                aria-pressed={guidedAgeRange === v}
+                                                disabled={busy}
+                                            >
+                                                {v}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </fieldset>
+
+                                <fieldset className="param-group">
+                                    <legend className="t-label text-tertiary">Peça</legend>
+                                    <div className="param-chips">
+                                        {SET_OPTIONS.map(v => (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                className={`chip ${guidedSetMode === v ? 'chip--active' : ''}`}
+                                                onClick={() => setGuidedSetMode(v)}
+                                                aria-pressed={guidedSetMode === v}
+                                                disabled={busy}
+                                            >
+                                                {v === 'unica' ? 'Única' : 'Conjunto'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </fieldset>
+
+                                {guidedSetMode === 'conjunto' && (
+                                    <fieldset className="param-group">
+                                        <legend className="t-label text-tertiary">Componentes</legend>
+                                        <div className="param-chips">
+                                            {COMPONENT_OPTIONS.map(v => (
+                                                <button
+                                                    key={v}
+                                                    type="button"
+                                                    className={`chip ${guidedComponents.includes(v) ? 'chip--active' : ''}`}
+                                                    onClick={() => toggleGuidedComponent(v)}
+                                                    aria-pressed={guidedComponents.includes(v)}
+                                                    disabled={busy}
+                                                >
+                                                    {v}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </fieldset>
+                                )}
+
+                                <fieldset className="param-group">
+                                    <legend className="t-label text-tertiary">Cenário</legend>
+                                    <div className="param-chips">
+                                        {SCENE_OPTIONS.map(v => (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                className={`chip ${guidedSceneType === v ? 'chip--active' : ''}`}
+                                                onClick={() => setGuidedSceneType(v)}
+                                                aria-pressed={guidedSceneType === v}
+                                                disabled={busy}
+                                            >
+                                                {v}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </fieldset>
+
+                                <fieldset className="param-group">
+                                    <legend className="t-label text-tertiary">Pose</legend>
+                                    <div className="param-chips">
+                                        {POSE_OPTIONS.map(v => (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                className={`chip ${guidedPoseStyle === v ? 'chip--active' : ''}`}
+                                                onClick={() => setGuidedPoseStyle(v)}
+                                                aria-pressed={guidedPoseStyle === v}
+                                                disabled={busy}
+                                            >
+                                                {v}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </fieldset>
+
+                                <fieldset className="param-group">
+                                    <legend className="t-label text-tertiary">Captura</legend>
+                                    <div className="param-chips">
+                                        {CAPTURE_OPTIONS.map(v => (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                className={`chip ${guidedCaptureDistance === v ? 'chip--active' : ''}`}
+                                                onClick={() => setGuidedCaptureDistance(v)}
+                                                aria-pressed={guidedCaptureDistance === v}
+                                                disabled={busy}
+                                            >
+                                                {v}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </fieldset>
+                            </div>
+                        )}
+
+                        <p className="guided-summary-text">Brief Guiado: {guidedSummary}</p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Preview de imagens anexadas */}
             <AnimatePresence>
                 {files.length > 0 && (
@@ -338,6 +569,18 @@ export function ChatInput({ status, onSubmit }: Props) {
                 </button>
 
                 <button
+                    className={`input-action-btn ${guidedEnabled ? 'input-action-btn--guided' : ''}`}
+                    onClick={toggleGuidedMode}
+                    type="button"
+                    aria-label="Alternar modo guiado"
+                    aria-pressed={guidedEnabled}
+                    title="Modo Guiado"
+                    disabled={busy}
+                >
+                    <Wand2 size={18} />
+                </button>
+
+                <button
                     className="send-btn"
                     onClick={handleSubmit}
                     disabled={busy}
@@ -356,12 +599,12 @@ export function ChatInput({ status, onSubmit }: Props) {
                     ? status.type === 'mode_selected'
                         ? '✦ Definindo modo do pipeline…'
                         : status.type === 'analyzing'
-                        ? '✦ Agente analisando…'
-                        : status.type === 'triage_done'
-                            ? '✦ Triage de grounding…'
-                        : status.type === 'prompt_ready'
-                            ? '✦ Prompt criado, enviando ao Nano…'
-                            : `✦ Gerando ${n > 1 ? n + ' imagens' : 'imagem'}…`
+                            ? '✦ Agente analisando…'
+                            : status.type === 'triage_done'
+                                ? '✦ Triage de grounding…'
+                                : status.type === 'prompt_ready'
+                                    ? '✦ Prompt criado, enviando ao Nano…'
+                                    : `✦ Gerando ${n > 1 ? n + ' imagens' : 'imagem'}…`
                     : dragOver
                         ? 'Solte aqui para reutilizar a mídia como referência'
                         : 'Enter para gerar · Shift+Enter para nova linha · Sem prompt = modo autônomo'
