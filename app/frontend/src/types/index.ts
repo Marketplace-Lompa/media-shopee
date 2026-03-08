@@ -12,7 +12,7 @@ export type GuidedCaptureDistance = 'distante' | 'media' | 'proxima';
 export interface GuidedBrief {
     enabled: boolean;
     model: { age_range: GuidedAgeRange };
-    garment: { set_mode: GuidedSetMode; components: string[] };
+    garment: { set_mode: GuidedSetMode };
     scene: { type: GuidedSceneType };
     pose: { style: GuidedPoseStyle };
     capture: { distance: GuidedCaptureDistance };
@@ -23,7 +23,10 @@ export interface GuidedSummary {
     applied: boolean;
     shot_type: 'wide' | 'medium' | 'close-up' | 'auto';
     set_mode: GuidedSetMode;
-    components: string[];
+    detected_garment_roles?: string[];
+    set_pattern_score?: number;
+    set_pattern_cues?: string[];
+    set_lock_mode?: 'off' | 'generic' | 'explicit';
     age_range: GuidedAgeRange;
     scene: GuidedSceneType;
     pose: GuidedPoseStyle;
@@ -35,6 +38,8 @@ export interface GenerateRequest {
     aspect_ratio?: AspectRatio;
     resolution?: Resolution;
     session_id?: string;
+    grounding_strategy?: GroundingStrategy;
+    guided_brief?: GuidedBrief;
 }
 
 export interface GeneratedImage {

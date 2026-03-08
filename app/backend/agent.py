@@ -69,6 +69,20 @@ AGENT_RESPONSE_SCHEMA = {
     }
 }
 
+SET_DETECTION_SCHEMA = {
+    "type": "object",
+    "required": ["is_garment_set", "set_pattern_score", "detected_garment_roles", "set_pattern_cues"],
+    "properties": {
+        "is_garment_set": {"type": "boolean"},
+        "set_pattern_score": {"type": "number"},
+        "detected_garment_roles": {
+            "type": "array",
+            "items": {"type": "string", "enum": ["top", "bottom", "outerwear", "one_piece", "layer"]},
+        },
+        "set_pattern_cues": {"type": "array", "items": {"type": "string"}},
+    },
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # SYSTEM INSTRUCTION — concisa, comportamental (regras + modos)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -383,7 +397,12 @@ def _apply_quality_locks(
     return merged
 
 
-def _apply_guided_locks(prompt: str, guided_brief: Optional[dict], has_images: bool) -> str:
+def _apply_guided_locks(
+    prompt: str,
+    guided_brief: Optional[dict],
+    has_images: bool,
+    set_detection: Optional[dict] = None,
+) -> str:
     if not prompt or not guided_brief:
         return prompt
 
@@ -394,19 +413,28 @@ def _apply_guided_locks(prompt: str, guided_brief: Optional[dict], has_images: b
     fidelity_mode = str(guided_brief.get("fidelity_mode", "balanceada")).strip().lower()
 
     set_mode = str(garment.get("set_mode", "unica")).strip().lower()
-    components = list(garment.get("components", []) or [])
     scene_type = str(scene.get("type", "")).strip().lower()
     pose_style = str(pose.get("style", "")).strip().lower()
     capture_distance = str(capture.get("distance", "")).strip().lower()
+    set_detection = set_detection or {}
+    set_lock_mode = str(set_detection.get("set_lock_mode", "off") or "off")
+    detected_roles = list(set_detection.get("detected_garment_roles", []) or [])
 
     locks: List[str] = []
     if set_mode == "conjunto":
         locks.append(
-            "GUIDED SET LOCK: treat the outfit as a coordinated set and preserve all declared components without omission."
+            "GUIDED SET LOCK: treat this as a coordinated garment set inferred from repeated color/texture/pattern cues in the reference."
         )
-        if "cachecol" in components:
+        locks.append(
+            "GUIDED SET LOCK: infer set pieces using garment-only evidence; ignore accessories as set-defining elements."
+        )
+        if set_lock_mode == "explicit" and len(detected_roles) >= 2:
             locks.append(
-                "GUIDED COMPONENT LOCK: include a matching scarf as a separate coordinated piece, not fused into the main garment."
+                f"GUIDED SET LOCK (explicit): preserve coordinated garment roles: {', '.join(detected_roles[:4])}."
+            )
+        else:
+            locks.append(
+                "GUIDED SET LOCK (generic): preserve all coordinated garment pieces visible in references even when role naming is uncertain."
             )
 
     if scene_type == "interno":
@@ -695,6 +723,72 @@ def _infer_garment_hint(uploaded_images: List[bytes]) -> str:
         return ""
 
 
+def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Optional[str]) -> dict:
+    """
+    Detecta se a referência sugere conjunto de ROUPAS por padrão visual (cor/textura/motivo).
+    Ignora acessórios como critério de conjunto.
+    """
+    if not uploaded_images:
+        return {
+            "is_garment_set": False,
+            "set_pattern_score": 0.0,
+            "detected_garment_roles": [],
+            "set_pattern_cues": [],
+            "set_lock_mode": "off",
+        }
+
+    parts: List[types.Part] = []
+    for img_bytes in uploaded_images[:6]:
+        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)))
+
+    user_txt = (user_prompt or "").strip()
+    text_instruction = (
+        "Analyze whether the clothing in these references forms a coordinated garment set based on repeated "
+        "visual pattern cues (color palette, texture/stitch family, motif spacing, construction coherence). "
+        "Use ONLY garment pieces as evidence. Ignore accessories (scarves, bags, belts, hats, jewelry, shoes) "
+        "as set-defining elements. Return strict JSON."
+    )
+    if user_txt:
+        text_instruction += f" User context: {user_txt[:200]}"
+    parts.append(types.Part(text=text_instruction))
+
+    try:
+        response = client.models.generate_content(
+            model=MODEL_AGENT,
+            contents=[types.Content(role="user", parts=parts)],
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=300,
+                safety_settings=SAFETY_CONFIG,
+                response_mime_type="application/json",
+                response_json_schema=SET_DETECTION_SCHEMA,
+            ),
+        )
+        parsed = _decode_agent_response(response)
+        is_set = bool(parsed.get("is_garment_set", False))
+        score = float(parsed.get("set_pattern_score", 0.0) or 0.0)
+        roles = [str(x) for x in (parsed.get("detected_garment_roles", []) or []) if str(x)]
+        cues = [str(x) for x in (parsed.get("set_pattern_cues", []) or []) if str(x)]
+        score = max(0.0, min(1.0, score))
+        lock_mode = "explicit" if (is_set and score >= 0.68 and len(roles) >= 2) else ("generic" if is_set else "off")
+        return {
+            "is_garment_set": is_set,
+            "set_pattern_score": round(score, 3),
+            "detected_garment_roles": roles[:5],
+            "set_pattern_cues": cues[:4],
+            "set_lock_mode": lock_mode,
+        }
+    except Exception as e:
+        print(f"[GUIDED] ⚠️ set-pattern inference failed: {e}")
+        return {
+            "is_garment_set": False,
+            "set_pattern_score": 0.0,
+            "detected_garment_roles": [],
+            "set_pattern_cues": [],
+            "set_lock_mode": "off",
+        }
+
+
 def _build_forced_grounding_queries(
     user_prompt: Optional[str],
     garment_hint: str,
@@ -889,11 +983,24 @@ def run_agent(
     has_images = bool(uploaded_images)
     pipeline_mode = "reference_mode" if has_images else "text_mode"
     guided_enabled = bool(guided_brief and guided_brief.get("enabled"))
+    guided_set_mode = str((((guided_brief or {}).get("garment") or {}).get("set_mode") or "")).strip().lower()
+    guided_set_detection = {
+        "is_garment_set": False,
+        "set_pattern_score": 0.0,
+        "detected_garment_roles": [],
+        "set_pattern_cues": [],
+        "set_lock_mode": "off",
+    }
     has_pool = bool(
         pool_context
         and "No reference" not in pool_context
         and "POOL_RUNTIME_DISABLED" not in pool_context
     )
+
+    if guided_enabled and guided_set_mode == "conjunto" and has_images:
+        guided_set_detection = _infer_set_pattern_from_images(uploaded_images or [], user_prompt)
+        if guided_set_detection.get("set_lock_mode") == "off":
+            guided_set_detection["set_lock_mode"] = "generic"
 
     if has_images:
         # FIX: ternário separado para não engolir o MODE 2
@@ -953,18 +1060,24 @@ def run_agent(
         pose_cfg = (guided_brief or {}).get("pose", {}) or {}
         capture = (guided_brief or {}).get("capture", {}) or {}
         fidelity_mode = str((guided_brief or {}).get("fidelity_mode", "balanceada")).strip().lower()
-        components = ", ".join(garment.get("components", []) or []) or "none"
         context_text += (
             "\n\n[GUIDED BRIEF — deterministic constraints, must obey]\n"
             f"- model_age_range: {model.get('age_range', '25-34')}\n"
             f"- set_mode: {garment.get('set_mode', 'unica')}\n"
-            f"- components: {components}\n"
             f"- scene_type: {scene.get('type', 'externo')}\n"
             f"- pose_style: {pose_cfg.get('style', 'tradicional')}\n"
             f"- capture_distance: {capture.get('distance', 'media')}\n"
             f"- fidelity_mode: {fidelity_mode}\n"
-            "If set_mode is conjunto, do not omit declared components."
+            "If set_mode is conjunto, infer garment-set pieces via repeated color/texture/motif cues from references and ignore accessories."
         )
+        if guided_set_mode == "conjunto" and has_images:
+            context_text += (
+                "\n[GUIDED SET DETECTION]\n"
+                f"- set_pattern_score: {guided_set_detection.get('set_pattern_score', 0.0)}\n"
+                f"- detected_garment_roles: {', '.join(guided_set_detection.get('detected_garment_roles', []) or []) or 'unknown'}\n"
+                f"- set_pattern_cues: {', '.join(guided_set_detection.get('set_pattern_cues', []) or []) or 'unknown'}\n"
+                f"- set_lock_mode: {guided_set_detection.get('set_lock_mode', 'generic')}\n"
+            )
 
     # Grounding: chamada separada de pesquisa antes do agente
     grounding_research = ""
@@ -1141,13 +1254,18 @@ def run_agent(
         prompt=result.get("prompt", ""),
         guided_brief=guided_brief if guided_enabled else None,
         has_images=has_images,
+        set_detection=guided_set_detection if guided_enabled and guided_set_mode == "conjunto" else None,
     )
 
     result["grounding"] = grounding_meta
     result["pipeline_mode"] = pipeline_mode
     result["model_profile_id"] = diversity_target.get("profile_id") if diversity_target else None
     result["diversity_target"] = diversity_target or {}
-    result["guided_summary"] = guided_summary(guided_brief if guided_enabled else None, result.get("shot_type"))
+    result["guided_summary"] = guided_summary(
+        guided_brief if guided_enabled else None,
+        result.get("shot_type"),
+        set_detection=guided_set_detection if guided_enabled and guided_set_mode == "conjunto" else None,
+    )
     result["_grounded_images"] = grounded_images
 
     # ── Log de observabilidade ─────────────────────────────────────
@@ -1160,6 +1278,13 @@ def run_agent(
     analysis = result.get("image_analysis", "")
     if analysis:
         print(f"[AGENT] 🔍 Image Analysis: {analysis}")
+    if guided_enabled and guided_set_mode == "conjunto":
+        print(
+            "[AGENT] 🧩 Set detection:"
+            f" score={guided_set_detection.get('set_pattern_score')}"
+            f" roles={guided_set_detection.get('detected_garment_roles')}"
+            f" lock={guided_set_detection.get('set_lock_mode')}"
+        )
     print(f"[AGENT] Prompt ({len(prompt_text)} chars): {prompt_text[:300]}{'…' if len(prompt_text) > 300 else ''}")
     print(f"{'='*60}\n")
 

@@ -31,7 +31,6 @@ const RES_OPTIONS: Resolution[] = ['1K', '2K', '4K'];
 const N_OPTIONS = [1, 2, 3, 4];
 const AGE_OPTIONS = ['18-24', '25-34', '35-44', '45+'] as const;
 const SET_OPTIONS = ['unica', 'conjunto'] as const;
-const COMPONENT_OPTIONS = ['cardigan/ruana', 'cachecol', 'top', 'calca', 'saia'] as const;
 const SCENE_OPTIONS = ['interno', 'externo'] as const;
 const POSE_OPTIONS = ['tradicional', 'criativa'] as const;
 const CAPTURE_OPTIONS = ['distante', 'media', 'proxima'] as const;
@@ -54,7 +53,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
     const [guidedExpanded, setGuidedExpanded] = useState(true);
     const [guidedAgeRange, setGuidedAgeRange] = useState<(typeof AGE_OPTIONS)[number]>('25-34');
     const [guidedSetMode, setGuidedSetMode] = useState<(typeof SET_OPTIONS)[number]>('unica');
-    const [guidedComponents, setGuidedComponents] = useState<string[]>([]);
     const [guidedSceneType, setGuidedSceneType] = useState<(typeof SCENE_OPTIONS)[number]>('externo');
     const [guidedPoseStyle, setGuidedPoseStyle] = useState<(typeof POSE_OPTIONS)[number]>('tradicional');
     const [guidedCaptureDistance, setGuidedCaptureDistance] = useState<(typeof CAPTURE_OPTIONS)[number]>('media');
@@ -117,9 +115,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
                 model: { age_range: guidedAgeRange },
                 garment: {
                     set_mode: guidedSetMode,
-                    components: guidedSetMode === 'conjunto'
-                        ? COMPONENT_OPTIONS.filter(c => guidedComponents.includes(c))
-                        : [],
                 },
                 scene: { type: guidedSceneType },
                 pose: { style: guidedPoseStyle },
@@ -201,19 +196,12 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
         window.setTimeout(() => setDropMessage(null), 2200);
     }
 
-    function toggleGuidedComponent(component: string) {
-        setGuidedComponents(prev => {
-            if (prev.includes(component)) return prev.filter(c => c !== component);
-            return [...prev, component];
-        });
-    }
-
     function toggleGuidedMode() {
         setGuidedEnabled(v => !v);
         setGuidedExpanded(true);
     }
 
-    const guidedSummary = `Idade ${guidedAgeRange} · ${guidedSetMode === 'conjunto' ? `Conjunto (${guidedComponents.length > 0 ? guidedComponents.join(', ') : 'sem componentes'})` : 'Peça única'} · ${guidedSceneType} · ${guidedPoseStyle} · ${guidedCaptureDistance}`;
+    const guidedSummary = `Idade ${guidedAgeRange} · ${guidedSetMode === 'conjunto' ? 'Conjunto' : 'Peça única'} · ${guidedSceneType} · ${guidedPoseStyle} · ${guidedCaptureDistance}`;
 
     function handleDragOver(event: DragEvent<HTMLDivElement>) {
         if (busy) return;
@@ -412,26 +400,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
                                         ))}
                                     </div>
                                 </fieldset>
-
-                                {guidedSetMode === 'conjunto' && (
-                                    <fieldset className="param-group">
-                                        <legend className="t-label text-tertiary">Componentes</legend>
-                                        <div className="param-chips">
-                                            {COMPONENT_OPTIONS.map(v => (
-                                                <button
-                                                    key={v}
-                                                    type="button"
-                                                    className={`chip ${guidedComponents.includes(v) ? 'chip--active' : ''}`}
-                                                    onClick={() => toggleGuidedComponent(v)}
-                                                    aria-pressed={guidedComponents.includes(v)}
-                                                    disabled={busy}
-                                                >
-                                                    {v}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </fieldset>
-                                )}
 
                                 <fieldset className="param-group">
                                     <legend className="t-label text-tertiary">Cenário</legend>

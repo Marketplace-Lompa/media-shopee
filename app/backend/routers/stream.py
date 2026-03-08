@@ -15,7 +15,7 @@ from agent import run_agent
 from guided_mode import guided_force_grounding_floor, guided_summary, normalize_guided_brief
 from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
 from generator import generate_images
-from history import add_entry as history_add, purge_oldest as history_purge  # type: ignore
+from history import add_entry as history_add, purge_oldest as history_purge
 from pipeline_effectiveness import (
     assess_generated_image,
     build_reference_pack,
@@ -116,7 +116,7 @@ async def generate_stream(
                 resolution=resolution,
                 use_grounding=False,
                 diversity_target=diversity_target,
-                guided_brief=normalized_guided,  # type: ignore
+                guided_brief=normalized_guided,
             )
 
             triage = compute_grounding_triage(
@@ -177,7 +177,7 @@ async def generate_stream(
                         grounding_mode=applied_mode,
                         grounding_context_hint=triage.get("garment_hypothesis"),
                         diversity_target=diversity_target,
-                        guided_brief=normalized_guided,  # type: ignore
+                        guided_brief=normalized_guided,
                     )
                 except Exception as grounding_error:
                     print(f"[STREAM] ⚠️ Grounding failed, fallback baseline: {grounding_error}")

@@ -4,7 +4,7 @@ Normalização e utilitários do Modo Guiado (V1 Lean).
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 AGE_RANGES = {"18-24", "25-34", "35-44", "45+"}
 SET_MODES = {"unica", "conjunto"}
@@ -12,21 +12,6 @@ SCENE_TYPES = {"interno", "externo"}
 POSE_STYLES = {"tradicional", "criativa"}
 CAPTURE_DISTANCES = {"distante", "media", "proxima"}
 FIDELITY_MODES = {"balanceada", "estrita"}
-
-_COMPONENT_ALIAS = {
-    "cardigan/ruana": "cardigan/ruana",
-    "cardigan_ruana": "cardigan/ruana",
-    "cardigan": "cardigan/ruana",
-    "ruana": "cardigan/ruana",
-    "cachecol": "cachecol",
-    "scarf": "cachecol",
-    "top": "top",
-    "calça": "calca",
-    "calca": "calca",
-    "saia": "saia",
-}
-_COMPONENT_CANONICAL = ["cardigan/ruana", "cachecol", "top", "calca", "saia"]
-
 
 def _safe_json_loads(raw: str) -> Optional[dict]:
     try:
@@ -76,15 +61,6 @@ def normalize_guided_brief(raw: Optional[Any]) -> Optional[dict]:
     if fidelity_mode not in FIDELITY_MODES:
         fidelity_mode = "balanceada"
 
-    raw_components = garment.get("components", []) or []
-    components: List[str] = []
-    if isinstance(raw_components, list):
-        for item in raw_components:
-            alias = _COMPONENT_ALIAS.get(str(item).strip().lower())
-            if alias and alias not in components:
-                components.append(alias)
-    components = [c for c in _COMPONENT_CANONICAL if c in components]
-
     scene_type = str(scene.get("type", "externo")).strip().lower()
     if scene_type not in SCENE_TYPES:
         scene_type = "externo"
@@ -102,7 +78,6 @@ def normalize_guided_brief(raw: Optional[Any]) -> Optional[dict]:
         "model": {"age_range": age_range},
         "garment": {
             "set_mode": set_mode,
-            "components": components if set_mode == "conjunto" else [],
         },
         "scene": {"type": scene_type},
         "pose": {"style": pose_style},
@@ -129,7 +104,11 @@ def guided_force_grounding_floor(brief: Optional[dict], has_images: bool) -> boo
     return set_mode == "conjunto" or fidelity_mode == "estrita"
 
 
-def guided_summary(brief: Optional[dict], shot_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def guided_summary(
+    brief: Optional[dict],
+    shot_type: Optional[str] = None,
+    set_detection: Optional[dict] = None,
+) -> Optional[Dict[str, Any]]:
     if not brief:
         return None
     garment = brief.get("garment", {}) or {}
@@ -137,11 +116,19 @@ def guided_summary(brief: Optional[dict], shot_type: Optional[str] = None) -> Op
     scene = brief.get("scene", {}) or {}
     pose = brief.get("pose", {}) or {}
     capture = brief.get("capture", {}) or {}
+    set_detection = set_detection or {}
+    score = float(set_detection.get("set_pattern_score", 0.0) or 0.0)
+    roles = list(set_detection.get("detected_garment_roles", []) or [])
+    cues = list(set_detection.get("set_pattern_cues", []) or [])
+    lock_mode = str(set_detection.get("set_lock_mode", "off") or "off")
     return {
         "applied": True,
         "shot_type": shot_type or guided_capture_to_shot(str(capture.get("distance", "")).lower()) or "medium",
         "set_mode": garment.get("set_mode", "unica"),
-        "components": garment.get("components", []) or [],
+        "detected_garment_roles": roles[:5],
+        "set_pattern_score": round(score, 3),
+        "set_pattern_cues": cues[:4],
+        "set_lock_mode": lock_mode if lock_mode in {"off", "generic", "explicit"} else "off",
         "age_range": model.get("age_range", "25-34"),
         "scene": scene.get("type", "externo"),
         "pose": pose.get("style", "tradicional"),
