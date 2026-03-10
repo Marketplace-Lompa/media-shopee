@@ -47,6 +47,8 @@ def add_entry(
     resolution: Optional[str] = None,
     grounding_effective: bool = False,
     references: Optional[list[str]] = None,
+    source_session_id: Optional[str] = None,
+    edit_instruction: Optional[str] = None,
 ) -> dict[str, Any]:
     """Adiciona uma entrada ao histórico e retorna a entry criada."""
     entry = {
@@ -63,6 +65,10 @@ def add_entry(
         "references": references or [],
         "created_at": int(time.time() * 1000),
     }
+    if source_session_id:
+        entry["source_session_id"] = source_session_id
+    if edit_instruction:
+        entry["edit_instruction"] = edit_instruction
     entries = _load()
     entries.insert(0, entry)  # mais recente primeiro
     _save(entries)

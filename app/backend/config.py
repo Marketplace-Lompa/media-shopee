@@ -71,8 +71,8 @@ AUTO_FULL_COMPLEXITY_THRESHOLD = _env_float("AUTO_FULL_COMPLEXITY_THRESHOLD", 0.
 # ── Quality contract + reference pack ─────────────────────────────────────────
 QUALITY_MIN_FIDELITY = _env_float("QUALITY_MIN_FIDELITY", 0.62)
 QUALITY_MIN_COMMERCIAL = _env_float("QUALITY_MIN_COMMERCIAL", 0.60)
-REFERENCE_ANALYSIS_MAX = _env_int("REFERENCE_ANALYSIS_MAX", 3)
-REFERENCE_GENERATION_MAX = _env_int("REFERENCE_GENERATION_MAX", 6)
+REFERENCE_ANALYSIS_MAX = _env_int("REFERENCE_ANALYSIS_MAX", 6)
+REFERENCE_GENERATION_MAX = _env_int("REFERENCE_GENERATION_MAX", 14)
 
 # ── Diversity scheduler ────────────────────────────────────────────────────────
 DIVERSITY_WINDOW = _env_int("DIVERSITY_WINDOW", 30)

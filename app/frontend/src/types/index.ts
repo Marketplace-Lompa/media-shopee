@@ -9,6 +9,15 @@ export type GuidedSceneType = 'interno' | 'externo';
 export type GuidedPoseStyle = 'tradicional' | 'criativa';
 export type GuidedCaptureDistance = 'distante' | 'media' | 'proxima';
 
+export interface EditTarget {
+    session_id: string;
+    filename: string;
+    url: string;
+    prompt?: string;
+    aspect_ratio?: string;
+    resolution?: string;
+}
+
 export interface GuidedBrief {
     enabled: boolean;
     model: { age_range: GuidedAgeRange };
@@ -126,6 +135,7 @@ export interface MediaHistoryItem {
     url: string;
     prompt?: string;
     optimized_prompt?: string;
+    edit_instruction?: string;
     thinking_level?: string;
     shot_type?: string;
     aspect_ratio?: string;
@@ -173,6 +183,7 @@ export type GenerationStatus =
         guided_applied?: boolean;
         guided_summary?: GuidedSummary;
     }
+    | { type: 'editing'; message: string }
     | { type: 'generating'; message: string; current: number; total: number }
     | { type: 'done'; response: GenerateResponse }
     | { type: 'done_partial'; response: GenerateResponse }

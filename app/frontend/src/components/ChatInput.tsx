@@ -3,9 +3,9 @@ import type { DragEvent, KeyboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send, ImagePlus, X, Loader2,
-    SlidersHorizontal, ChevronDown, ChevronUp, Globe, Wand2
+    SlidersHorizontal, ChevronDown, ChevronUp, Globe, Wand2, Pencil
 } from 'lucide-react';
-import type { AspectRatio, Resolution, GenerationStatus, GroundingStrategy, GuidedBrief } from '../types';
+import type { AspectRatio, Resolution, GenerationStatus, GroundingStrategy, GuidedBrief, EditTarget } from '../types';
 import './ChatInput.css';
 
 interface Props {
@@ -24,6 +24,9 @@ interface Props {
         references?: string[];
     } | null;
     onClearExternalData?: () => void;
+    editTarget?: EditTarget | null;
+    onEditSubmit?: (editInstruction: string, files?: File[]) => void;
+    onEditCancel?: () => void;
 }
 
 const AR_OPTIONS: AspectRatio[] = ['1:1', '9:16', '16:9', '4:3', '3:4'];
@@ -41,7 +44,7 @@ interface HistoryDragPayload {
     prompt?: string;
 }
 
-export function ChatInput({ status, onSubmit, externalData, onClearExternalData }: Props) {
+export function ChatInput({ status, onSubmit, externalData, onClearExternalData, editTarget, onEditSubmit, onEditCancel }: Props) {
     const [prompt, setPrompt] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     const [showParams, setShowParams] = useState(false);
@@ -59,12 +62,14 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
     const [dragOver, setDragOver] = useState(false);
     const [dropMessage, setDropMessage] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const busy =
         status.type === 'mode_selected' ||
         status.type === 'researching' ||
         status.type === 'analyzing' ||
         status.type === 'triage_done' ||
         status.type === 'prompt_ready' ||
+        status.type === 'editing' ||
         status.type === 'generating';
 
     // Hook para carregar dados externos (botão Reuse do histórico)
@@ -97,6 +102,14 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
         }
     }, [externalData, onClearExternalData]);
 
+    // Auto-resize textarea conforme conteúdo
+    useEffect(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+    }, [prompt]);
+
     function handleFiles(incoming: FileList | null) {
         if (!incoming) return;
         const valid = Array.from(incoming).filter(f => f.type.startsWith('image/'));
@@ -109,6 +122,9 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
 
     function handleSubmit() {
         if (busy) return;
+        if (guidedEnabled) {
+            setGuidedExpanded(false);
+        }
         const guidedBrief: GuidedBrief | undefined = guidedEnabled
             ? {
                 enabled: true,
@@ -138,7 +154,15 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
     function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit();
+            if (editTarget && onEditSubmit && prompt.trim()) {
+                onEditSubmit(prompt.trim(), files.length ? files : undefined);
+                setPrompt('');
+            } else {
+                handleSubmit();
+            }
+        }
+        if (e.key === 'Escape' && editTarget && onEditCancel) {
+            onEditCancel();
         }
     }
 
@@ -245,6 +269,41 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
         >
+
+            {/* Banner de edição — modo /alterar */}
+            <AnimatePresence>
+                {editTarget && (
+                    <motion.div
+                        className="edit-banner"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <div className="edit-banner-content">
+                            <img
+                                className="edit-banner-thumb"
+                                src={editTarget.url.startsWith('http') ? editTarget.url : `${window.location.origin}${editTarget.url}`}
+                                alt="Imagem a editar"
+                            />
+                            <div className="edit-banner-info">
+                                <span className="t-xs edit-banner-label">
+                                    <Pencil size={12} /> Modo edição
+                                </span>
+                                <span className="t-xs text-tertiary">{editTarget.filename}</span>
+                            </div>
+                            <button
+                                className="edit-banner-close"
+                                onClick={() => onEditCancel?.()}
+                                type="button"
+                                aria-label="Cancelar edição"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Parâmetros de geração */}
             <AnimatePresence>
@@ -513,14 +572,15 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
                 />
 
                 <textarea
+                    ref={textareaRef}
                     className="chat-textarea"
-                    placeholder="Descreva a geração ou deixe vazio para o agente criar sozinho…"
+                    placeholder={editTarget ? 'Descreva a modificação desejada… (ex: troque o fundo por praia)' : 'Descreva a geração ou deixe vazio para o agente criar sozinho…'}
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
                     disabled={busy}
                     rows={1}
-                    aria-label="Prompt de geração"
+                    aria-label={editTarget ? 'Instrução de edição' : 'Prompt de geração'}
                     aria-describedby="chat-hint"
                 />
 
@@ -549,15 +609,24 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
                 </button>
 
                 <button
-                    className="send-btn"
-                    onClick={handleSubmit}
-                    disabled={busy}
+                    className={`send-btn ${editTarget ? 'send-btn--edit' : ''}`}
+                    onClick={() => {
+                        if (editTarget && onEditSubmit && prompt.trim()) {
+                            onEditSubmit(prompt.trim(), files.length ? files : undefined);
+                            setPrompt('');
+                        } else {
+                            handleSubmit();
+                        }
+                    }}
+                    disabled={busy || (!!editTarget && !prompt.trim())}
                     type="button"
-                    aria-label={busy ? 'Gerando…' : 'Gerar imagem'}
+                    aria-label={busy ? 'Processando…' : editTarget ? 'Aplicar edição' : 'Gerar imagem'}
                 >
                     {busy
                         ? <Loader2 size={18} className="spin" aria-hidden="true" />
-                        : <Send size={18} aria-hidden="true" />
+                        : editTarget
+                            ? <Pencil size={18} aria-hidden="true" />
+                            : <Send size={18} aria-hidden="true" />
                     }
                 </button>
             </div>
@@ -572,10 +641,14 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData 
                                 ? '✦ Triage de grounding…'
                                 : status.type === 'prompt_ready'
                                     ? '✦ Prompt criado, enviando ao Nano…'
-                                    : `✦ Gerando ${n > 1 ? n + ' imagens' : 'imagem'}…`
+                                    : status.type === 'editing'
+                                        ? '✏️ Editando imagem…'
+                                        : `✦ Gerando ${n > 1 ? n + ' imagens' : 'imagem'}…`
                     : dragOver
                         ? 'Solte aqui para reutilizar a mídia como referência'
-                        : 'Enter para gerar · Shift+Enter para nova linha · Sem prompt = modo autônomo'
+                        : editTarget
+                            ? 'Enter para aplicar edição · Esc para cancelar'
+                            : 'Enter para gerar · Shift+Enter para nova linha · Sem prompt = modo autônomo'
                 }
             </p>
 

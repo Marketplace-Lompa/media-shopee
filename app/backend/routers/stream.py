@@ -118,6 +118,9 @@ async def generate_stream(
                 diversity_target=diversity_target,
                 guided_brief=normalized_guided,
             )
+            baseline_structural = baseline_result.get("structural_contract") if isinstance(
+                baseline_result.get("structural_contract"), dict
+            ) else None
 
             triage = compute_grounding_triage(
                 user_prompt=prompt,
@@ -178,6 +181,7 @@ async def generate_stream(
                         grounding_context_hint=triage.get("garment_hypothesis"),
                         diversity_target=diversity_target,
                         guided_brief=normalized_guided,
+                        structural_contract_hint=baseline_structural,
                     )
                 except Exception as grounding_error:
                     print(f"[STREAM] ⚠️ Grounding failed, fallback baseline: {grounding_error}")

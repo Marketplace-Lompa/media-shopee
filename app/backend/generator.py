@@ -122,3 +122,82 @@ def generate_images(
             raise RuntimeError(f"Nano retornou sem imagem na posição {image_index}")
 
     return results
+
+
+def edit_image(
+    source_image_bytes: bytes,
+    edit_prompt: str,
+    aspect_ratio: str = "1:1",
+    resolution: str = "1K",
+    session_id: Optional[str] = None,
+    reference_images_bytes: Optional[List[bytes]] = None,
+) -> List[dict]:
+    """
+    Edita uma imagem existente via Nano Banana 2.
+    Envia [imagem original + referências opcionais + prompt de edição] e retorna a imagem editada.
+
+    Returns lista com 1 dict:
+    [{"filename": str, "url": str, "path": str, "size_kb": float, "mime_type": str}]
+    """
+    if session_id is None:
+        session_id = str(uuid.uuid4())[:8]
+
+    session_dir = OUTPUTS_DIR / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    # Montar content: imagem original + referências + prompt de edição
+    content_parts = [
+        types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=source_image_bytes)),
+    ]
+    # Adicionar imagens de referência (se houver)
+    for ref_bytes in (reference_images_bytes or []):
+        content_parts.append(
+            types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=ref_bytes))
+        )
+    content_parts.append(types.Part(text=edit_prompt))
+
+    response = client.models.generate_content(
+        model=MODEL_IMAGE,
+        contents=[types.Content(role="user", parts=content_parts)],
+        config=types.GenerateContentConfig(
+            response_modalities=["TEXT", "IMAGE"],
+            image_config=types.ImageConfig(
+                aspect_ratio=aspect_ratio,
+                image_size=resolution,
+            ),
+            safety_settings=SAFETY_CONFIG,
+        ),
+    )
+
+    results = []
+    parts = response.parts if response.parts else []
+    for part in parts:
+        if (
+            getattr(part, "inline_data", None)
+            and getattr(part.inline_data, "mime_type", None)
+            and part.inline_data.mime_type.startswith("image/")
+        ):
+            ext = part.inline_data.mime_type.split("/")[-1]
+            filename = f"edit_{session_id}_1.{ext}"
+            filepath = session_dir / filename
+
+            data = getattr(part.inline_data, "data", None)
+            if data:
+                filepath.write_bytes(data)
+            size_kb = filepath.stat().st_size / 1024
+
+            mime_type_val = getattr(part.inline_data, "mime_type", "image/png")
+            results.append({
+                "index": 1,
+                "filename": filename,
+                "url": f"/outputs/{session_id}/{filename}",
+                "path": str(filepath),
+                "size_kb": round(size_kb, 1),
+                "mime_type": str(mime_type_val),
+            })
+            break
+
+    if not results:
+        raise RuntimeError("Nano retornou sem imagem na edição")
+
+    return results

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from routers import generate, pool as pool_router, stream, history as history_router
+from routers import generate, pool as pool_router, stream, history as history_router, edit as edit_router
 from config import OUTPUTS_DIR
 
 app = FastAPI(
@@ -27,6 +27,7 @@ app.add_middleware(
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(generate.router)
 app.include_router(stream.router)
+app.include_router(edit_router.router)
 app.include_router(pool_router.router)
 app.include_router(history_router.router)
 

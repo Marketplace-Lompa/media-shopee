@@ -380,7 +380,7 @@
 
 /* ── Lightbox details panel ── */
 .lightbox-details {
-    width: 320px;
+    width: 380px;
     max-height: 85vh;
     overflow-y: auto;
     background: rgba(255, 255, 255, 0.06);
@@ -399,6 +399,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
 }
 
 .lightbox-details-actions {
@@ -423,6 +425,20 @@
 
 .lightbox-action-btn:hover {
     background: rgba(255, 255, 255, 0.14);
+}
+
+.lightbox-edit-btn {
+    width: auto;
+    padding: 0 var(--sp-3);
+    gap: 6px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    background: rgba(168, 85, 247, 0.2);
+    border-color: rgba(168, 85, 247, 0.4);
+}
+
+.lightbox-edit-btn:hover {
+    background: rgba(168, 85, 247, 0.35);
 }
 
 /* ── Lightbox badges ── */

@@ -12,6 +12,7 @@ from typing import Any, Callable, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from agent import run_agent
+from history import add_entry as history_add, purge_oldest as history_purge
 from config import VALID_ASPECT_RATIOS, VALID_N_IMAGES, VALID_RESOLUTIONS
 from generator import generate_images
 from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
@@ -107,6 +108,9 @@ def _run_generate_pipeline(
             diversity_target=diversity_target,
             guided_brief=normalized_guided,
         )
+        baseline_structural = baseline_result.get("structural_contract") if isinstance(
+            baseline_result.get("structural_contract"), dict
+        ) else None
         triage = compute_grounding_triage(
             user_prompt=prompt,
             image_analysis=baseline_result.get("image_analysis", ""),
@@ -174,6 +178,7 @@ def _run_generate_pipeline(
                     grounding_context_hint=triage.get("garment_hypothesis"),
                     diversity_target=diversity_target,
                     guided_brief=normalized_guided,
+                    structural_contract_hint=baseline_structural,
                 )
             except Exception:
                 agent_result = baseline_result
@@ -327,6 +332,29 @@ def _run_generate_pipeline(
 
     quality_contract = enrich_quality_with_generation(quality_contract, image_assessments)
     reason_codes.update(quality_contract.get("reason_codes", []) or [])
+
+    # ── Persistir no histórico ────────────────────────────────────
+    grounding_eff = grounding_info.get("effective", False) if isinstance(grounding_info, dict) else False
+    for img in raw_images:
+        try:
+            history_add(
+                session_id=session_id,
+                filename=img["filename"],
+                url=img["url"],
+                prompt=optimized_prompt,
+                thinking_level=thinking_level,
+                shot_type=shot_type,
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                grounding_effective=grounding_eff,
+            )
+        except Exception as hist_err:
+            print(f"[HISTORY] ⚠️ Falha ao persistir: {hist_err}")
+
+    try:
+        history_purge()
+    except Exception as purge_err:
+        print(f"[CLEANUP] ⚠️ Falha no purge: {purge_err}")
 
     log_effectiveness_event(
         {

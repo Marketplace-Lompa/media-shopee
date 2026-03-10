@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Copy, Download, Clock } from 'lucide-react';
+import { X, Copy, Download, Clock, Pencil } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { ChatInput } from './components/ChatInput';
 import { Gallery } from './components/Gallery';
@@ -14,6 +14,7 @@ import type {
   GroundingStrategy,
   GuidedBrief,
   MediaHistoryItem,
+  EditTarget,
 } from './types';
 import './App.css';
 
@@ -29,6 +30,7 @@ export default function App() {
   const [hadResearch, setHadResearch] = useState(false);
   const [lightbox, setLightbox] = useState<{ url: string; item?: MediaHistoryItem } | null>(null);
   const [reuseData, setReuseData] = useState<{ prompt?: string; references?: string[] } | null>(null);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const activeJobRef = useRef<string | null>(null);
 
@@ -53,7 +55,8 @@ export default function App() {
         filename: e.filename as string,
         url: e.url as string,
         prompt: e.prompt as string | undefined,
-        optimized_prompt: e.prompt as string | undefined,
+        optimized_prompt: e.optimized_prompt as string | undefined,
+        edit_instruction: e.edit_instruction as string | undefined,
         thinking_level: e.thinking_level as string | undefined,
         shot_type: e.shot_type as string | undefined,
         aspect_ratio: e.aspect_ratio as string | undefined,
@@ -135,6 +138,69 @@ export default function App() {
     }
   }
 
+  /* ── Handle Edit (edição pontual) ───────────────── */
+  async function handleEdit(editInstruction: string, target: EditTarget, files?: File[]) {
+    setStatus({ type: 'editing', message: 'Preparando edição…' });
+    setEditTarget(null); // Remove banner
+
+    const fd = new FormData();
+    fd.append('source_url', target.url);
+    fd.append('edit_instruction', editInstruction);
+    if (target.prompt) fd.append('source_prompt', target.prompt);
+    if (target.session_id) fd.append('source_session_id', target.session_id);
+    if (target.aspect_ratio) fd.append('aspect_ratio', target.aspect_ratio);
+    if (target.resolution) fd.append('resolution', target.resolution);
+    // Anexar imagens de referência
+    if (files?.length) {
+      for (const f of files) fd.append('images', f);
+    }
+
+    try {
+      const res = await fetch('/edit/stream', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
+        throw new Error(err.detail ?? `HTTP ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      if (!reader) throw new Error('Stream indisponível');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.stage === 'editing') {
+              setStatus({ type: 'editing', message: event.message || 'Editando…' });
+            } else if (event.stage === 'prompt_ready') {
+              setStatus({ type: 'editing', message: event.change_summary || 'Prompt de edição pronto…' });
+            } else if (event.stage === 'generating') {
+              setStatus({ type: 'generating', message: event.message || 'Gerando…', current: 1, total: 1 });
+            } else if (event.stage === 'done') {
+              setStatus({ type: 'done', response: event });
+              fetchHistory();
+            } else if (event.stage === 'error') {
+              setStatus({ type: 'error', message: event.message || 'Erro na edição' });
+            }
+          } catch { /* ignore parse errors */ }
+        }
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Erro inesperado na edição';
+      setStatus({ type: 'error', message: msg });
+    }
+  }
+
   async function handleHistoryDelete(id: string) {
     try {
       await deleteHistoryEntry(id);
@@ -146,7 +212,7 @@ export default function App() {
 
   function handleReuse(item: MediaHistoryItem) {
     setReuseData({
-      prompt: item.prompt || item.optimized_prompt,
+      prompt: item.edit_instruction || item.prompt || item.optimized_prompt,
       references: item.references || [],
     });
     // Rola para o topo onde está o input
@@ -297,6 +363,9 @@ export default function App() {
                   onSubmit={handleGenerate}
                   externalData={reuseData}
                   onClearExternalData={() => setReuseData(null)}
+                  editTarget={editTarget}
+                  onEditSubmit={(instruction, files) => editTarget && handleEdit(instruction, editTarget, files)}
+                  onEditCancel={() => setEditTarget(null)}
                 />
               </motion.div>
             )}
@@ -383,6 +452,25 @@ export default function App() {
                       </span>
                     )}
                     <div className="lightbox-details-actions">
+                      <button
+                        className="lightbox-action-btn lightbox-edit-btn"
+                        title="Modificar esta imagem"
+                        onClick={() => {
+                          if (lightbox.item) {
+                            setEditTarget({
+                              session_id: lightbox.item.session_id || '',
+                              filename: lightbox.item.filename,
+                              url: lightbox.item.url,
+                              prompt: lightbox.item.prompt || lightbox.item.optimized_prompt,
+                              aspect_ratio: lightbox.item.aspect_ratio,
+                              resolution: lightbox.item.resolution,
+                            });
+                            setLightbox(null);
+                          }
+                        }}
+                      >
+                        <Pencil size={14} /> Modificar
+                      </button>
                       <a href={lightbox.url} download={lightbox.item.filename} className="lightbox-action-btn" title="Baixar">
                         <Download size={14} />
                       </a>

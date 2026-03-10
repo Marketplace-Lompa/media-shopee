@@ -83,6 +83,32 @@ SET_DETECTION_SCHEMA = {
     },
 }
 
+STRUCTURAL_CONTRACT_SCHEMA = {
+    "type": "object",
+    "required": [
+        "garment_subtype",
+        "sleeve_type",
+        "sleeve_length",
+        "front_opening",
+        "hem_shape",
+        "garment_length",
+        "silhouette_volume",
+        "must_keep",
+        "confidence",
+    ],
+    "properties": {
+        "garment_subtype": {"type": "string"},
+        "sleeve_type": {"type": "string"},
+        "sleeve_length": {"type": "string"},
+        "front_opening": {"type": "string"},
+        "hem_shape": {"type": "string"},
+        "garment_length": {"type": "string"},
+        "silhouette_volume": {"type": "string"},
+        "must_keep": {"type": "array", "items": {"type": "string"}},
+        "confidence": {"type": "number"},
+    },
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # SYSTEM INSTRUCTION — concisa, comportamental (regras + modos)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -466,6 +492,284 @@ def _apply_guided_locks(
             merged += f" {lock}"
     if len(merged) > 2400:
         merged = merged[:2400].rstrip() + "..."
+    return merged
+
+
+def _enum_or_default(value: Any, allowed: set[str], default: str = "unknown") -> str:
+    v = str(value or "").strip().lower()
+    return v if v in allowed else default
+
+
+def _infer_structural_contract_from_images(uploaded_images: List[bytes], user_prompt: Optional[str]) -> dict:
+    """
+    Extrai geometria da peça (proporção/forma) para reduzir drift estrutural no prompt final.
+    Não depende de tipo específico de roupa.
+    """
+    base = {
+        "enabled": False,
+        "confidence": 0.0,
+        "garment_subtype": "unknown",
+        "sleeve_type": "unknown",
+        "sleeve_length": "unknown",
+        "front_opening": "unknown",
+        "hem_shape": "unknown",
+        "garment_length": "unknown",
+        "silhouette_volume": "unknown",
+        "must_keep": [],
+    }
+    if not uploaded_images:
+        return base
+
+    parts: List[types.Part] = []
+    for img_bytes in uploaded_images[:8]:
+        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)))
+
+    user_txt = (user_prompt or "").strip()
+    instruction = (
+        "Analyze garment geometry from these references and return strict JSON only. "
+        "FIRST identify the garment_subtype. Use one of: "
+        "standard_cardigan, ruana_wrap, poncho, cape, kimono, bolero, vest, jacket, pullover, dress, other. "
+        "CLASSIFICATION RULE: if the garment has NO separate sewn-in sleeves and the arms are covered "
+        "by a continuous draped fabric panel, it is ruana_wrap or poncho — NOT standard_cardigan. "
+        "standard_cardigan requires separately constructed and sewn sleeve tubes. "
+        "Then analyze: sleeve_type (set-in, raglan, dolman_batwing, drop_shoulder, cape_like), "
+        "sleeve_length (sleeveless, cap, short, elbow, three_quarter, long), "
+        "front_opening (open, partial, closed), hem_shape (straight, rounded, asymmetric, cocoon), "
+        "garment_length (cropped, waist, hip, upper_thigh, mid_thigh, knee_plus), "
+        "silhouette_volume (fitted, regular, oversized, draped, structured), "
+        "must_keep (brief visual cues list), confidence (0.0-1.0). "
+        "Do NOT focus on fabric pattern names or decorative details."
+    )
+    if user_txt:
+        instruction += f" User context: {user_txt[:220]}"
+    parts.append(types.Part(text=instruction))
+
+    try:
+        response = client.models.generate_content(
+            model=MODEL_AGENT,
+            contents=[types.Content(role="user", parts=parts)],
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=800,
+                safety_settings=SAFETY_CONFIG,
+                response_mime_type="application/json",
+                response_json_schema=STRUCTURAL_CONTRACT_SCHEMA,
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+            ),
+        )
+        parsed = _decode_agent_response(response)
+    except Exception as e:
+        err_msg = str(e)
+        print(f"[AGENT] ⚠️ Structural contract inference failed: {err_msg}")
+        # Fallback: tentar extrair campos parciais de JSON truncado
+        if "raw=" in err_msg or "raw={" in err_msg:
+            try:
+                raw_start = err_msg.find("raw=") + 4
+                raw_fragment = err_msg[raw_start:].replace("\\n", "\n").replace('\\"', '"')
+                # Tentar completar JSON truncado com }
+                for suffix in ("}", '"}', '"]}'): 
+                    try:
+                        parsed = json.loads(raw_fragment + suffix)
+                        print(f"[AGENT] 🔧 Structural contract repaired from truncated JSON (suffix={suffix})")
+                        break
+                    except json.JSONDecodeError:
+                        continue
+                else:
+                    return base
+            except Exception:
+                return base
+        else:
+            return base
+
+    garment_subtype = _enum_or_default(
+        parsed.get("garment_subtype"),
+        {
+            "standard_cardigan", "ruana_wrap", "poncho", "cape",
+            "kimono", "bolero", "vest", "jacket", "blazer",
+            "pullover", "t_shirt", "blouse", "dress", "skirt",
+            "pants", "shorts", "jumpsuit", "other", "unknown",
+        },
+    )
+    sleeve_type = _enum_or_default(
+        parsed.get("sleeve_type"),
+        {"set-in", "raglan", "dolman_batwing", "drop_shoulder", "cape_like", "unknown"},
+    )
+    sleeve_length = _enum_or_default(
+        parsed.get("sleeve_length"),
+        {"sleeveless", "cap", "short", "elbow", "three_quarter", "long", "unknown"},
+    )
+    front_opening = _enum_or_default(parsed.get("front_opening"), {"open", "partial", "closed", "unknown"})
+    hem_shape = _enum_or_default(parsed.get("hem_shape"), {"straight", "rounded", "asymmetric", "cocoon", "unknown"})
+    garment_length = _enum_or_default(
+        parsed.get("garment_length"),
+        {"cropped", "waist", "hip", "upper_thigh", "mid_thigh", "knee_plus", "unknown"},
+    )
+    silhouette_volume = _enum_or_default(
+        parsed.get("silhouette_volume"),
+        {"fitted", "regular", "oversized", "draped", "structured", "unknown"},
+    )
+
+    try:
+        confidence = float(parsed.get("confidence", 0.0) or 0.0)
+    except Exception:
+        confidence = 0.0
+    confidence = max(0.0, min(1.0, confidence))
+
+    must_keep_raw = list(parsed.get("must_keep", []) or [])
+    must_keep = []
+    for item in must_keep_raw:
+        txt = str(item or "").strip()
+        if not txt:
+            continue
+        must_keep.append(txt[:84])
+        if len(must_keep) >= 4:
+            break
+
+    known_fields = [
+        sleeve_type != "unknown",
+        sleeve_length != "unknown",
+        front_opening != "unknown",
+        hem_shape != "unknown",
+        garment_length != "unknown",
+        silhouette_volume != "unknown",
+    ]
+    enabled = confidence >= 0.45 and any(known_fields)
+
+    return {
+        "enabled": enabled,
+        "confidence": round(confidence, 3),
+        "garment_subtype": garment_subtype,
+        "sleeve_type": sleeve_type,
+        "sleeve_length": sleeve_length,
+        "front_opening": front_opening,
+        "hem_shape": hem_shape,
+        "garment_length": garment_length,
+        "silhouette_volume": silhouette_volume,
+        "must_keep": must_keep,
+    }
+
+
+# ── Descrições construtivas explícitas por subtipo (para o Nano entender) ──
+_SUBTYPE_CONSTRUCTION_LOCKS: dict[str, str] = {
+    "ruana_wrap": (
+        "CONSTRUCTION LOCK: this garment is a RUANA/WRAP — a single continuous rectangular fabric panel "
+        "draped over the shoulders with NO separate sewn sleeves. The arm coverage comes from the "
+        "width of the panel falling over the arms, creating a batwing/dolman effect. "
+        "Do NOT add set-in sleeves, fitted sleeves, or any separate sleeve construction. "
+        "The silhouette must show fabric draping freely from shoulder to hem as one piece."
+    ),
+    "poncho": (
+        "CONSTRUCTION LOCK: this garment is a PONCHO — a single piece of fabric with a head opening, "
+        "NO separate sleeves. The fabric falls equally on all sides from shoulders. "
+        "Do NOT add sleeves of any kind."
+    ),
+    "cape": (
+        "CONSTRUCTION LOCK: this garment is a CAPE — an open-front draped outerwear piece "
+        "with NO separate sleeves. Fabric falls from shoulders in a flowing panel."
+    ),
+    "kimono": (
+        "CONSTRUCTION LOCK: this garment is a KIMONO-style wrap — wide, straight-cut body and sleeves "
+        "cut as one T-shaped piece. Sleeves are extremely wide rectangular panels, "
+        "NOT fitted or tapered. Preserve the boxy, angular construction."
+    ),
+}
+
+
+def _apply_structural_locks(prompt: str, has_images: bool, contract: Optional[dict]) -> str:
+    if not prompt or not has_images or not contract or not contract.get("enabled"):
+        return prompt
+
+    sleeve_type_labels = {
+        "set-in": "set-in sleeve",
+        "raglan": "raglan sleeve",
+        "dolman_batwing": "dolman/batwing sleeve architecture",
+        "drop_shoulder": "drop-shoulder sleeve architecture",
+        "cape_like": "cape-like sleeve fall",
+    }
+    sleeve_len_labels = {
+        "sleeveless": "sleeveless",
+        "cap": "cap sleeve",
+        "short": "short sleeve",
+        "elbow": "elbow-length sleeve",
+        "three_quarter": "three-quarter sleeve",
+        "long": "long sleeve",
+    }
+    hem_labels = {
+        "straight": "straight hemline",
+        "rounded": "rounded hemline",
+        "asymmetric": "asymmetric hemline",
+        "cocoon": "cocoon hemline",
+    }
+    length_labels = {
+        "cropped": "cropped body length",
+        "waist": "waist-length body",
+        "hip": "hip-length body",
+        "upper_thigh": "upper-thigh body length",
+        "mid_thigh": "mid-thigh body length",
+        "knee_plus": "knee-or-below body length",
+    }
+    volume_labels = {
+        "fitted": "fitted body volume",
+        "regular": "regular body volume",
+        "oversized": "oversized body volume",
+        "draped": "draped fluid volume",
+        "structured": "structured body volume",
+    }
+
+    confidence = float(contract.get("confidence", 0.0) or 0.0)
+    garment_subtype = str(contract.get("garment_subtype", "unknown"))
+    sleeve_type = str(contract.get("sleeve_type", "unknown"))
+    sleeve_length = str(contract.get("sleeve_length", "unknown"))
+    front_opening = str(contract.get("front_opening", "unknown"))
+    hem_shape = str(contract.get("hem_shape", "unknown"))
+    garment_length = str(contract.get("garment_length", "unknown"))
+    silhouette_volume = str(contract.get("silhouette_volume", "unknown"))
+    must_keep = list(contract.get("must_keep", []) or [])
+
+    locks: List[str] = []
+
+    # ── Subtipo construtivo: lock mais importante ──
+    if garment_subtype in _SUBTYPE_CONSTRUCTION_LOCKS:
+        locks.append(_SUBTYPE_CONSTRUCTION_LOCKS[garment_subtype])
+    elif garment_subtype not in ("unknown", "other"):
+        locks.append(f"CONSTRUCTION LOCK: this garment is a {garment_subtype.replace('_', ' ')}; preserve its specific construction.")
+
+    if front_opening == "open":
+        locks.append("STRUCTURE LOCK: preserve open-front construction; do not close the front panel.")
+    elif front_opening == "closed":
+        locks.append("STRUCTURE LOCK: keep front closure behavior; do not open the garment front.")
+
+    # Sleeve locks — skip for subtypes that inherently have no sleeves
+    no_sleeve_subtypes = {"ruana_wrap", "poncho", "cape"}
+    if garment_subtype not in no_sleeve_subtypes:
+        if sleeve_type in sleeve_type_labels:
+            locks.append(f"STRUCTURE LOCK: keep {sleeve_type_labels[sleeve_type]} from references.")
+        if sleeve_length in sleeve_len_labels:
+            locks.append(
+                f"STRUCTURE LOCK: keep {sleeve_len_labels[sleeve_length]} proportion based on body landmarks; avoid longer reinterpretation."
+            )
+
+    if hem_shape in hem_labels:
+        locks.append(f"STRUCTURE LOCK: preserve {hem_labels[hem_shape]}; do not straighten or reshape the hem.")
+    if garment_length in length_labels:
+        locks.append(f"STRUCTURE LOCK: keep {length_labels[garment_length]} relative to the model body.")
+    if silhouette_volume in volume_labels:
+        locks.append(f"STRUCTURE LOCK: preserve {volume_labels[silhouette_volume]} seen in references.")
+
+    for cue in must_keep[:3]:
+        locks.append(f"STRUCTURE CUE: preserve {cue}.")
+
+    if confidence >= 0.68:
+        locks.append(
+            "STRUCTURE PRIORITY: if composition conflicts with garment shape, preserve reference garment geometry first."
+        )
+
+    merged = prompt.strip()
+    for lock in locks:
+        if lock[:30] not in merged:
+            merged += f" {lock}"
+    if len(merged) > 3200:
+        merged = merged[:3200].rstrip() + "..."
     return merged
 
 
@@ -968,6 +1272,7 @@ def run_agent(
     grounding_context_hint: Optional[str] = None,
     diversity_target: Optional[dict] = None,
     guided_brief: Optional[dict] = None,
+    structural_contract_hint: Optional[dict] = None,
 ) -> dict:
     """
     Executa o Prompt Agent e retorna:
@@ -991,6 +1296,17 @@ def run_agent(
         "set_pattern_cues": [],
         "set_lock_mode": "off",
     }
+    structural_contract = {
+        "enabled": False,
+        "confidence": 0.0,
+        "sleeve_type": "unknown",
+        "sleeve_length": "unknown",
+        "front_opening": "unknown",
+        "hem_shape": "unknown",
+        "garment_length": "unknown",
+        "silhouette_volume": "unknown",
+        "must_keep": [],
+    }
     has_pool = bool(
         pool_context
         and "No reference" not in pool_context
@@ -1001,6 +1317,12 @@ def run_agent(
         guided_set_detection = _infer_set_pattern_from_images(uploaded_images or [], user_prompt)
         if guided_set_detection.get("set_lock_mode") == "off":
             guided_set_detection["set_lock_mode"] = "generic"
+
+    if has_images:
+        if isinstance(structural_contract_hint, dict) and structural_contract_hint:
+            structural_contract = structural_contract_hint
+        else:
+            structural_contract = _infer_structural_contract_from_images(uploaded_images or [], user_prompt)
 
     if has_images:
         # FIX: ternário separado para não engolir o MODE 2
@@ -1078,6 +1400,23 @@ def run_agent(
                 f"- set_pattern_cues: {', '.join(guided_set_detection.get('set_pattern_cues', []) or []) or 'unknown'}\n"
                 f"- set_lock_mode: {guided_set_detection.get('set_lock_mode', 'generic')}\n"
             )
+
+    if has_images and structural_contract.get("enabled"):
+        cues = ", ".join(structural_contract.get("must_keep", []) or []) or "none"
+        context_text += (
+            "\n\n[STRUCTURAL CONTRACT — preserve garment geometry from references]\n"
+            f"- garment_subtype: {structural_contract.get('garment_subtype', 'unknown')}\n"
+            f"- sleeve_type: {structural_contract.get('sleeve_type', 'unknown')}\n"
+            f"- sleeve_length: {structural_contract.get('sleeve_length', 'unknown')}\n"
+            f"- front_opening: {structural_contract.get('front_opening', 'unknown')}\n"
+            f"- hem_shape: {structural_contract.get('hem_shape', 'unknown')}\n"
+            f"- garment_length: {structural_contract.get('garment_length', 'unknown')}\n"
+            f"- silhouette_volume: {structural_contract.get('silhouette_volume', 'unknown')}\n"
+            f"- confidence: {structural_contract.get('confidence', 0.0)}\n"
+            f"- must_keep_cues: {cues}\n"
+            "Treat these as shape/proportion constraints. Do not drift sleeve/hem proportions. "
+            "Pay special attention to garment_subtype — it defines the construction method."
+        )
 
     # Grounding: chamada separada de pesquisa antes do agente
     grounding_research = ""
@@ -1256,6 +1595,11 @@ def run_agent(
         has_images=has_images,
         set_detection=guided_set_detection if guided_enabled and guided_set_mode == "conjunto" else None,
     )
+    result["prompt"] = _apply_structural_locks(
+        prompt=result.get("prompt", ""),
+        has_images=has_images,
+        contract=structural_contract if has_images else None,
+    )
 
     result["grounding"] = grounding_meta
     result["pipeline_mode"] = pipeline_mode
@@ -1266,6 +1610,7 @@ def run_agent(
         result.get("shot_type"),
         set_detection=guided_set_detection if guided_enabled and guided_set_mode == "conjunto" else None,
     )
+    result["structural_contract"] = structural_contract
     result["_grounded_images"] = grounded_images
 
     # ── Log de observabilidade ─────────────────────────────────────
@@ -1284,6 +1629,15 @@ def run_agent(
             f" score={guided_set_detection.get('set_pattern_score')}"
             f" roles={guided_set_detection.get('detected_garment_roles')}"
             f" lock={guided_set_detection.get('set_lock_mode')}"
+        )
+    if has_images and structural_contract.get("enabled"):
+        print(
+            "[AGENT] 📐 Structural contract:"
+            f" subtype={structural_contract.get('garment_subtype')}"
+            f" sleeve={structural_contract.get('sleeve_type')}/{structural_contract.get('sleeve_length')}"
+            f" hem={structural_contract.get('hem_shape')}"
+            f" length={structural_contract.get('garment_length')}"
+            f" conf={structural_contract.get('confidence')}"
         )
     print(f"[AGENT] Prompt ({len(prompt_text)} chars): {prompt_text[:300]}{'…' if len(prompt_text) > 300 else ''}")
     print(f"{'='*60}\n")

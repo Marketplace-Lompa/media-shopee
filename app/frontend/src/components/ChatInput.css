@@ -224,12 +224,13 @@
     color: var(--text-primary);
     font-family: inherit;
     font-size: var(--fs-base);
-    line-height: 1.5;
+    line-height: 1.6;
     resize: none;
-    min-height: 28px;
-    max-height: 160px;
+    min-height: 36px;
+    max-height: 200px;
     overflow-y: auto;
     padding: var(--sp-1) 0;
+    transition: height 0.1s ease;
 }
 
 .chat-textarea::placeholder {
@@ -331,4 +332,70 @@
     .guided-grid {
         grid-template-columns: minmax(0, 1fr);
     }
+}
+
+/* ── Edit Banner (modo /alterar) ──────────────────── */
+.edit-banner {
+    overflow: hidden;
+}
+
+.edit-banner-content {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    background: rgba(168, 85, 247, 0.08);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    border-radius: var(--r-xl);
+}
+
+.edit-banner-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-lg);
+    object-fit: cover;
+    border: 1px solid var(--surface-overlay);
+    flex-shrink: 0;
+}
+
+.edit-banner-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.edit-banner-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: rgb(168, 85, 247);
+    font-weight: 600;
+}
+
+.edit-banner-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-full);
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--dur-fast), color var(--dur-fast);
+}
+
+.edit-banner-close:hover {
+    background: rgba(168, 85, 247, 0.15);
+    color: rgb(168, 85, 247);
+}
+
+/* Send button em modo edição */
+.send-btn--edit {
+    background: linear-gradient(135deg, rgb(168, 85, 247), rgb(217, 70, 239));
+    box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
 }
