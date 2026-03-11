@@ -1,0 +1,419 @@
+{
+  "run_stamp": "20260311_195714",
+  "base": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/castbase_20260311_192658/gen_castbase_20260311_192658_1.png",
+  "results": [
+    {
+      "variant": "art_1",
+      "art_direction": {
+        "casting_profile": {
+          "family_id": "br_minimal_premium",
+          "family_label": "BR Minimal Premium",
+          "age": "early 30s",
+          "skin": "light-medium neutral skin",
+          "hair": "smooth espresso-brown collarbone-length hair with a clean finish",
+          "makeup": "refined neutral makeup",
+          "expression": "quiet confident gaze",
+          "presence": "refined premium-catalog presence",
+          "signature": "br_minimal_premium|early 30s|light-medium neutral skin|smooth espresso-brown collarbone-length hair with a clean finish|refined neutral makeup|quiet confident gaze",
+          "identity_sentence": "a distinctly different adult Brazilian woman in her early 30s with light-medium neutral skin, smooth espresso-brown collarbone-length hair with a clean finish, refined neutral makeup, quiet confident gaze, and refined premium-catalog presence",
+          "difference_instruction": "This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy.",
+          "recent_avoid": [
+            "long natural curly hair",
+            "golden tan waves"
+          ],
+          "debug": {
+            "recent_family_counts": {},
+            "recent_hair": [],
+            "seed_hint": "20260311_195714:0:casting"
+          }
+        },
+        "scene": {
+          "id": "br_curitiba_cafe",
+          "label": "BR Curitiba Cafe",
+          "description": "neighborhood coffee shop in Curitiba with concrete floor, wood counter, pastry case, and softly busy background depth",
+          "tags": [
+            "lifestyle",
+            "cafe",
+            "urban",
+            "authentic"
+          ],
+          "camera_ids": [
+            "fujifilm_candid",
+            "phone_clean"
+          ],
+          "lighting_ids": [
+            "overcast_cafe"
+          ],
+          "styling_ids": [
+            "indigo_jeans",
+            "soft_blue_trousers"
+          ],
+          "pose_ids": [
+            "paused_mid_step",
+            "standing_3q_relaxed"
+          ]
+        },
+        "pose": {
+          "id": "paused_mid_step",
+          "label": "Paused Mid Step",
+          "angle_description": "slight low-angle environmental shot with a casual mid-step pause",
+          "pose_description": "Use a natural paused walking pose with one hand adjusting the garment edge while preserving full garment readability.",
+          "model_hero_pose": "natural paused walking pose with one hand adjusting the garment edge",
+          "tags": [
+            "lifestyle",
+            "authentic",
+            "movement"
+          ]
+        },
+        "camera": {
+          "id": "fujifilm_candid",
+          "label": "Fujifilm Candid",
+          "device": "Fujifilm X-T4",
+          "lens": "35mm lens",
+          "grain_level": "1000",
+          "tags": [
+            "cafe",
+            "street",
+            "lifestyle"
+          ]
+        },
+        "lighting": {
+          "id": "overcast_cafe",
+          "label": "Overcast Cafe",
+          "description": "cool overcast street daylight mixing with warm cafe practicals",
+          "tags": [
+            "cafe",
+            "authentic",
+            "mixed"
+          ]
+        },
+        "styling": {
+          "id": "soft_blue_trousers",
+          "label": "Soft Blue Trousers",
+          "innerwear": "clean white crew-neck tee",
+          "bottom": "high-waisted soft-blue wide-leg trousers",
+          "tags": [
+            "premium",
+            "indoor",
+            "catalog"
+          ]
+        },
+        "model_visual_label": "minimal premium Brazilian visual profile",
+        "age_years": "30",
+        "summary": {
+          "casting_family": "br_minimal_premium",
+          "scene_family": "br_curitiba_cafe",
+          "pose_family": "paused_mid_step",
+          "camera_profile": "fujifilm_candid",
+          "lighting_profile": "overcast_cafe",
+          "styling_profile": "soft_blue_trousers"
+        }
+      },
+      "output": {
+        "index": 1,
+        "filename": "edit_artdir_20260311_195714_0_1.png",
+        "url": "/outputs/artdir_20260311_195714_0/edit_artdir_20260311_195714_0_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/artdir_20260311_195714_0/edit_artdir_20260311_195714_0_1.png",
+        "size_kb": 2613.9,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.9,
+        "silhouette_fidelity": 0.95,
+        "texture_fidelity": 0.9,
+        "construction_fidelity": 0.95,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 1.0,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.95,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.93,
+        "issues": [],
+        "summary": "The edited output successfully preserves the complex knit texture and cocoon silhouette of the garment while completely transforming the model, environment, and innerwear. The transition from a studio setting to a cafe is seamless and photorealistic."
+      },
+      "prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a distinctly different adult Brazilian woman in her early 30s with light-medium neutral skin, smooth espresso-brown collarbone-length hair with a clean finish, refined neutral makeup, quiet confident gaze, and refined premium-catalog presence. This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy. This casting should not resemble recent outputs characterized by long natural curly hair, golden tan waves. Change the inner top to a clean white crew-neck tee. Change the lower-body styling to high-waisted soft-blue wide-leg trousers. [1. STYLE & ANGLE] Candid lifestyle photography, (amateur/semi-pro capture:1.2), slight low-angle environmental shot with a casual mid-step pause. [2. SCENE] neighborhood coffee shop in Curitiba with concrete floor, wood counter, pastry case, and softly busy background depth, authentic context, (cluttered/lived-in background:0.9). [3. MODEL HERO] minimal premium Brazilian visual profile, 30yo model, natural paused walking pose with one hand adjusting the garment edge, (natural skin texture, visible pores, asymmetric features:1.3). [4. CAMERA] Shot on Fujifilm X-T4, 35mm lens, (subtle chromatic aberration, ISO 1000 noise, slight motion blur:1.2). [5. LIGHTING] cool overcast street daylight mixing with warm cafe practicals, mixed color temperature, (imperfect ambient bounce:1.1). [6. TEXTURE LOCK] (Macro-accurate crochet knit wool blend:1.5), exact thread count, proper fabric weight, (realistic light absorption on olive green and dusty rose striped yarn:1.4). [7. NEGATIVE] (studio perfection:1.4), (plastic skin:1.5), (AI mannequin:1.5), symmetrical face, altered clothing silhouette, over-smoothed fabric. Keep the image highly photorealistic with natural skin texture and realistic body proportions. Additional commercial direction: Maintain a believable Brazilian lifestyle photo while keeping the garment as the hero piece.."
+    },
+    {
+      "variant": "art_2",
+      "art_direction": {
+        "casting_profile": {
+          "family_id": "br_mature_elegant",
+          "family_label": "BR Mature Elegant",
+          "age": "early 40s",
+          "skin": "medium warm skin",
+          "hair": "polished shoulder-length dark hair with a smooth blowout",
+          "makeup": "understated refined makeup",
+          "expression": "confident composed expression",
+          "presence": "elegant high-end catalog presence",
+          "signature": "br_mature_elegant|early 40s|medium warm skin|polished shoulder-length dark hair with a smooth blowout|understated refined makeup|confident composed expression",
+          "identity_sentence": "a distinctly different adult Brazilian woman in her early 40s with medium warm skin, polished shoulder-length dark hair with a smooth blowout, understated refined makeup, confident composed expression, and elegant high-end catalog presence",
+          "difference_instruction": "This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy.",
+          "recent_avoid": [
+            "long loose chestnut waves",
+            "short sculpted natural curls"
+          ],
+          "debug": {
+            "recent_family_counts": {
+              "br_minimal_premium": 1,
+              "br_warm_commercial": 1,
+              "br_afro_modern": 1
+            },
+            "recent_hair": [
+              "smooth espresso-brown collarbone-length hair with a clean finish",
+              "soft medium-brown waves over the shoulders",
+              "a soft rounded natural afro with a polished shape"
+            ],
+            "seed_hint": "20260311_195714:1:casting"
+          }
+        },
+        "scene": {
+          "id": "br_recife_balcony",
+          "label": "BR Recife Balcony",
+          "description": "airy Recife apartment balcony with textured plaster wall, woven chair, potted plants, and an urban-coastal skyline glimpse",
+          "tags": [
+            "lifestyle",
+            "marketplace",
+            "balcony",
+            "outdoor",
+            "warm"
+          ],
+          "camera_ids": [
+            "phone_clean",
+            "canon_balanced"
+          ],
+          "lighting_ids": [
+            "coastal_late_morning"
+          ],
+          "styling_ids": [
+            "off_white_shorts",
+            "soft_blue_trousers"
+          ],
+          "pose_ids": [
+            "standing_3q_relaxed",
+            "front_relaxed_hold"
+          ]
+        },
+        "pose": {
+          "id": "standing_3q_relaxed",
+          "label": "Standing 3Q Relaxed",
+          "angle_description": "3/4 standing angle with one shoulder slightly forward and direct eye contact",
+          "pose_description": "Use a relaxed standing pose with one hand lightly touching the garment opening and full garment visibility.",
+          "model_hero_pose": "relaxed standing pose with one hand lightly touching the garment opening",
+          "tags": [
+            "stable",
+            "lifestyle",
+            "marketplace"
+          ]
+        },
+        "camera": {
+          "id": "canon_balanced",
+          "label": "Canon Balanced",
+          "device": "Canon R6",
+          "lens": "50mm lens",
+          "grain_level": "800",
+          "tags": [
+            "premium",
+            "balanced",
+            "indoor"
+          ]
+        },
+        "lighting": {
+          "id": "coastal_late_morning",
+          "label": "Coastal Late Morning",
+          "description": "bright coastal late-morning daylight with warm ambient reflections",
+          "tags": [
+            "warm",
+            "balcony",
+            "outdoor"
+          ]
+        },
+        "styling": {
+          "id": "off_white_shorts",
+          "label": "Off White Shorts",
+          "innerwear": "clean white crew-neck tee",
+          "bottom": "relaxed off-white tailored shorts",
+          "tags": [
+            "warm",
+            "balcony",
+            "marketplace"
+          ]
+        },
+        "model_visual_label": "refined urban Brazilian visual profile",
+        "age_years": "40",
+        "summary": {
+          "casting_family": "br_mature_elegant",
+          "scene_family": "br_recife_balcony",
+          "pose_family": "standing_3q_relaxed",
+          "camera_profile": "canon_balanced",
+          "lighting_profile": "coastal_late_morning",
+          "styling_profile": "off_white_shorts"
+        }
+      },
+      "output": {
+        "index": 1,
+        "filename": "edit_artdir_20260311_195714_1_1.png",
+        "url": "/outputs/artdir_20260311_195714_1/edit_artdir_20260311_195714_1_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/artdir_20260311_195714_1/edit_artdir_20260311_195714_1_1.png",
+        "size_kb": 2618.7,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.9,
+        "silhouette_fidelity": 0.95,
+        "texture_fidelity": 0.85,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 1.0,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.95,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.92,
+        "issues": [],
+        "summary": "The edit successfully preserves the core identity of the striped crochet cocoon cardigan while completely transforming the model, environment, and innerwear. The texture and stripe pattern remain highly consistent with the reference, and the silhouette correctly maintains the draped, cape-like structure. The new model and balcony setting align perfectly with the high-end catalog art direction requested."
+      },
+      "prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a distinctly different adult Brazilian woman in her early 40s with medium warm skin, polished shoulder-length dark hair with a smooth blowout, understated refined makeup, confident composed expression, and elegant high-end catalog presence. This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy. This casting should not resemble recent outputs characterized by long loose chestnut waves, short sculpted natural curls. Change the inner top to a clean white crew-neck tee. Change the lower-body styling to relaxed off-white tailored shorts. [1. STYLE & ANGLE] Candid lifestyle photography, (amateur/semi-pro capture:1.2), 3/4 standing angle with one shoulder slightly forward and direct eye contact. [2. SCENE] airy Recife apartment balcony with textured plaster wall, woven chair, potted plants, and an urban-coastal skyline glimpse, authentic context, (cluttered/lived-in background:0.9). [3. MODEL HERO] refined urban Brazilian visual profile, 40yo model, relaxed standing pose with one hand lightly touching the garment opening, (natural skin texture, visible pores, asymmetric features:1.3). [4. CAMERA] Shot on Canon R6, 50mm lens, (subtle chromatic aberration, ISO 800 noise, slight motion blur:1.2). [5. LIGHTING] bright coastal late-morning daylight with warm ambient reflections, mixed color temperature, (imperfect ambient bounce:1.1). [6. TEXTURE LOCK] (Macro-accurate crochet knit wool blend:1.5), exact thread count, proper fabric weight, (realistic light absorption on olive green and dusty rose striped yarn:1.4). [7. NEGATIVE] (studio perfection:1.4), (plastic skin:1.5), (AI mannequin:1.5), symmetrical face, altered clothing silhouette, over-smoothed fabric. Keep the image highly photorealistic with natural skin texture and realistic body proportions. Additional commercial direction: Maintain a believable Brazilian lifestyle photo while keeping the garment as the hero piece.."
+    },
+    {
+      "variant": "art_3",
+      "art_direction": {
+        "casting_profile": {
+          "family_id": "br_soft_editorial",
+          "family_label": "BR Soft Editorial",
+          "age": "mid 20s",
+          "skin": "fair neutral skin",
+          "hair": "soft loose waves with a subtle side part",
+          "makeup": "sheer editorial makeup",
+          "expression": "soft editorial expression",
+          "presence": "soft premium-editorial presence",
+          "signature": "br_soft_editorial|mid 20s|fair neutral skin|soft loose waves with a subtle side part|sheer editorial makeup|soft editorial expression",
+          "identity_sentence": "a distinctly different adult Brazilian woman in her mid 20s with fair neutral skin, soft loose waves with a subtle side part, sheer editorial makeup, soft editorial expression, and soft premium-editorial presence",
+          "difference_instruction": "This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy.",
+          "recent_avoid": [
+            "friendly polished smile",
+            "a sleek jaw-length dark bob"
+          ],
+          "debug": {
+            "recent_family_counts": {
+              "br_minimal_premium": 1,
+              "br_warm_commercial": 1,
+              "br_afro_modern": 1,
+              "br_mature_elegant": 1
+            },
+            "recent_hair": [
+              "smooth espresso-brown collarbone-length hair with a clean finish",
+              "soft medium-brown waves over the shoulders",
+              "a soft rounded natural afro with a polished shape",
+              "polished shoulder-length dark hair with a smooth blowout"
+            ],
+            "seed_hint": "20260311_195714:2:casting"
+          }
+        },
+        "scene": {
+          "id": "br_recife_balcony",
+          "label": "BR Recife Balcony",
+          "description": "airy Recife apartment balcony with textured plaster wall, woven chair, potted plants, and an urban-coastal skyline glimpse",
+          "tags": [
+            "lifestyle",
+            "marketplace",
+            "balcony",
+            "outdoor",
+            "warm"
+          ],
+          "camera_ids": [
+            "phone_clean",
+            "canon_balanced"
+          ],
+          "lighting_ids": [
+            "coastal_late_morning"
+          ],
+          "styling_ids": [
+            "off_white_shorts",
+            "soft_blue_trousers"
+          ],
+          "pose_ids": [
+            "standing_3q_relaxed",
+            "front_relaxed_hold"
+          ]
+        },
+        "pose": {
+          "id": "front_relaxed_hold",
+          "label": "Front Relaxed Hold",
+          "angle_description": "eye-level front-facing full-body framing with clean garment readability",
+          "pose_description": "Use a calm front-facing standing pose with both arms relaxed and the garment fully visible.",
+          "model_hero_pose": "calm front-facing standing pose with both arms relaxed and the garment fully visible",
+          "tags": [
+            "stable",
+            "catalog",
+            "premium"
+          ]
+        },
+        "camera": {
+          "id": "phone_clean",
+          "label": "Phone Clean",
+          "device": "iPhone 15 Pro",
+          "lens": "48mm equivalent",
+          "grain_level": "500",
+          "tags": [
+            "lifestyle",
+            "marketplace",
+            "authentic"
+          ]
+        },
+        "lighting": {
+          "id": "coastal_late_morning",
+          "label": "Coastal Late Morning",
+          "description": "bright coastal late-morning daylight with warm ambient reflections",
+          "tags": [
+            "warm",
+            "balcony",
+            "outdoor"
+          ]
+        },
+        "styling": {
+          "id": "off_white_shorts",
+          "label": "Off White Shorts",
+          "innerwear": "clean white crew-neck tee",
+          "bottom": "relaxed off-white tailored shorts",
+          "tags": [
+            "warm",
+            "balcony",
+            "marketplace"
+          ]
+        },
+        "model_visual_label": "soft editorial Brazilian visual profile",
+        "age_years": "20",
+        "summary": {
+          "casting_family": "br_soft_editorial",
+          "scene_family": "br_recife_balcony",
+          "pose_family": "front_relaxed_hold",
+          "camera_profile": "phone_clean",
+          "lighting_profile": "coastal_late_morning",
+          "styling_profile": "off_white_shorts"
+        }
+      },
+      "output": {
+        "index": 1,
+        "filename": "edit_artdir_20260311_195714_2_1.png",
+        "url": "/outputs/artdir_20260311_195714_2/edit_artdir_20260311_195714_2_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/artdir_20260311_195714_2/edit_artdir_20260311_195714_2_1.png",
+        "size_kb": 2584.4,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 0.8,
+        "environment_change_strength": 1.0,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.9,
+        "commercial_quality_score": 0.9,
+        "overall_score": 0.92,
+        "issues": [],
+        "summary": "The edit successfully preserves the complex striped knit texture and cocoon silhouette of the garment while completely transforming the model, innerwear, and environment. The transition from a studio-like setting to an outdoor balcony is executed with high photorealism."
+      },
+      "prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a distinctly different adult Brazilian woman in her mid 20s with fair neutral skin, soft loose waves with a subtle side part, sheer editorial makeup, soft editorial expression, and soft premium-editorial presence. This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy. This casting should not resemble recent outputs characterized by friendly polished smile, a sleek jaw-length dark bob. Change the inner top to a clean white crew-neck tee. Change the lower-body styling to relaxed off-white tailored shorts. [1. STYLE & ANGLE] Candid lifestyle photography, (amateur/semi-pro capture:1.2), eye-level front-facing full-body framing with clean garment readability. [2. SCENE] airy Recife apartment balcony with textured plaster wall, woven chair, potted plants, and an urban-coastal skyline glimpse, authentic context, (cluttered/lived-in background:0.9). [3. MODEL HERO] soft editorial Brazilian visual profile, 20yo model, calm front-facing standing pose with both arms relaxed and the garment fully visible, (natural skin texture, visible pores, asymmetric features:1.3). [4. CAMERA] Shot on iPhone 15 Pro, 48mm equivalent, (subtle chromatic aberration, ISO 500 noise, slight motion blur:1.2). [5. LIGHTING] bright coastal late-morning daylight with warm ambient reflections, mixed color temperature, (imperfect ambient bounce:1.1). [6. TEXTURE LOCK] (Macro-accurate crochet knit wool blend:1.5), exact thread count, proper fabric weight, (realistic light absorption on olive green and dusty rose striped yarn:1.4). [7. NEGATIVE] (studio perfection:1.4), (plastic skin:1.5), (AI mannequin:1.5), symmetrical face, altered clothing silhouette, over-smoothed fabric. Keep the image highly photorealistic with natural skin texture and realistic body proportions. Additional commercial direction: Maintain a believable Brazilian lifestyle photo while keeping the garment as the hero piece.."
+    }
+  ]
+}
