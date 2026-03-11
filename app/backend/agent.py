@@ -32,467 +32,170 @@ from google.genai import types
 from config import GOOGLE_AI_API_KEY, MODEL_AGENT, SAFETY_CONFIG
 from guided_mode import guided_capture_to_shot, guided_summary
 
+from agent_runtime.parser import (
+    _extract_balanced_json,
+    _safe_json_loads,
+    _parse_json,
+    _extract_response_text,
+    _decode_agent_response,
+)
+from agent_runtime.camera import (
+    _CAMERA_REALISM_KEYWORDS,
+    _CAMERA_REALISM_PROFILE_DEFAULTS,
+    _ANALOG_EDITORIAL_HINTS,
+    _NATURAL_CATALOG_HINTS,
+    _CAMERA_PERSONA_STRIP_SIGNALS,
+    _extract_camera_realism_block,
+    _camera_framing_label,
+    _select_camera_realism_profile,
+    _default_camera_realism_block,
+    _normalize_camera_realism_block,
+    _compose_prompt_with_camera,
+)
+from agent_runtime.structural import (
+    _normalize_structural_contract,
+    _normalize_set_detection,
+    normalize_prompt_text,
+)
+from agent_runtime.compiler import (
+    _compile_prompt_v2,
+)
+
+from agent_runtime.visual_refs import _collect_grounded_reference_images
+from agent_runtime.grounding import (
+    _extract_search_results_from_duckduckgo,
+    _duckduckgo_search,
+    _build_forced_grounding_queries,
+    _format_forced_grounding_text,
+    _extract_pose_clause,
+    _run_grounding_research,
+)
+
+from agent_runtime.constants import (
+    AGENT_RESPONSE_SCHEMA,
+    SET_DETECTION_SCHEMA,
+    STRUCTURAL_CONTRACT_SCHEMA,
+    UNIFIED_VISION_SCHEMA,
+    SYSTEM_INSTRUCTION,
+    REFERENCE_KNOWLEDGE,
+    _SLEEVE_TYPE_PHRASES,
+    _SLEEVE_LEN_PHRASES,
+    _HEM_PHRASES,
+    _LENGTH_PHRASES,
+    _VOLUME_PHRASES,
+    _FRONT_OPENING_PHRASES,
+    _RESIDUAL_NEG_RE,
+    _LABEL_STRIP_RE,
+    _NEG_CLAUSE_RE,
+    _WITHOUT_MAP,
+    _CATALOG_STANCE_POOL,
+    _OUTDOOR_URBAN_KW,
+    _OUTDOOR_NATURE_KW,
+    _INDOOR_KW,
+    _POSE_KEYWORDS,
+)
+
+import os as _os
 client = genai.Client(api_key=GOOGLE_AI_API_KEY)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# ═══════════════════════════════════════════════════════════════════════════════
-# AGENT RESPONSE SCHEMA — enforced pela API do Gemini
-# ═══════════════════════════════════════════════════════════════════════════════
-AGENT_RESPONSE_SCHEMA = {
-    "type": "object",
-    "required": ["prompt", "thinking_level", "shot_type", "realism_level"],
-    "properties": {
-        "prompt": {
-            "type": "string",
-            "description": "Optimized English prompt, max 200 words, narrative paragraph. Always start with 'RAW photo,'"
-        },
-        "thinking_level": {
-            "type": "string",
-            "enum": ["MINIMAL", "HIGH"]
-        },
-        "thinking_reason": {
-            "type": "string",
-            "description": "One sentence in Portuguese explaining the thinking level choice"
-        },
-        "shot_type": {
-            "type": "string",
-            "enum": ["wide", "medium", "close-up", "auto"]
-        },
-        "realism_level": {
-            "type": "integer",
-            "enum": [1, 2, 3]
-        },
-        "image_analysis": {
-            "type": "string",
-            "description": "HIGH-LEVEL garment analysis in Portuguese: category, color, material, silhouette. Required when reference images are present."
-        }
-    }
-}
-
-SET_DETECTION_SCHEMA = {
-    "type": "object",
-    "required": ["is_garment_set", "set_pattern_score", "detected_garment_roles", "set_pattern_cues"],
-    "properties": {
-        "is_garment_set": {"type": "boolean"},
-        "set_pattern_score": {"type": "number"},
-        "detected_garment_roles": {
-            "type": "array",
-            "items": {"type": "string", "enum": ["top", "bottom", "outerwear", "one_piece", "layer"]},
-        },
-        "set_pattern_cues": {"type": "array", "items": {"type": "string"}},
-    },
-}
-
-STRUCTURAL_CONTRACT_SCHEMA = {
-    "type": "object",
-    "required": [
-        "garment_subtype",
-        "sleeve_type",
-        "sleeve_length",
-        "front_opening",
-        "hem_shape",
-        "garment_length",
-        "silhouette_volume",
-        "must_keep",
-        "confidence",
-    ],
-    "properties": {
-        "garment_subtype": {"type": "string"},
-        "sleeve_type": {"type": "string"},
-        "sleeve_length": {"type": "string"},
-        "front_opening": {"type": "string"},
-        "hem_shape": {"type": "string"},
-        "garment_length": {"type": "string"},
-        "silhouette_volume": {"type": "string"},
-        "must_keep": {"type": "array", "items": {"type": "string"}},
-        "confidence": {"type": "number"},
-    },
-}
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SYSTEM INSTRUCTION — concisa, comportamental (regras + modos)
-# ═══════════════════════════════════════════════════════════════════════════════
-SYSTEM_INSTRUCTION = """
-You are an expert prompt engineer for Nano Banana 2 (gemini-3.1-flash-image-preview).
-You specialize in Brazilian e-commerce fashion catalog photography.
-Your output MUST match the provided JSON schema exactly.
-
-CORE RULES:
-1. Always write prompts in English, narrative paragraph, max 200 words.
-2. Always start the prompt with "RAW photo," to trigger photorealism.
-3. Structure: shot_type framing → model description → garment (3D) → pose → scenario → camera → realism levers.
-4. NEVER use quality tags: 8K, ultra HD, masterpiece, best quality.
-5. Garment is ALWAYS the visual protagonist.
-
-OPERATING MODES:
-
-MODE 1 — User gave a text prompt:
-  Enhance and expand using the REFERENCE KNOWLEDGE provided.
-  Do NOT use Fidelity Lock unless reference images are also present.
-
-MODE 2 — User sent reference images (with or without text):
-  STEP 1: Analyze images. Fill "image_analysis" with HIGH-LEVEL observations IN PORTUGUESE:
-    category, color(s), material family, silhouette/fit.
-    DO NOT describe texture patterns, stitches, prints — these CONFUSE the model.
-  STEP 2: Start prompt with Fidelity Lock verbatim:
-    "REFERENCE IMAGE IS THE AUTHORITY FOR THE GARMENT. KEEP ONLY THE GARMENT from the reference photo — reproduce its exact texture, stitch pattern, color, and construction. REPLACE EVERYTHING ELSE: use a completely different human model (different ethnicity, body type, hair, age), a completely new pose, and a completely different background and scenario. Do NOT replicate the model, pose, or environment from the reference."
-  ANTI-CLONING: NEVER reuse person, background, or pose from reference. Always contrast.
-  After lock: add MAX 2 reinforcement sentences on fiber/material type and construction — NOT visual patterns.
-  NEVER describe in text: stripes, prints, zigzag, diamond, lace pattern, crochet loops.
-
-MODE 3 — No prompt or images:
-  Generate a creative catalog prompt using pool context and REFERENCE KNOWLEDGE.
-
-THINKING LEVEL:
-  HIGH: complex knitwear, crochet, multi-layer, macro texture, 3+ people, sequins/metallic.
-  MINIMAL: solid fabrics, simple garments, clean lifestyle shots.
-
-Consult the [REFERENCE KNOWLEDGE] block in user content for garment vocabulary, model profiles,
-scenarios, realism levers, and shot type templates.
-"""
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# REFERENCE KNOWLEDGE — injetada no conteúdo do usuário, NÃO na system instruction
-# ═══════════════════════════════════════════════════════════════════════════════
-REFERENCE_KNOWLEDGE = """
-[REFERENCE KNOWLEDGE — consult when building prompt]
-
-── GARMENT DESCRIPTION (3 dimensions) ──
-
-DIMENSION 1 — MATERIAL:
-  Woven: cotton poplin, linen, silk charmeuse, wool crepe, tweed, jacquard, brocade
-  Knit: smooth fine-gauge jersey knit | vertical rib-knit | chunky Aran cable-knit |
-        plush brioche stitch | open-stitch knit panel (NOT "lace knit" → generates floral lace)
-  Synthetic: mesh, tulle, velvet, vinyl/PU leather, suede, sequined
-
-  ANTI-INFLATION for knitwear:
-    Crochet — DO: "flat uniform crochet construction", "open-weave crochet airy construction"
-              DON'T: "crochet loops", "3D crochet texture", "puffy", "bobbles"
-    Knit — DO: "heavy flat-knit construction dense gauge", "smooth fine-gauge jersey knit"
-           DON'T: "cable" unless truly Aran
-    Texture tokens: subtle="nearly smooth" | medium="visible rows" | maximum="deep relief"
-
-DIMENSION 2 — CONSTRUCTION:
-  Necklines: crew | V-neck | scoop | boat | square | turtleneck | cowl
-  Sleeves: set-in | raglan | dolman/batwing | puff | bishop | bell | cap | flutter
-
-DIMENSION 3 — BEHAVIOR:
-  drapes loosely | falls straight | holds structure | clings to body |
-  billows/catches air | skims the body | stands away from body
-
-── E-COMMERCE SHOT SYSTEM ──
-
-WIDE (hero): Full body head-to-feet, 60-70% frame. Dynamic mid-stride.
-  Template: "Full-body wide shot, model mid-stride in [scenario], 3/4 angle."
-MEDIUM (detail): Waist-up, neckline + sleeve focus, 50mm bokeh.
-  Template: "Medium shot waist up, relaxed expression, soft bokeh."
-CLOSE-UP (texture): 80%+ frame is detail, macro focus.
-  Template: "Extreme close-up of [detail], macro focus, individual fiber visible."
-AUTO: choose what best showcases the garment.
-
-── BRAZILIAN MODEL FRAMEWORK ──
-
-PHENOTYPE POOL (rotate, never repeat):
-  A) Sulista europeia: fair skin, pink undertones, light brown hair, green/blue eyes, slim
-  B) Parda paulistana: warm olive skin, wavy dark hair, brown eyes, curvy
-  C) Afro-brasileira: deep brown skin, natural curly hair, brown eyes, athletic
-  D) Nordestina mestiça: golden tan, thick dark waves, hazel eyes, tall lean
-  E) Gaúcha italiana: fair olive skin, long dark hair, hazel-green eyes, curvy
-
-Age: early 20s | late 20s | mid 30s | early 40s
-Body: athletic | curvy | slim | plus-size | petite | tall and lean
-
-MODEL PRESENTATION (always apply):
-  Hair: professionally styled | Skin: healthy, glowing | Expression: warm, confident
-  Gaze: engaging eye contact | Posture: poised, shoulders relaxed
-
-SEASONAL COHERENCE:
-  Winter knits → boots, dark jeans, muted light | Mid-season → closed shoes, golden hour
-  Summer → bare legs, sandals, bright midday
-
-SCENARIOS (rotate):
-  Urban: modern downtown | rooftop terrace | shopping district | garden terrace
-  Natural: tropical park | café garden | botanical path | mountain town
-  Interior: minimalist apartment | cozy café | boutique showroom | warm living room
-
-COLOR STRATEGY: White→dark bg | Black→light bg | Pastels→neutral warm | Saturated→clean minimal
-
-── REALISM LEVERS ──
-
-Level 1 (casual): 5-7 levers, high intensity
-Level 2 (e-commerce, DEFAULT): 3-4 levers, moderate
-Level 3 (editorial): 2-3 levers, subtle
-
-Anti-perfection: NEVER "perfect lighting", "flawless skin", "8K masterpiece"
-
-Levers: DEVICE="Sony A7III, 85mm f/1.8" | LIGHTING="golden hour rim light" |
-  SKIN="visible pores, natural tone variation" | GRAIN="natural digital noise" |
-  FABRIC="natural wear creases, fabric responding to movement"
-
-── GROUNDING RESEARCH ──
-
-Garments requiring research: manga morcego/dolman, cardigan assimétrico,
-kaftan, ruana/xale, pelerine, bodychain/harness, any unidentifiable garment.
-"""
+# Controla a engine de coleta de imagens no grounding full.
+# off (padrão) — sem coleta de imagens; grounding textual apenas
+# html          — requests leve (sem Chromium); fallback html scraping
+# playwright    — Playwright sync + fallback html (comportamento original)
 
 
-def _extract_balanced_json(raw: str) -> Optional[str]:
-    """Extrai o primeiro objeto JSON balanceado, ignorando chaves dentro de strings."""
-    if not raw:
-        return None
-
-    in_string = False
-    escaped = False
-    depth = 0
-    start_idx = -1
-
-    for i, ch in enumerate(raw):
-        if escaped:
-            escaped = False
-            continue
-
-        if ch == "\\":
-            escaped = True
-            continue
-
-        if ch == '"':
-            in_string = not in_string
-            continue
-
-        if in_string:
-            continue
-
-        if ch == "{":
-            if depth == 0:
-                start_idx = i
-            depth += 1
-        elif ch == "}":
-            if depth > 0:
-                depth -= 1
-                if depth == 0 and start_idx >= 0:
-                    return raw[start_idx:i + 1]
-
-    return None
 
 
-def _safe_json_loads(raw: str) -> dict:
-    """Tenta parse padrão e fallback com strict=False (aceita control chars)."""
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return json.loads(raw, strict=False)
 
-
-def _parse_json(raw: str) -> dict:
-    """Parser robusto para respostas que podem vir com ruído."""
-    if not raw or not raw.strip():
-        raise ValueError("AGENT_JSON_INVALID: resposta vazia")
-
-    text = raw.strip()
-
-    # 1) Tentativa direta
-    try:
-        return _safe_json_loads(text)
-    except Exception as e1:
-        error_msg = str(e1)
-
-    # 2) Tentativa em bloco markdown ```json ... ```
-    if "```" in text:
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            candidate = match.group(1)
-            try:
-                return _safe_json_loads(candidate)
-            except Exception as e2:
-                error_msg += f" | {e2}"
-
-    # 3) Extrair objeto balanceado
-    candidate = _extract_balanced_json(text)
-    if candidate:
-        try:
-            return _safe_json_loads(candidate)
-        except Exception as e:
-            preview = candidate[:1000].replace("\n", "\\n")
-            raise ValueError(f"AGENT_JSON_INVALID: fallbacks failed. Errors: {error_msg} | {e}. candidate={preview}") from e
-
-    preview = text[:1000].replace("\n", "\\n")
-    raise ValueError(f"AGENT_JSON_INVALID: no balanced JSON found. Errors: {error_msg}. raw={preview}")
-
-
-def _extract_response_text(response: Any) -> str:
-    """Extrai texto de resposta com fallback seguro."""
-    text = getattr(response, "text", None)
-    if isinstance(text, str):
-        return text
-    return ""
-
-
-def _decode_agent_response(response: Any) -> dict:
-    """
-    Decodifica resposta do modelo priorizando `response.parsed` quando disponível.
-    Cai para parser textual robusto como fallback.
-    """
-    parsed = getattr(response, "parsed", None)
-    if isinstance(parsed, dict):
-        return parsed
-    raw = _extract_response_text(response)
-    return _parse_json(raw)
 
 
 _last_profile_idx: int = -1
 _last_scenario_idx: int = -1
 _last_pose_idx: int = -1
-
-
 def _sample_diversity_target() -> tuple[str, str, str]:
+    """
+    Latent Space Casting: gera persona brasileira única via Name Blending dinâmico.
+    Não hardcoda traços físicos — âncora por nome + vibe geográfica + tier de agência
+    para que o modelo puxe clusters de beleza real do espaço latente.
+    """
     global _last_profile_idx, _last_scenario_idx, _last_pose_idx
 
-    profiles = [
-        "Afro-Brazilian woman in her late 20s, deep brown skin, styled natural curls, athletic build, warm confident smile and engaging eye contact",
-        "Mixed-race São Paulo woman in her mid 20s, warm olive skin, sleek wavy dark hair, curvy figure, soft inviting expression looking at camera",
-        "Southern Brazilian woman in her late 20s, fair skin with pink undertones, styled light brown hair, slim frame, bright confident expression",
-        "Northeastern mixed-heritage woman in her mid 20s, golden tanned skin, thick dark waves pulled back, tall and lean, radiant smile toward camera",
-        "Italian-descent Southern Brazilian woman in her early 30s, fair olive skin, long dark hair well-groomed, curvy figure, poised and warm gaze",
+    # ── 1. Name Blending: pares de nomes + sobrenome para identidade facial única ──
+    _FIRST_NAMES = [
+        "Camila", "Dandara", "Isadora", "Juliana", "Taís", "Valentina",
+        "Yasmin", "Nayara", "Marina", "Luiza", "Bruna", "Aline",
+        "Letícia", "Sofia", "Gabriela", "Fernanda", "Renata", "Bianca",
     ]
-    scenarios = [
-        "bright modern downtown with clean architecture and soft natural light",
-        "cozy upscale café terrace with warm ambient lighting",
-        "bright minimalist apartment with large windows and soft daylight",
-        "charming shopping district at golden hour with boutique storefronts",
-        "rooftop garden terrace with city skyline in late afternoon",
-        "botanical garden pathway with lush tropical greenery and dappled light",
-        "warm living room with neutral decor and soft window light",
+    _SURNAMES = [
+        "Silva", "Costa", "Souza", "Albuquerque", "Ribeiro",
+        "Ferreira", "Lima", "Gomes", "Macedo", "Coutinho",
     ]
+
+    # ── 2. Vibe geográfica: puxa fenótipo e lifestyle organicamente ──────────────
+    _VIBES = [
+        "chic Paulistana",
+        "radiant Baiana",
+        "sophisticated Carioca",
+        "elegant Sulista",
+        "striking Northeastern",
+        "contemporary Mineira",
+        "fresh-faced Brasília native",
+    ]
+
+    # ── 3. Casting tier: garante beleza de alto impacto no espaço latente ────────
+    _AGENCIES = [
+        "Ford Models Brazil new face",
+        "Vogue Brasil editorial talent",
+        "premium e-commerce lookbook model",
+        "São Paulo Fashion Week casting aesthetic",
+        "high-end commercial beauty",
+        "FARM Rio campaign face",
+        "Lança Perfume lookbook model",
+    ]
+
+    # ── 4. Poses cinestésicas ────────────────────────────────────────────────────
     poses = [
-        "mid-stride with relaxed arms, looking at camera with confident smile",
-        "3/4 stance with one shoulder slightly forward, warm engaging gaze",
-        "natural standing posture with one hand on hip, inviting expression",
-        "walking pose with subtle torso twist, playful smile toward camera",
-        "leaning lightly against wall, relaxed and approachable, eye contact with camera",
+        "classic editorial contrapposto, relaxed asymmetrical shoulders, fluid weight shift",
+        "dynamic mid-stride walking motion, elegant and confident catalog movement",
+        "effortless lookbook posture, relaxed limbs, candid and approachable",
+        "subtle fashion stance, chin slightly tilted, confident direct gaze at camera",
+        "caught mid-turn, garment flowing naturally, effortless off-duty model vibe",
     ]
 
-    # Anti-repeat rotation: pick different index each time
-    p_choices = [i for i in range(len(profiles)) if i != _last_profile_idx]
-    s_choices = [i for i in range(len(scenarios)) if i != _last_scenario_idx]
+    # ── 5. Cenários catalog-friendly ─────────────────────────────────────────────
+    scenarios = [
+        "bright minimalist studio aesthetic with large windows and soft daylight",
+        "upscale modern downtown with clean architecture and soft depth of field",
+        "cozy high-end café terrace with warm ambient lighting",
+        "charming shopping district at golden hour with softly blurred boutique storefronts",
+        "lush botanical garden pathway with dappled natural sunlight",
+        "rooftop garden terrace with city skyline in late afternoon light",
+        "warm neutral living room with soft window light and clean decor",
+    ]
+
+    # Anti-repeat rotation
     po_choices = [i for i in range(len(poses)) if i != _last_pose_idx]
+    s_choices = [i for i in range(len(scenarios)) if i != _last_scenario_idx]
 
-    _last_profile_idx = random.choice(p_choices)
-    _last_scenario_idx = random.choice(s_choices)
     _last_pose_idx = random.choice(po_choices)
+    _last_scenario_idx = random.choice(s_choices)
+    _last_profile_idx = 0  # não usado — perfil é gerado dinamicamente abaixo
 
-    return profiles[_last_profile_idx], scenarios[_last_scenario_idx], poses[_last_pose_idx]
+    # ── Montagem da persona: compacto ~14w — name blend + vibe + tier ────────────
+    # Skin realism ("visible pores, peach fuzz") fica no DIVERSITY_TARGET block
+    # que o Gemini inclui no camera_and_realism; não precisa duplicar aqui.
+    n1, n2 = random.sample(_FIRST_NAMES, 2)
+    surname = random.choice(_SURNAMES)
+    vibe = random.choice(_VIBES)
+    agency = random.choice(_AGENCIES)
 
+    profile_prompt = (
+        f"A {vibe} {agency}, "
+        f"features blend '{n1}' and '{n2} {surname}'."
+    )
 
-def _apply_quality_locks(
-    prompt: str,
-    has_images: bool,
-    grounding_mode: str,
-    pipeline_mode: str,
-) -> str:
-    """Aplica locks de qualidade visual no prompt final para catálogo."""
-    if not prompt:
-        return prompt
+    return profile_prompt, scenarios[_last_scenario_idx], poses[_last_pose_idx]
 
-    locks: List[str] = []
-    if has_images:
-        locks.extend([
-            "E-COMMERCE QUALITY LOCK: use a polished, commercially attractive Brazilian woman with neat hair, subtle professional makeup, clean styling, confident posture, and natural pleasant expression.",
-            "GAZE LOCK: prefer direct or near-camera gaze; avoid distracted gaze into empty space unless explicitly requested.",
-            "SCENE LOCK: use a clean, bright, minimally cluttered catalog-friendly environment; avoid gritty loft mood and busy background elements.",
-            "TEXTURE LOCK: preserve exact yarn/stitch density, stripe spacing, edge definition, and tactile depth from reference garment; do not smooth or reinterpret knit/crochet texture.",
-        ])
-    elif pipeline_mode == "text_mode":
-        locks.extend([
-            "E-COMMERCE POLISH DEFAULT: model must look polished and commercially attractive with neat hair, subtle makeup, clean styling, and confident posture.",
-            "GAZE DEFAULT: prefer direct or near-camera eye contact unless the user explicitly requests candid/off-camera behavior.",
-            "SCENE DEFAULT: use a clean, bright, coherent catalog-friendly environment with minimal clutter.",
-        ])
-    if grounding_mode == "full":
-        locks.append(
-            "ATYPICAL SILHOUETTE LOCK: keep front fully open, preserve batwing/dolman volume, keep rounded cocoon hem, and keep scarf as a separate coordinated piece."
-        )
-
-    merged = prompt.strip()
-    for lock in locks:
-        if lock[:36] not in merged:
-            merged += f" {lock}"
-
-    # Evita prompts exageradamente longos
-    if len(merged) > 2200:
-        merged = merged[:2200].rstrip() + "..."
-    return merged
-
-
-def _apply_guided_locks(
-    prompt: str,
-    guided_brief: Optional[dict],
-    has_images: bool,
-    set_detection: Optional[dict] = None,
-) -> str:
-    if not prompt or not guided_brief:
-        return prompt
-
-    garment = guided_brief.get("garment", {}) or {}
-    scene = guided_brief.get("scene", {}) or {}
-    pose = guided_brief.get("pose", {}) or {}
-    capture = guided_brief.get("capture", {}) or {}
-    fidelity_mode = str(guided_brief.get("fidelity_mode", "balanceada")).strip().lower()
-
-    set_mode = str(garment.get("set_mode", "unica")).strip().lower()
-    scene_type = str(scene.get("type", "")).strip().lower()
-    pose_style = str(pose.get("style", "")).strip().lower()
-    capture_distance = str(capture.get("distance", "")).strip().lower()
-    set_detection = set_detection or {}
-    set_lock_mode = str(set_detection.get("set_lock_mode", "off") or "off")
-    detected_roles = list(set_detection.get("detected_garment_roles", []) or [])
-
-    locks: List[str] = []
-    if set_mode == "conjunto":
-        locks.append(
-            "GUIDED SET LOCK: treat this as a coordinated garment set inferred from repeated color/texture/pattern cues in the reference."
-        )
-        locks.append(
-            "GUIDED SET LOCK: infer set pieces using garment-only evidence; ignore accessories as set-defining elements."
-        )
-        if set_lock_mode == "explicit" and len(detected_roles) >= 2:
-            locks.append(
-                f"GUIDED SET LOCK (explicit): preserve coordinated garment roles: {', '.join(detected_roles[:4])}."
-            )
-        else:
-            locks.append(
-                "GUIDED SET LOCK (generic): preserve all coordinated garment pieces visible in references even when role naming is uncertain."
-            )
-
-    if scene_type == "interno":
-        locks.append("GUIDED SCENE LOCK: use an indoor environment only.")
-    elif scene_type == "externo":
-        locks.append("GUIDED SCENE LOCK: use an outdoor environment only.")
-
-    if pose_style == "tradicional":
-        locks.append("GUIDED POSE LOCK: use a traditional catalog pose with stable stance and clear garment visibility.")
-    elif pose_style == "criativa":
-        locks.append("GUIDED POSE LOCK: use a creative pose while keeping full garment readability for e-commerce.")
-
-    shot = guided_capture_to_shot(capture_distance)
-    if shot == "wide":
-        locks.append("GUIDED CAPTURE LOCK: framing must be wide/full-body.")
-    elif shot == "medium":
-        locks.append("GUIDED CAPTURE LOCK: framing must be medium/waist-up.")
-    elif shot == "close-up":
-        locks.append("GUIDED CAPTURE LOCK: framing must be close-up/detail-focused.")
-
-    if has_images and (set_mode == "conjunto" or fidelity_mode == "estrita"):
-        locks.append("GUIDED NEGATIVE LOCK: no extra pockets not present in references.")
-        locks.append("GUIDED NEGATIVE LOCK: no front closure if reference garment is open-front.")
-        locks.append("GUIDED NEGATIVE LOCK: do not reinterpret texture/stitch when references are present.")
-
-    merged = prompt.strip()
-    for lock in locks:
-        if lock[:28] not in merged:
-            merged += f" {lock}"
-    if len(merged) > 2400:
-        merged = merged[:2400].rstrip() + "..."
-    return merged
 
 
 def _enum_or_default(value: Any, allowed: set[str], default: str = "unknown") -> str:
@@ -521,7 +224,7 @@ def _infer_structural_contract_from_images(uploaded_images: List[bytes], user_pr
         return base
 
     parts: List[types.Part] = []
-    for img_bytes in uploaded_images[:8]:
+    for img_bytes in uploaded_images:
         parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)))
 
     user_txt = (user_prompt or "").strip()
@@ -529,7 +232,7 @@ def _infer_structural_contract_from_images(uploaded_images: List[bytes], user_pr
         "Analyze garment geometry from these references and return strict JSON only. "
         "FIRST identify the garment_subtype. Use one of: "
         "standard_cardigan, ruana_wrap, poncho, cape, kimono, bolero, vest, jacket, pullover, dress, other. "
-        "CLASSIFICATION RULE: if the garment has NO separate sewn-in sleeves and the arms are covered "
+        "CLASSIFICATION RULE: if the garment lacks separate sewn-in sleeves and the arms are covered "
         "by a continuous draped fabric panel, it is ruana_wrap or poncho — NOT standard_cardigan. "
         "standard_cardigan requires separately constructed and sewn sleeve tubes. "
         "Then analyze: sleeve_type (set-in, raglan, dolman_batwing, drop_shoulder, cape_like), "
@@ -537,8 +240,9 @@ def _infer_structural_contract_from_images(uploaded_images: List[bytes], user_pr
         "front_opening (open, partial, closed), hem_shape (straight, rounded, asymmetric, cocoon), "
         "garment_length (cropped, waist, hip, upper_thigh, mid_thigh, knee_plus), "
         "silhouette_volume (fitted, regular, oversized, draped, structured), "
-        "must_keep (brief visual cues list), confidence (0.0-1.0). "
-        "Do NOT focus on fabric pattern names or decorative details."
+        "must_keep (brief visual cues list), confidence (0.0-1.0), "
+        "has_pockets (boolean: true if any pocket is clearly visible, false if garment has no pockets). "
+        "Focus purely on structure, avoiding fabric pattern names or decorative details."
     )
     if user_txt:
         instruction += f" User context: {user_txt[:220]}"
@@ -649,130 +353,6 @@ def _infer_structural_contract_from_images(uploaded_images: List[bytes], user_pr
     }
 
 
-# ── Descrições construtivas explícitas por subtipo (para o Nano entender) ──
-_SUBTYPE_CONSTRUCTION_LOCKS: dict[str, str] = {
-    "ruana_wrap": (
-        "CONSTRUCTION LOCK: this garment is a RUANA/WRAP — a single continuous rectangular fabric panel "
-        "draped over the shoulders with NO separate sewn sleeves. The arm coverage comes from the "
-        "width of the panel falling over the arms, creating a batwing/dolman effect. "
-        "Do NOT add set-in sleeves, fitted sleeves, or any separate sleeve construction. "
-        "The silhouette must show fabric draping freely from shoulder to hem as one piece."
-    ),
-    "poncho": (
-        "CONSTRUCTION LOCK: this garment is a PONCHO — a single piece of fabric with a head opening, "
-        "NO separate sleeves. The fabric falls equally on all sides from shoulders. "
-        "Do NOT add sleeves of any kind."
-    ),
-    "cape": (
-        "CONSTRUCTION LOCK: this garment is a CAPE — an open-front draped outerwear piece "
-        "with NO separate sleeves. Fabric falls from shoulders in a flowing panel."
-    ),
-    "kimono": (
-        "CONSTRUCTION LOCK: this garment is a KIMONO-style wrap — wide, straight-cut body and sleeves "
-        "cut as one T-shaped piece. Sleeves are extremely wide rectangular panels, "
-        "NOT fitted or tapered. Preserve the boxy, angular construction."
-    ),
-}
-
-
-def _apply_structural_locks(prompt: str, has_images: bool, contract: Optional[dict]) -> str:
-    if not prompt or not has_images or not contract or not contract.get("enabled"):
-        return prompt
-
-    sleeve_type_labels = {
-        "set-in": "set-in sleeve",
-        "raglan": "raglan sleeve",
-        "dolman_batwing": "dolman/batwing sleeve architecture",
-        "drop_shoulder": "drop-shoulder sleeve architecture",
-        "cape_like": "cape-like sleeve fall",
-    }
-    sleeve_len_labels = {
-        "sleeveless": "sleeveless",
-        "cap": "cap sleeve",
-        "short": "short sleeve",
-        "elbow": "elbow-length sleeve",
-        "three_quarter": "three-quarter sleeve",
-        "long": "long sleeve",
-    }
-    hem_labels = {
-        "straight": "straight hemline",
-        "rounded": "rounded hemline",
-        "asymmetric": "asymmetric hemline",
-        "cocoon": "cocoon hemline",
-    }
-    length_labels = {
-        "cropped": "cropped body length",
-        "waist": "waist-length body",
-        "hip": "hip-length body",
-        "upper_thigh": "upper-thigh body length",
-        "mid_thigh": "mid-thigh body length",
-        "knee_plus": "knee-or-below body length",
-    }
-    volume_labels = {
-        "fitted": "fitted body volume",
-        "regular": "regular body volume",
-        "oversized": "oversized body volume",
-        "draped": "draped fluid volume",
-        "structured": "structured body volume",
-    }
-
-    confidence = float(contract.get("confidence", 0.0) or 0.0)
-    garment_subtype = str(contract.get("garment_subtype", "unknown"))
-    sleeve_type = str(contract.get("sleeve_type", "unknown"))
-    sleeve_length = str(contract.get("sleeve_length", "unknown"))
-    front_opening = str(contract.get("front_opening", "unknown"))
-    hem_shape = str(contract.get("hem_shape", "unknown"))
-    garment_length = str(contract.get("garment_length", "unknown"))
-    silhouette_volume = str(contract.get("silhouette_volume", "unknown"))
-    must_keep = list(contract.get("must_keep", []) or [])
-
-    locks: List[str] = []
-
-    # ── Subtipo construtivo: lock mais importante ──
-    if garment_subtype in _SUBTYPE_CONSTRUCTION_LOCKS:
-        locks.append(_SUBTYPE_CONSTRUCTION_LOCKS[garment_subtype])
-    elif garment_subtype not in ("unknown", "other"):
-        locks.append(f"CONSTRUCTION LOCK: this garment is a {garment_subtype.replace('_', ' ')}; preserve its specific construction.")
-
-    if front_opening == "open":
-        locks.append("STRUCTURE LOCK: preserve open-front construction; do not close the front panel.")
-    elif front_opening == "closed":
-        locks.append("STRUCTURE LOCK: keep front closure behavior; do not open the garment front.")
-
-    # Sleeve locks — skip for subtypes that inherently have no sleeves
-    no_sleeve_subtypes = {"ruana_wrap", "poncho", "cape"}
-    if garment_subtype not in no_sleeve_subtypes:
-        if sleeve_type in sleeve_type_labels:
-            locks.append(f"STRUCTURE LOCK: keep {sleeve_type_labels[sleeve_type]} from references.")
-        if sleeve_length in sleeve_len_labels:
-            locks.append(
-                f"STRUCTURE LOCK: keep {sleeve_len_labels[sleeve_length]} proportion based on body landmarks; avoid longer reinterpretation."
-            )
-
-    if hem_shape in hem_labels:
-        locks.append(f"STRUCTURE LOCK: preserve {hem_labels[hem_shape]}; do not straighten or reshape the hem.")
-    if garment_length in length_labels:
-        locks.append(f"STRUCTURE LOCK: keep {length_labels[garment_length]} relative to the model body.")
-    if silhouette_volume in volume_labels:
-        locks.append(f"STRUCTURE LOCK: preserve {volume_labels[silhouette_volume]} seen in references.")
-
-    for cue in must_keep[:3]:
-        locks.append(f"STRUCTURE CUE: preserve {cue}.")
-
-    if confidence >= 0.68:
-        locks.append(
-            "STRUCTURE PRIORITY: if composition conflicts with garment shape, preserve reference garment geometry first."
-        )
-
-    merged = prompt.strip()
-    for lock in locks:
-        if lock[:30] not in merged:
-            merged += f" {lock}"
-    if len(merged) > 3200:
-        merged = merged[:3200].rstrip() + "..."
-    return merged
-
-
 def _infer_text_mode_shot(user_prompt: Optional[str]) -> str:
     text = (user_prompt or "").lower()
     if any(k in text for k in ["macro", "close-up", "detalhe", "textura", "fio", "tecido"]):
@@ -784,223 +364,11 @@ def _infer_text_mode_shot(user_prompt: Optional[str]) -> str:
     return "wide"
 
 
-def _extract_img_candidates_from_html(page_url: str, html_text: str, limit: int = 16) -> List[str]:
-    urls: List[str] = []
-    seen = set()
-
-    direct_pattern = re.compile(
-        r'<img[^>]+(?:src|data-src|data-original|data-lazy-src)=["\']([^"\']+)["\']',
-        re.IGNORECASE,
-    )
-    srcset_pattern = re.compile(
-        r'<img[^>]+srcset=["\']([^"\']+)["\']',
-        re.IGNORECASE,
-    )
-
-    def _push(url: str):
-        if not url:
-            return
-        u = url.strip()
-        if not u or u.startswith("data:"):
-            return
-        if u.startswith("//"):
-            u = f"https:{u}"
-        elif u.startswith("/"):
-            u = urljoin(page_url, u)
-        elif not u.startswith("http://") and not u.startswith("https://"):
-            u = urljoin(page_url, u)
-        if u in seen:
-            return
-        seen.add(u)
-        urls.append(u)
-
-    for match in direct_pattern.finditer(html_text):
-        _push(match.group(1))
-        if len(urls) >= limit:
-            return urls
-
-    for match in srcset_pattern.finditer(html_text):
-        candidates = [c.strip() for c in match.group(1).split(",")]
-        for candidate in candidates:
-            _push(candidate.split(" ")[0])
-            if len(urls) >= limit:
-                return urls
-
-    return urls
-
-
-def _extract_img_candidates_with_playwright(page_url: str, limit: int = 16) -> List[str]:
-    try:
-        from playwright.sync_api import sync_playwright  # type: ignore
-    except Exception:
-        return []
-
-    urls: List[str] = []
-    seen = set()
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-            page.goto(page_url, timeout=6000, wait_until="domcontentloaded")
-            rows = page.eval_on_selector_all(
-                "img",
-                "els => els.map(el => ({src: el.getAttribute('src') || '', srcset: el.getAttribute('srcset') || ''}))",
-            )
-            browser.close()
-
-        def _push(url: str):
-            if not url:
-                return
-            u = url.strip()
-            if not u or u.startswith("data:"):
-                return
-            if u.startswith("//"):
-                u = f"https:{u}"
-            elif u.startswith("/"):
-                u = urljoin(page_url, u)
-            elif not u.startswith("http://") and not u.startswith("https://"):
-                u = urljoin(page_url, u)
-            if u in seen:
-                return
-            seen.add(u)
-            urls.append(u)
-
-        for row in rows:
-            _push(row.get("src", ""))
-            srcset = row.get("srcset", "")
-            if srcset:
-                for candidate in srcset.split(","):
-                    _push(candidate.strip().split(" ")[0])
-            if len(urls) >= limit:
-                break
-    except Exception:
-        return []
-    return urls[:limit]
-
-
-def _is_probably_useful_image(url: str) -> bool:
-    low = url.lower()
-    blocked_tokens = ("logo", "icon", "avatar", "sprite", "placeholder", "thumb")
-    if any(token in low for token in blocked_tokens):
-        return False
-    return low.endswith((".jpg", ".jpeg", ".png", ".webp", ".avif")) or "image" in low or "img" in low
-
-
-def _download_image_bytes(url: str, timeout: int = 8) -> Optional[bytes]:
-    try:
-        r = requests.get(url, timeout=timeout, headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            )
-        })
-        r.raise_for_status()
-        ctype = (r.headers.get("Content-Type") or "").lower()
-        if "image" not in ctype:
-            return None
-        data = r.content
-        if len(data) < 18_000 or len(data) > 6_000_000:
-            return None
-        with Image.open(BytesIO(data)) as img:
-            w, h = img.size
-            if min(w, h) < 320:
-                return None
-        return data
-    except Exception:
-        return None
-
-
-def _collect_grounded_reference_images(
-    sources: List[dict],
-    max_pages: int = 3,
-    max_images: int = 3,
-) -> tuple[List[bytes], str]:
-    grounded_images: List[bytes] = []
-    candidate_urls: List[str] = []
-    pages = [s.get("uri", "") for s in sources if s.get("uri")][:max_pages]
-    extraction_engine = "html_fallback"
-
-    for page_url in pages:
-        urls = _extract_img_candidates_with_playwright(page_url, limit=12)
-        if urls:
-            extraction_engine = "playwright"
-        if not urls:
-            try:
-                html = requests.get(page_url, timeout=8).text
-                urls = _extract_img_candidates_from_html(page_url, html, limit=12)
-            except Exception:
-                urls = []
-
-        for url in urls:
-            if _is_probably_useful_image(url) and url not in candidate_urls:
-                candidate_urls.append(url)
-        if len(candidate_urls) >= 36:
-            break
-
-    for image_url in candidate_urls:
-        img_bytes = _download_image_bytes(image_url, timeout=8)
-        if not img_bytes:
-            continue
-        grounded_images.append(img_bytes)
-        if len(grounded_images) >= max_images:
-            break
-
-    return grounded_images, extraction_engine
-
-
-def _extract_search_results_from_duckduckgo(html_text: str, limit: int = 5) -> List[dict]:
-    """Extrai links/títulos/snippets da versão HTML do DuckDuckGo."""
-    pattern = re.compile(
-        r'<a[^>]*class="result__a"[^>]*href="(?P<href>[^"]+)"[^>]*>(?P<title>.*?)</a>',
-        re.IGNORECASE | re.DOTALL,
-    )
-    snippet_pattern = re.compile(
-        r'<a[^>]*class="result__snippet"[^>]*>(?P<snippet>.*?)</a>',
-        re.IGNORECASE | re.DOTALL,
-    )
-
-    titles = []
-    for m in pattern.finditer(html_text):
-        title = re.sub(r"<.*?>", "", m.group("title"))
-        title = unescape(title).strip()
-        href = unescape(m.group("href")).strip()
-        if not title or not href:
-            continue
-        if href.startswith("/"):
-            continue
-        titles.append({"title": title, "uri": href})
-        if len(titles) >= limit:
-            break
-
-    snippets = [
-        unescape(re.sub(r"<.*?>", "", m.group("snippet"))).strip()
-        for m in snippet_pattern.finditer(html_text)
-    ]
-    for i, row in enumerate(titles):
-        row["snippet"] = snippets[i] if i < len(snippets) else ""
-    return titles
-
-
-def _duckduckgo_search(query: str, limit: int = 5) -> List[dict]:
-    """Busca web forçada sem depender da tool do Gemini."""
-    url = f"https://duckduckgo.com/html/?{urlencode({'q': query})}"
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/122.0.0.0 Safari/537.36"
-        )
-    }
-    response = requests.get(url, headers=headers, timeout=12)
-    response.raise_for_status()
-    return _extract_search_results_from_duckduckgo(response.text, limit=limit)
-
-
 def _infer_garment_hint(uploaded_images: List[bytes]) -> str:
     """Classificação curta da peça para montar queries de grounding quando não há prompt."""
     try:
         parts = []
-        for img_bytes in uploaded_images[:4]:
+        for img_bytes in uploaded_images:
             parts.append(
                 types.Part(
                     inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)
@@ -1042,7 +410,7 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
         }
 
     parts: List[types.Part] = []
-    for img_bytes in uploaded_images[:6]:
+    for img_bytes in uploaded_images:
         parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)))
 
     user_txt = (user_prompt or "").strip()
@@ -1062,10 +430,11 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
             contents=[types.Content(role="user", parts=parts)],
             config=types.GenerateContentConfig(
                 temperature=0.1,
-                max_output_tokens=300,
+                max_output_tokens=800,
                 safety_settings=SAFETY_CONFIG,
                 response_mime_type="application/json",
                 response_json_schema=SET_DETECTION_SCHEMA,
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
         parsed = _decode_agent_response(response)
@@ -1083,7 +452,36 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
             "set_lock_mode": lock_mode,
         }
     except Exception as e:
-        print(f"[GUIDED] ⚠️ set-pattern inference failed: {e}")
+        err_msg = str(e)
+        print(f"[GUIDED] ⚠️ set-pattern inference failed: {err_msg}")
+        # Repair: tenta fechar JSON truncado e extrair campos parciais
+        repaired: Optional[dict] = None
+        if "raw=" in err_msg:
+            try:
+                raw_start = err_msg.find("raw=") + 4
+                fragment = err_msg[raw_start:].replace("\\n", "\n").replace('\\"', '"')
+                for suffix in ("}", '"}', '"]}', "]}", '"}]}'):
+                    try:
+                        repaired = json.loads(fragment + suffix)
+                        print(f"[GUIDED] 🔧 set-pattern JSON repaired (suffix={suffix!r})")
+                        break
+                    except json.JSONDecodeError:
+                        continue
+            except Exception:
+                pass
+        if repaired is not None:
+            is_set = bool(repaired.get("is_garment_set", False))
+            score = max(0.0, min(1.0, float(repaired.get("set_pattern_score", 0.0) or 0.0)))
+            roles = [str(x) for x in (repaired.get("detected_garment_roles", []) or []) if str(x)]
+            cues  = [str(x) for x in (repaired.get("set_pattern_cues", []) or []) if str(x)]
+            lock_mode = "explicit" if (is_set and score >= 0.68 and len(roles) >= 2) else ("generic" if is_set else "off")
+            return {
+                "is_garment_set": is_set,
+                "set_pattern_score": round(score, 3),
+                "detected_garment_roles": roles[:5],
+                "set_pattern_cues": cues[:4],
+                "set_lock_mode": lock_mode,
+            }
         return {
             "is_garment_set": False,
             "set_pattern_score": 0.0,
@@ -1093,172 +491,82 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
         }
 
 
-def _build_forced_grounding_queries(
-    user_prompt: Optional[str],
-    garment_hint: str,
-    mode: str,
-) -> List[str]:
-    base = (user_prompt or "").strip()
-    hint = garment_hint.strip()
-    subject = hint or base or "poncho aberto ruana manga morcego"
-
-    queries = [
-        f"{subject} diferença poncho ruana cardigan manga morcego",
-        f"{subject} e-commerce fashion photography pose open-front",
-    ]
-    if mode == "full":
-        queries.append(f"{subject} model wearing front open silhouette reference")
-    return queries
-
-
-def _format_forced_grounding_text(queries: List[str], sources: List[dict]) -> str:
-    lines = []
-    if queries:
-        lines.append("Queries executadas:")
-        for q in queries[:4]:
-            lines.append(f"- {q}")
-    if sources:
-        lines.append("")
-        lines.append("Fontes web relevantes:")
-        for src in sources[:6]:
-            title = src.get("title", "Untitled")
-            uri = src.get("uri", "")
-            snippet = src.get("snippet", "")
-            row = f"- {title}: {uri}"
-            if snippet:
-                row += f" | {snippet[:180]}"
-            lines.append(row)
-    return "\n".join(lines).strip()
-
-
-def _run_grounding_research(
+def _infer_unified_vision_triage(
     uploaded_images: List[bytes],
     user_prompt: Optional[str],
-    mode: str,
-) -> dict:
+) -> Optional[dict]:
     """
-    Chamada SEPARADA ao Gemini com Google Search ativo.
-    DUAS ETAPAS para contornar regressão do Google (multimodal + grounding quebrado):
-      1) _infer_garment_hint: analisa imagens → texto curto (sem grounding)
-      2) Chamada TEXT-ONLY com GoogleSearch tool → grounding efetivo
-    Retorna contexto textual e metadados de grounding.
+    UMA única chamada Gemini que substitui as 3 chamadas visuais separadas:
+      _infer_garment_hint + _infer_structural_contract_from_images + _infer_set_pattern_from_images
+
+    Retorna dict com: garment_hint, image_analysis, structural_contract, set_detection.
+    Retorna None se falhar — run_agent() cai no fallback individual.
     """
-    # Etapa 1: identificar a peça via análise visual (sem grounding)
-    garment_hint = _infer_garment_hint(uploaded_images) if uploaded_images else ""
-    search_subject = garment_hint or user_prompt or "garment fashion"
-    print(f"[GROUNDING] 👁️  Garment hint: {garment_hint}")
+    if not uploaded_images:
+        return None
 
-    # Etapa 2: chamada TEXT-ONLY com Google Search (sem imagens = sem regressão)
-    search_prompt = (
-        f"You are a fashion expert. I have a garment that is: {search_subject}.\n\n"
-        "Use Google Search to find:\n"
-        "1. The EXACT garment type name in Portuguese AND English\n"
-        "2. The correct silhouette terminology (e.g., batwing sleeves, kimono cardigan, ruana, cape)\n"
-        "3. How this type of garment drapes and falls on the body\n"
-        "4. How professional photographers typically shoot this garment style\n\n"
-        "You MUST search the web. Do NOT rely on your training data alone.\n"
-        "Return ONLY plain text, NO markdown. Keep it concise, max 3 paragraphs."
+    parts: List[types.Part] = []
+    for img_bytes in uploaded_images:
+        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)))
+
+    user_txt = (user_prompt or "").strip()
+    instruction = (
+        "Analyze these garment reference images and return strict JSON with ALL four fields.\n\n"
+        "1. garment_hint: identify the garment type and silhouette in 8 words max "
+        "(e.g. ruana, poncho aberto, batwing cardigan, dolman sleeve). Plain text.\n\n"
+        "2. image_analysis: one sentence high-level description of what is visible.\n\n"
+        "3. structural_contract: analyze garment GEOMETRY only. "
+        "garment_subtype: one of standard_cardigan|ruana_wrap|poncho|cape|kimono|bolero|vest|"
+        "jacket|pullover|dress|other. "
+        "RULE: if arms are covered by continuous draped panel (no separate sewn sleeves) → ruana_wrap or poncho. "
+        "sleeve_type: set-in|raglan|dolman_batwing|drop_shoulder|cape_like. "
+        "sleeve_length: sleeveless|cap|short|elbow|three_quarter|long. "
+        "front_opening: open|partial|closed. hem_shape: straight|rounded|asymmetric|cocoon. "
+        "garment_length: cropped|waist|hip|upper_thigh|mid_thigh|knee_plus. "
+        "silhouette_volume: fitted|regular|oversized|draped|structured. "
+        "must_keep: up to 4 brief visual cues. confidence: 0.0-1.0. "
+        "has_pockets: boolean — true if ANY pocket (patch, welt, side-seam) is clearly visible "
+        "on the garment; false if the garment has NO visible pockets whatsoever.\n\n"
+        "4. set_detection: do these references show a COORDINATED GARMENT SET "
+        "(matching color/texture/pattern across separate garment pieces)? Ignore accessories. "
+        "is_garment_set: bool. set_pattern_score: 0.0-1.0. "
+        "detected_garment_roles: list. set_pattern_cues: list."
     )
+    if user_txt:
+        instruction += f"\n\nUser context: {user_txt[:200]}"
+    parts.append(types.Part(text=instruction))
 
-    response = client.models.generate_content(
-        model=MODEL_AGENT,
-        contents=search_prompt,
-        config=types.GenerateContentConfig(
-            temperature=0.3,
-            max_output_tokens=1024,
-            safety_settings=SAFETY_CONFIG,
-            tools=[types.Tool(google_search=types.GoogleSearch())],
-        ),
-    )
-
-    queries: List[str] = []
-    sources: List[dict] = []
-    effective = False
-    engine = "gemini_google_search"
-    grounded_images: List[bytes] = []
-    visual_ref_engine = "none"
-
-    # Log grounding metadata
     try:
-        candidates = getattr(response, "candidates", None)
-        if candidates and len(candidates) > 0:
-            candidate = candidates[0]
-            gm = getattr(candidate, "grounding_metadata", None)
-            print(f"[GROUNDING] 🌐 Metadata present: {gm is not None}")
-            if gm:
-                queries = list(getattr(gm, "web_search_queries", None) or [])
-            print(f"[GROUNDING] 🌐 Search queries: {queries}")
-            chunks = getattr(gm, 'grounding_chunks', None)
-            if chunks:
-                print(f"[GROUNDING] 🌐 Sources: {len(chunks)}")
-                for i, chunk in enumerate(chunks[:5]):
-                    web = getattr(chunk, 'web', None)
-                    if web:
-                        title = getattr(web, "title", "?")
-                        uri = getattr(web, "uri", "?")
-                        sources.append({"title": title, "uri": uri, "snippet": ""})
-                        print(f"[GROUNDING]   📎 [{i+1}] {title} → {uri}")
-            effective = bool(queries or sources)
-        else:
-            print(f"[GROUNDING] ⚠️  Model did NOT search")
-    except Exception as e:
-        print(f"[GROUNDING] ⚠️  Error reading metadata: {e}")
-
-    result_text = _extract_response_text(response)
-    # Sanitizar: remover markdown residual e truncar
-    import re as _re
-    result_text = _re.sub(r'[#*`]', '', result_text)
-    result_text = result_text.replace('"', "'").replace("{", "(").replace("}", ")")
-    result_text = result_text.replace('\n\n\n', '\n\n').strip()
-    if len(result_text) > 800:
-        result_text = result_text[:800] + '...'
-
-    # Fallback: forçar grounding web com busca externa caso metadata não venha.
-    if not effective:
-        engine = "forced_duckduckgo"
-        garment_hint = _infer_garment_hint(uploaded_images)
-        forced_queries = _build_forced_grounding_queries(user_prompt, garment_hint, mode)
-        forced_sources: List[dict] = []
-        for q in forced_queries:
-            try:
-                rows = _duckduckgo_search(q, limit=3)
-                for row in rows:
-                    if row.get("uri") and row["uri"] not in {s.get("uri") for s in forced_sources}:
-                        forced_sources.append(row)
-            except Exception as e:
-                print(f"[GROUNDING] ⚠️  Forced search failed for query '{q}': {e}")
-        if forced_sources:
-            queries = forced_queries
-            sources = forced_sources[:8]
-            forced_text = _format_forced_grounding_text(queries, sources)
-            if forced_text:
-                result_text = f"{result_text}\n\n{forced_text}".strip()
-            effective = True
-            print(f"[GROUNDING] ✅ Forced web search attached {len(sources)} sources.")
-        else:
-            print("[GROUNDING] ⚠️  Forced web search returned no sources.")
-
-    if mode == "full" and sources:
-        grounded_images, visual_ref_engine = _collect_grounded_reference_images(
-            sources=sources,
-            max_pages=3,
-            max_images=3,
+        response = client.models.generate_content(
+            model=MODEL_AGENT,
+            contents=[types.Content(role="user", parts=parts)],
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=1200,
+                safety_settings=SAFETY_CONFIG,
+                response_mime_type="application/json",
+                response_json_schema=UNIFIED_VISION_SCHEMA,
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+            ),
         )
-        if grounded_images:
-            print(f"[GROUNDING] 🖼️  Visual refs collected: {len(grounded_images)} via {visual_ref_engine}")
+        parsed = _decode_agent_response(response)
+        if not isinstance(parsed, dict):
+            print("[AGENT] ⚠️  unified_vision_triage: response not a dict")
+            return None
 
-    print(f"[GROUNDING] 📝 Research result ({len(result_text)} chars): {result_text[:200]}...")
-    return {
-        "text": result_text,
-        "queries": queries[:8],
-        "sources": sources[:8],
-        "effective": effective,
-        "engine": engine,
-        "source_engine": engine,
-        "grounded_images": grounded_images,
-        "grounded_images_count": len(grounded_images),
-        "visual_ref_engine": visual_ref_engine,
-    }
+        garment_hint   = re.sub(r"\s+", " ", str(parsed.get("garment_hint") or "").strip())[:120]
+        image_analysis = str(parsed.get("image_analysis") or "").strip()[:300]
+        result = {
+            "garment_hint":        garment_hint,
+            "image_analysis":      image_analysis,
+            "structural_contract": _normalize_structural_contract(parsed.get("structural_contract") or {}),
+            "set_detection":       _normalize_set_detection(parsed.get("set_detection") or {}),
+        }
+        print(f"[AGENT] ✅ unified_vision_triage: success (hint='{garment_hint[:60]}')")
+        return result
+    except Exception as e:
+        print(f"[AGENT] ⚠️  unified_vision_triage: failed ({e}), using fallback")
+        return None
 
 
 def run_agent(
@@ -1313,16 +621,40 @@ def run_agent(
         and "POOL_RUNTIME_DISABLED" not in pool_context
     )
 
-    if guided_enabled and guided_set_mode == "conjunto" and has_images:
-        guided_set_detection = _infer_set_pattern_from_images(uploaded_images or [], user_prompt)
-        if guided_set_detection.get("set_lock_mode") == "off":
-            guided_set_detection["set_lock_mode"] = "generic"
-
+    # ── Triagem visual unificada: UMA chamada Gemini por run_agent() ─────────
+    # Consolida _infer_garment_hint + _infer_structural_contract + _infer_set_pattern
+    # em uma única chamada. Fallback seguro para as funções individuais se falhar.
+    _unified: Optional[dict] = None
+    _unified_garment_hint: str = ""
     if has_images:
         if isinstance(structural_contract_hint, dict) and structural_contract_hint:
+            # structural_contract já fornecido externamente — ainda roda unificada para hint/set
             structural_contract = structural_contract_hint
+            _unified_garment_hint = _infer_garment_hint(uploaded_images or [])
+            print(f"[AGENT] unified_vision_triage: skipped (external structural_contract_hint provided)")
         else:
-            structural_contract = _infer_structural_contract_from_images(uploaded_images or [], user_prompt)
+            _unified = _infer_unified_vision_triage(uploaded_images or [], user_prompt)
+            if _unified:
+                structural_contract   = _unified["structural_contract"]
+                _unified_garment_hint = _unified["garment_hint"]
+                # set_detection: aplica override de lock_mode se necessário
+                _sd = _unified["set_detection"]
+                if guided_enabled and guided_set_mode == "conjunto":
+                    if _sd.get("set_lock_mode") == "off":
+                        _sd["set_lock_mode"] = "generic"
+                    guided_set_detection = _sd
+            else:
+                # Fallback individual
+                print("[AGENT] unified_vision_triage: fallback")
+                structural_contract = _infer_structural_contract_from_images(uploaded_images or [], user_prompt)
+                if guided_enabled and guided_set_mode == "conjunto":
+                    guided_set_detection = _infer_set_pattern_from_images(uploaded_images or [], user_prompt)
+                    if guided_set_detection.get("set_lock_mode") == "off":
+                        guided_set_detection["set_lock_mode"] = "generic"
+                _unified_garment_hint = _infer_garment_hint(uploaded_images or [])
+    elif guided_enabled and guided_set_mode == "conjunto":
+        # Sem imagens: set detection sem triagem visual
+        guided_set_detection = _infer_set_pattern_from_images([], user_prompt)
 
     if has_images:
         # FIX: ternário separado para não engolir o MODE 2
@@ -1330,13 +662,15 @@ def run_agent(
             extra_text = f'User text to incorporate: "{user_prompt}".'
         else:
             extra_text = (
-                "No text from user. CREATE AUTOMATICALLY a Shopee/marketplace cover-level "
-                "e-commerce prompt based EXCLUSIVELY on what you see in the reference images. "
-                "Identify the garment, colors, fabric, and create a complete listing hero shot."
+                "No text from user. Extract ONLY the garment (color, fabric, structure, pattern) "
+                "from the reference images. The person/model shown in the reference is NOT the "
+                "subject — completely ignore her appearance. Build the hero shot around the "
+                "DIVERSITY_TARGET new model profile, scenario, and pose."
             )
         mode_info = (
             f"MODE 2 — User sent {len(uploaded_images)} reference image(s). "
-            f"MANDATORY: Apply Fidelity Lock as the FIRST paragraph of the prompt. "
+            f"Extract GARMENT ONLY from the reference (do NOT use the reference person's appearance). "
+            f"The reference model is a placeholder — she will be fully replaced by DIVERSITY_TARGET. "
             f"{extra_text}"
         )
     elif has_prompt:
@@ -1350,30 +684,47 @@ def run_agent(
             "Prefer coherent composition and direct visual focus on the garment."
         )
 
-    # Construir mensagem
-    context_text = mode_info
+    # ── Construção da Mensagem em Blocos (Mitiga "lost in the middle") ──
+    blocks: List[str] = []
+
+    blocks.append(f"<MODE>\n{mode_info}\n</MODE>")
+
     if has_pool:
-        context_text += f"\n\n{pool_context}"
-    context_text += f"\n\nOutput parameters: aspect_ratio={aspect_ratio}, resolution={resolution}"
+        blocks.append(f"<POOL_CONTEXT>\n{pool_context}\n</POOL_CONTEXT>")
+
+    blocks.append(f"<OUTPUT_PARAMETERS>\naspect_ratio={aspect_ratio}\nresolution={resolution}\n</OUTPUT_PARAMETERS>")
+
+    # Profile: SEMPRE gera dinamicamente via name blending (ignora _PROFILE_POOL estático
+    # que produz AI Face com anatomia explícita). Scenario/pose: usa diversity_target
+    # para preservar lógica anti-repeat do select_diversity_target.
+    profile, _fb_scenario, _fb_pose = _sample_diversity_target()
     if diversity_target:
-        profile = diversity_target.get("profile_prompt", "")
-        scenario = diversity_target.get("scenario_prompt", "")
-        pose = diversity_target.get("pose_prompt", "")
+        scenario = diversity_target.get("scenario_prompt", "") or _fb_scenario
+        pose = diversity_target.get("pose_prompt", "") or _fb_pose
     else:
-        profile, scenario, pose = _sample_diversity_target()
+        scenario = _fb_scenario
+        pose = _fb_pose
+
+    div_block = "<DIVERSITY_TARGET>\n"
     if diversity_target:
-        context_text += (
-            "\n\nDIVERSITY TARGET (mandatory): "
-            f"Model profile ID: {diversity_target.get('profile_id', 'RUNTIME')}."
-        )
-    else:
-        context_text += "\n\nDIVERSITY TARGET (mandatory):"
-    context_text += (
-        f" Use model profile: {profile}. "
-        f" Use scenario: {scenario}. "
-        f" Use pose guidance: {pose}. "
-        "Do not replicate person/background/pose from references."
+        div_block += f"Model profile ID: {diversity_target.get('profile_id', 'RUNTIME')}.\n"
+    div_block += (
+        # ── GARMENT-ONLY REFERENCE MODE ─────────────────────────────────────────────
+        # A pessoa/modelo na imagem de referência NÃO faz parte deste produto.
+        # O compilador deve extrair APENAS a peça e construir uma modelo nova do zero.
+        "GARMENT-ONLY REFERENCE MODE — CRITICAL RULES:\n"
+        "  1. Reference images = garment source ONLY (color, fabric, structure, pattern).\n"
+        "  2. The model/person visible in the reference is NOT the subject. Discard her completely.\n"
+        "  3. DO NOT copy reference model's face, skin tone, hair, body shape, height, or pose.\n"
+        "  4. DO NOT describe or reference the person shown — treat reference as if she were a mannequin.\n"
+        f"  5. GENERATE A BRAND NEW MODEL: {profile}\n"
+        f"  6. Place new model in scenario: {scenario}\n"
+        f"  7. Use pose: {pose}\n"
+        "  8. In base_prompt: open with the new model profile BEFORE garment description.\n"
+        "     Example: 'RAW photo, [new model profile]. Wearing a [garment from reference]...'\n"
+        "</DIVERSITY_TARGET>"
     )
+    blocks.append(div_block)
 
     if guided_enabled:
         garment = (guided_brief or {}).get("garment", {}) or {}
@@ -1382,29 +733,34 @@ def run_agent(
         pose_cfg = (guided_brief or {}).get("pose", {}) or {}
         capture = (guided_brief or {}).get("capture", {}) or {}
         fidelity_mode = str((guided_brief or {}).get("fidelity_mode", "balanceada")).strip().lower()
-        context_text += (
-            "\n\n[GUIDED BRIEF — deterministic constraints, must obey]\n"
+        
+        guided_str = (
+            "<GUIDED_BRIEF>\n"
+            "[Deterministic constraints, must obey]\n"
             f"- model_age_range: {model.get('age_range', '25-34')}\n"
             f"- set_mode: {garment.get('set_mode', 'unica')}\n"
             f"- scene_type: {scene.get('type', 'externo')}\n"
             f"- pose_style: {pose_cfg.get('style', 'tradicional')}\n"
             f"- capture_distance: {capture.get('distance', 'media')}\n"
             f"- fidelity_mode: {fidelity_mode}\n"
-            "If set_mode is conjunto, infer garment-set pieces via repeated color/texture/motif cues from references and ignore accessories."
+            "If set_mode is conjunto, map garment-set pieces via repeated color/texture/motif cues from references."
         )
         if guided_set_mode == "conjunto" and has_images:
-            context_text += (
-                "\n[GUIDED SET DETECTION]\n"
+            guided_str += (
+                "\n\n[GUIDED SET DETECTION]\n"
                 f"- set_pattern_score: {guided_set_detection.get('set_pattern_score', 0.0)}\n"
                 f"- detected_garment_roles: {', '.join(guided_set_detection.get('detected_garment_roles', []) or []) or 'unknown'}\n"
                 f"- set_pattern_cues: {', '.join(guided_set_detection.get('set_pattern_cues', []) or []) or 'unknown'}\n"
-                f"- set_lock_mode: {guided_set_detection.get('set_lock_mode', 'generic')}\n"
+                f"- set_lock_mode: {guided_set_detection.get('set_lock_mode', 'generic')}"
             )
+        guided_str += "\n</GUIDED_BRIEF>"
+        blocks.append(guided_str)
 
     if has_images and structural_contract.get("enabled"):
         cues = ", ".join(structural_contract.get("must_keep", []) or []) or "none"
-        context_text += (
-            "\n\n[STRUCTURAL CONTRACT — preserve garment geometry from references]\n"
+        sc_str = (
+            "<STRUCTURAL_CONTRACT>\n"
+            "[Preserve garment geometry from references]\n"
             f"- garment_subtype: {structural_contract.get('garment_subtype', 'unknown')}\n"
             f"- sleeve_type: {structural_contract.get('sleeve_type', 'unknown')}\n"
             f"- sleeve_length: {structural_contract.get('sleeve_length', 'unknown')}\n"
@@ -1414,9 +770,11 @@ def run_agent(
             f"- silhouette_volume: {structural_contract.get('silhouette_volume', 'unknown')}\n"
             f"- confidence: {structural_contract.get('confidence', 0.0)}\n"
             f"- must_keep_cues: {cues}\n"
-            "Treat these as shape/proportion constraints. Do not drift sleeve/hem proportions. "
-            "Pay special attention to garment_subtype — it defines the construction method."
+            "Treat these as shape/proportion constraints. Maintain sleeve/hem proportions exactly. "
+            "Pay special attention to garment_subtype — it defines the construction method.\n"
+            "</STRUCTURAL_CONTRACT>"
         )
+        blocks.append(sc_str)
 
     # Grounding: chamada separada de pesquisa antes do agente
     grounding_research = ""
@@ -1431,6 +789,7 @@ def run_agent(
         "visual_ref_engine": "none",
     }
     grounded_images: List[bytes] = []
+    grounding_pose_clause: str = ""
     if use_grounding:
         print("[AGENT] 🔍 Running grounding research (separate call)...")
         try:
@@ -1438,8 +797,10 @@ def run_agent(
                 uploaded_images=uploaded_images or [],
                 user_prompt=user_prompt,
                 mode=grounding_mode,
+                garment_hint_override=_unified_garment_hint,
             )
             grounding_research = grounding_data.get("text", "")
+            grounding_pose_clause = grounding_data.get("pose_clause", "")
             grounded_images = list(grounding_data.get("grounded_images", []) or [])
             grounding_meta = {
                 "effective": bool(grounding_data.get("effective")),
@@ -1450,41 +811,63 @@ def run_agent(
                 "mode": grounding_mode,
                 "grounded_images_count": int(grounding_data.get("grounded_images_count", 0) or 0),
                 "visual_ref_engine": grounding_data.get("visual_ref_engine", "none"),
+                "reason_codes": grounding_data.get("reason_codes", []),
             }
         except Exception as e:
             print(f"[AGENT] ⚠️  Grounding research failed: {e}")
             grounding_research = ""
             grounded_images = []
 
-    if grounding_research:
-        context_text += (
-            "\n\nWEB RESEARCH RESULTS (use this to correctly identify the garment):\n"
-            f"{grounding_research}"
+    if grounding_research and grounding_meta.get("effective"):
+        blocks.append(
+            "<GROUNDING_RESULTS>\n"
+            "[Use this to correctly identify the garment]\n"
+            f"{grounding_research}\n"
+            "</GROUNDING_RESULTS>"
         )
     if grounding_context_hint:
-        context_text += (
-            "\n\nTRIAGE HINT (garment hypothesis): "
-            f"{grounding_context_hint}. Keep this silhouette strictly."
+        blocks.append(
+            "<TRIAGE_HINT>\n"
+            f"Garment hypothesis: {grounding_context_hint}. Keep this silhouette strictly.\n"
+            "</TRIAGE_HINT>"
         )
+
     if grounding_mode == "full" and has_images:
-        context_text += (
-            "\n\nCRITICAL SILHOUETTE CONSTRAINTS: front fully open (never closed as poncho), "
-            "integrated batwing/dolman sleeves, rounded cocoon hem preserved, matching scarf kept as a separate piece."
-        )
+        _sc_attrs = [
+            ("front_opening",    "front opening"),
+            ("garment_length",   "garment length"),
+            ("silhouette_volume","volume"),
+            ("hem_shape",        "hem shape"),
+            ("sleeve_type",      "sleeve type"),
+        ]
+        _sc_parts = [
+            f"{label}: {structural_contract.get(attr, 'unknown')}"
+            for attr, label in _sc_attrs
+            if structural_contract.get(attr, "unknown") not in ("unknown", "", None)
+        ]
+        
+        sil_str = "<GROUNDING_CONSTRAINTS>\n"
+        if _sc_parts:
+            sil_str += "Silhouette constraints (detected from reference images): " + ", ".join(_sc_parts) + ".\n"
+            sil_str += "Maintain these geometry attributes in the generated image.\n"
+        else:
+            sil_str += (
+                "Silhouette constraints: maintain the detected garment geometry "
+                "(opening behavior, sleeve architecture, hem shape, garment length) "
+                "from reference images.\n"
+            )
+        sil_str += "</GROUNDING_CONSTRAINTS>"
+        blocks.append(sil_str)
 
-    # ── INJEÇÃO DE REFERENCE KNOWLEDGE (budget por shot_type) ──────────
-    # Close-up/macro usa menos contexto (foco em textura, não cenário/modelo)
-    # Wide/medium/auto usa o conhecimento completo
-    context_text += f"\n\n{REFERENCE_KNOWLEDGE}"
+    blocks.append(REFERENCE_KNOWLEDGE)
+    blocks.append("Return ONLY valid JSON matching the schema. No markdown, no explanation.")
 
-    context_text += (
-        "\n\nReturn ONLY valid JSON matching the schema. No markdown, no explanation."
-    )
+    context_text = "\n\n".join(blocks)
 
     def _build_parts(context: str) -> List[types.Part]:
         parts: List[types.Part] = []
         if has_images:
-            for img_bytes in (uploaded_images or [])[:14]:
+            for img_bytes in (uploaded_images or []):
                 parts.append(
                     types.Part(
                         inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)
@@ -1523,14 +906,14 @@ def run_agent(
                 ),
             )
 
-    response = _call_prompt_model(context_text, temperature=0.45)
+    response = _call_prompt_model(context_text, temperature=0.75)
 
     # ── DECODE: caminho principal (schema) → fallback robusto (_parse_json) ──
     result = None
     # 1) Tenta response.parsed (disponível com schema enforced)
     try:
         parsed = getattr(response, "parsed", None)
-        if isinstance(parsed, dict) and "prompt" in parsed:
+        if isinstance(parsed, dict) and ("base_prompt" in parsed or "prompt" in parsed):
             result = parsed
             print("[AGENT] ✅ JSON via response.parsed (schema enforced)")
     except Exception:
@@ -1546,15 +929,11 @@ def run_agent(
             raw_preview = _extract_response_text(response)[:320].replace("\n", "\\n")
             print(f"[AGENT] ⚠️  Raw preview: {raw_preview}")
 
-            # 3) Retry sem grounding context (último recurso)
+            # 3) Retry: mantemos todo_ o contexto estruturado (inclusive XML tags) mas reforçamos o JSON
             retry_context = (
-                mode_info
-                + f"\n\n{REFERENCE_KNOWLEDGE}"
-                + f"\n\nOutput parameters: aspect_ratio={aspect_ratio}, resolution={resolution}"
-                + "\n\nSTRICT JSON RULES: return one valid JSON object only."
+                context_text
+                + "\n\n[RETRY TRIGGERED]: The previous response was not valid JSON. You MUST return EXACTLY ONE valid JSON object, without markdown wrappers like ```json"
             )
-            if has_pool:
-                retry_context = mode_info + f"\n\n{pool_context}" + retry_context[len(mode_info):]
 
             response_retry = _call_prompt_model(retry_context, temperature=0.2)
             try:
@@ -1574,32 +953,76 @@ def run_agent(
         result["shot_type"] = "auto"
 
     guided_distance = str(((guided_brief or {}).get("capture") or {}).get("distance", "")).strip().lower()
+    guided_pose_style = str(((guided_brief or {}).get("pose") or {}).get("style", "")).strip().lower()
+    guided_pose_creative = guided_enabled and guided_pose_style == "criativa"
     guided_shot = guided_capture_to_shot(guided_distance) if guided_enabled else None
-    if guided_shot:
+    # guided_shot só substitui o default quando há texto explícito ou pose criativa.
+    if guided_shot and (has_prompt or guided_pose_creative):
         result["shot_type"] = guided_shot
+    # Permite variabilidade baseada no contexto no lugar de lock "wide"
     elif pipeline_mode == "text_mode" and result.get("shot_type") == "auto":
         result["shot_type"] = _infer_text_mode_shot(user_prompt)
 
     if result.get("realism_level") not in [1, 2, 3]:
         result["realism_level"] = 2
 
-    result["prompt"] = _apply_quality_locks(
-        prompt=result.get("prompt", ""),
+    base_prompt_raw = str(result.get("base_prompt", "") or "").strip()
+    legacy_prompt_raw = str(result.get("prompt", "") or "").strip()
+    if not base_prompt_raw:
+        base_prompt_raw = legacy_prompt_raw
+    if not base_prompt_raw:
+        base_prompt_raw = "RAW photo, polished e-commerce catalog composition with garment-first framing."
+
+    camera_realism_raw = str(result.get("camera_and_realism", "") or "").strip()
+    if not camera_realism_raw:
+        camera_realism_raw = _extract_camera_realism_block(legacy_prompt_raw)
+    if not camera_realism_raw:
+        camera_realism_raw = _extract_camera_realism_block(base_prompt_raw)
+    camera_profile = _select_camera_realism_profile(
         has_images=has_images,
+        has_prompt=has_prompt,
+        user_prompt=user_prompt,
+        base_prompt=base_prompt_raw,
+        camera_text=camera_realism_raw,
+    )
+    camera_realism = _normalize_camera_realism_block(
+        camera_realism_raw,
+        str(result.get("shot_type", "auto")),
+        profile=camera_profile,
+    )
+    camera_words = _count_words(camera_realism)
+    base_budget = max(80, 220 - camera_words)
+    if has_images and not has_prompt:
+        # 165w acomoda P1 (~40w) + 5 cover clauses (~56w) + model_profile (~14w)
+        # + quality_model (~12w) + quality_texture (~9w) + scene/gaze (~20w) = ~151w.
+        target_budget = 165
+        base_budget = max(80, target_budget - camera_words)
+
+    compiled_base_prompt, compiler_debug = _compile_prompt_v2(
+        prompt=base_prompt_raw,
+        has_images=has_images,
+        has_prompt=has_prompt,
+        contract=structural_contract if has_images else None,
+        guided_brief=guided_brief if guided_enabled else None,
+        guided_enabled=guided_enabled,
+        guided_set_detection=guided_set_detection if guided_enabled and guided_set_mode == "conjunto" else None,
         grounding_mode=grounding_mode,
         pipeline_mode=pipeline_mode,
+        word_budget=base_budget,
+        pose_hint=grounding_pose_clause,
+        profile_hint=profile,
+        scenario_hint=scenario if (has_images and not has_prompt) else "",
     )
-    result["prompt"] = _apply_guided_locks(
-        prompt=result.get("prompt", ""),
-        guided_brief=guided_brief if guided_enabled else None,
-        has_images=has_images,
-        set_detection=guided_set_detection if guided_enabled and guided_set_mode == "conjunto" else None,
-    )
-    result["prompt"] = _apply_structural_locks(
-        prompt=result.get("prompt", ""),
-        has_images=has_images,
-        contract=structural_contract if has_images else None,
-    )
+    final_prompt = _compose_prompt_with_camera(compiled_base_prompt, camera_realism)
+    result["base_prompt"] = compiled_base_prompt
+    result["camera_and_realism"] = camera_realism
+    result["camera_profile"] = camera_profile
+    result["prompt"] = final_prompt
+    compiler_debug["camera_words"] = camera_words
+    compiler_debug["base_budget"] = base_budget
+    compiler_debug["camera_profile"] = camera_profile
+    compiler_debug["final_words"] = _count_words(final_prompt)
+    result["prompt_compiler_debug"] = compiler_debug
 
     result["grounding"] = grounding_meta
     result["pipeline_mode"] = pipeline_mode
