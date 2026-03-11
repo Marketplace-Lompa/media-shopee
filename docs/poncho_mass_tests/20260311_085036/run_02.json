@@ -1,0 +1,158 @@
+{
+  "session_id": "ec765e1a",
+  "prompt": "RAW photo, A contemporary Mineira Lança Perfume lookbook model, features blend 'Renata' and 'Bruna Macedo' open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes knit texture open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible gentle step forward, relaxed arms, confident gaze, garment fully visible exact texture, stitch, and fiber relief wide-leg cropped pants, simple flats polished model, natural expression warm near-camera look with relaxed expression serene home studio with large diffused window light and simple backdrop shallow depth of field, warm backlight rim, clean negative space. Sony A7III, 50mm f/1.8 lens. High-fidelity skin realism with visible natural pores and subtle texture. The knit fabric shows a dense, uniform gauge with natural wear creases where it drapes. Soft-focus background bokeh.",
+  "base_prompt": "RAW photo, A contemporary Mineira Lança Perfume lookbook model, features blend 'Renata' and 'Bruna Macedo' open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes knit texture open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible gentle step forward, relaxed arms, confident gaze, garment fully visible exact texture, stitch, and fiber relief wide-leg cropped pants, simple flats polished model, natural expression warm near-camera look with relaxed expression serene home studio with large diffused window light and simple backdrop shallow depth of field, warm backlight rim, clean negative space",
+  "camera_and_realism": "Sony A7III, 50mm f/1.8 lens. High-fidelity skin realism with visible natural pores and subtle texture. The knit fabric shows a dense, uniform gauge with natural wear creases where it drapes. Soft-focus background bokeh.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/ec765e1a/gen_ec765e1a_1.png",
+  "grounding": {
+    "effective": false,
+    "queries": [
+      "ruana wrap silhouette terminology batwing sleeves kimono cardigan cape",
+      "striped knit ruana wrap draped silhouette Portuguese English name",
+      "professional photography tips for shooting ruana wraps and capes",
+      "how a ruana wrap drapes and falls on the body",
+      "ruana wrap em português nome exato vestuário",
+      "termo de moda para ruana wrap em português Brasil Portugal"
+    ],
+    "sources": [],
+    "engine": "none",
+    "source_engine": "none",
+    "mode": "lexical",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_internal_suppressed",
+      "grounding_no_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "lexical",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.227,
+    "complexity_score": 0.533,
+    "garment_hypothesis": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "garment_hint": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "hint_confidence": 0.75,
+    "trigger_reason": "ambiguous_or_uncertain_garment",
+    "attempted": true
+  },
+  "reason_codes": [
+    "grounding_internal_suppressed",
+    "grounding_no_sources",
+    "grounding_not_effective"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "open-front ruana-wrap construction",
+        "source": "garment_subtype"
+      },
+      {
+        "text": "soft open front edge with uninterrupted drape",
+        "source": "front_opening"
+      },
+      {
+        "text": "hip length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "asymmetric hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "horizontal stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "knit texture",
+        "source": "must_keep"
+      },
+      {
+        "text": "open front",
+        "source": "must_keep"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "gentle step forward, relaxed arms, confident gaze, garment fully visible",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "wide-leg cropped pants, simple flats",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "warm near-camera look with relaxed expression",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "serene home studio with large diffused window light and simple backdrop",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "shallow depth of field, warm backlight rim, clean negative space",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      }
+    ],
+    "base_words": 15,
+    "base_truncated": false,
+    "total_words": 126,
+    "word_budget": 132,
+    "residual_negatives": [],
+    "camera_words": 33,
+    "base_budget": 132,
+    "final_words": 159,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 0.9,
+    "silhouette_fidelity": 0.85,
+    "texture_pattern_fidelity": 0.95,
+    "construction_fidelity": 0.8,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 1.0,
+    "brazilian_scene_plausibility": 0.9,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.88,
+    "main_failures": [
+      "The generated garment adds a more defined vertical collar/lapel band compared to the raw edge of the reference",
+      "The drape at the hips is slightly more structured than the original fluid wrap"
+    ],
+    "summary": "The generated image successfully captures the complex striped knit texture and the overall ruana-style construction. The model and scene are completely transformed into a professional catalog setting. The main deviation is a slightly more formal collar construction than the reference's simple draped edge."
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "session_id": "89eb786a",
+  "prompt": "RAW photo, A striking Northeastern Brazilian model, features blend 'Yasmin' and 'Letícia Souza' Wearing Textured crochet ruana with olive and dusty rose horizontal stripes. Features fluid draped arm coverage, a cocoon silhouette, and flat uniform open-weave construction that drapes loosely She is wearing a single-piece ruana wrap draped over the shoulders. The same knitted edge flows from the neckline directly into the soft front opening. The outer silhouette falls in a rounded cocoon side drop reaching upper-thigh length relative to the model body. Arm coverage is created by the same continuous body panel as the garment, forming a fluid draped wrap over the arms. continuous neckline-to-front edge rounded cocoon side drop ribbed horizontal stripe texture pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible slight body turn with direct eye contact, clean garment silhouette exact texture, stitch, and fiber relief minimalist indoor studio corner with large soft window light polished model, natural expression warm near-camera look with relaxed expression dappled natural light revealing fabric texture and depth tailored neutral chinos, low-profile loafers subject sharp, background softly defocused, balanced natural light. Sony A7III, 85mm f/1.8, natural side-lit window light, visible natural pores, subtle peach fuzz, natural fabric wear creases and fiber realism.",
+  "base_prompt": "RAW photo, A striking Northeastern Brazilian model, features blend 'Yasmin' and 'Letícia Souza' Wearing Textured crochet ruana with olive and dusty rose horizontal stripes. Features fluid draped arm coverage, a cocoon silhouette, and flat uniform open-weave construction that drapes loosely She is wearing a single-piece ruana wrap draped over the shoulders. The same knitted edge flows from the neckline directly into the soft front opening. The outer silhouette falls in a rounded cocoon side drop reaching upper-thigh length relative to the model body. Arm coverage is created by the same continuous body panel as the garment, forming a fluid draped wrap over the arms. continuous neckline-to-front edge rounded cocoon side drop ribbed horizontal stripe texture pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible slight body turn with direct eye contact, clean garment silhouette exact texture, stitch, and fiber relief minimalist indoor studio corner with large soft window light polished model, natural expression warm near-camera look with relaxed expression dappled natural light revealing fabric texture and depth tailored neutral chinos, low-profile loafers subject sharp, background softly defocused, balanced natural light",
+  "camera_and_realism": "Sony A7III, 85mm f/1.8, natural side-lit window light, visible natural pores, subtle peach fuzz, natural fabric wear creases and fiber realism.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/89eb786a/gen_89eb786a_1.png",
+  "grounding": {
+    "effective": false,
+    "queries": [
+      "how a crochet cocoon shrug drapes on the body",
+      "striped crochet cocoon shrug with dolman sleeves Portuguese English name",
+      "casaco casulo de crochê listrado mangas morcego nome em inglês",
+      "silhouette terminology for cocoon shrug with dolman sleeves",
+      "professional photography techniques for cocoon shrugs and dolman sleeves"
+    ],
+    "sources": [],
+    "engine": "none",
+    "source_engine": "none",
+    "mode": "lexical",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_internal_suppressed",
+      "grounding_no_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "lexical",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.307,
+    "complexity_score": 0.533,
+    "garment_hypothesis": "A textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creating a warm and art...",
+    "garment_hint": "A textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creating a warm and art...",
+    "hint_confidence": 0.75,
+    "trigger_reason": "ambiguous_or_uncertain_garment",
+    "attempted": true
+  },
+  "reason_codes": [
+    "grounding_internal_suppressed",
+    "grounding_no_sources",
+    "grounding_not_effective"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "She is wearing a single-piece ruana wrap draped over the shoulders.",
+        "source": "garment_subtype"
+      },
+      {
+        "text": "The same knitted edge flows from the neckline directly into the soft front opening.",
+        "source": "front_opening"
+      },
+      {
+        "text": "The outer silhouette falls in a rounded cocoon side drop reaching upper-thigh length relative to the model body.",
+        "source": "garment_length"
+      },
+      {
+        "text": "Arm coverage is created by the same continuous body panel as the garment, forming a fluid draped wrap over the arms.",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "continuous neckline-to-front edge",
+        "source": "must_keep"
+      },
+      {
+        "text": "rounded cocoon side drop",
+        "source": "must_keep"
+      },
+      {
+        "text": "ribbed horizontal stripe texture",
+        "source": "must_keep"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "slight body turn with direct eye contact, clean garment silhouette",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "minimalist indoor studio corner with large soft window light",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "warm near-camera look with relaxed expression",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "dappled natural light revealing fabric texture and depth",
+        "source": "lighting_hint"
+      },
+      {
+        "text": "tailored neutral chinos, low-profile loafers",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "subject sharp, background softly defocused, balanced natural light",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "generic:wide batwing sleeve opening"
+      }
+    ],
+    "base_words": 40,
+    "base_truncated": false,
+    "total_words": 186,
+    "word_budget": 194,
+    "residual_negatives": [],
+    "camera_words": 21,
+    "base_budget": 194,
+    "final_words": 207,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 0.9,
+    "silhouette_fidelity": 0.85,
+    "texture_pattern_fidelity": 0.95,
+    "construction_fidelity": 0.8,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 0.9,
+    "brazilian_scene_plausibility": 0.9,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.88,
+    "main_failures": [
+      "The generated garment has a slightly more structured front opening compared to the very loose drape of the original",
+      "The cocoon shape is a bit more defined/tapered at the bottom than the reference"
+    ],
+    "summary": "The generated image successfully captures the unique crochet texture and the specific olive/rose stripe pattern of the reference garment. The model and scene are completely transformed into a professional catalog aesthetic. The silhouette is largely accurate, though it appears slightly more tailored than the original's very fluid, unstructured drape."
+  }
+}

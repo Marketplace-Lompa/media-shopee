@@ -1,0 +1,248 @@
+{
+  "selector_stats": {
+    "raw_count": 20,
+    "unique_count": 19,
+    "duplicate_count": 1,
+    "complex_garment": true,
+    "small_input_mode": false
+  },
+  "selected_names": {
+    "base_generation": [
+      "IMG_3323.jpg",
+      "IMG_3330.jpg",
+      "IMG_3324.jpg",
+      "IMG_3328.jpg"
+    ],
+    "strict_single_pass": [
+      "IMG_3323.jpg",
+      "IMG_3324.jpg",
+      "referencia.jpeg",
+      "referencia2.jpeg"
+    ],
+    "edit_anchors": [
+      "referencia.jpeg",
+      "referencia2.jpeg"
+    ]
+  },
+  "base_prompt": "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment. Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible, clean premium indoor composition, soft natural daylight. Preserve exact garment geometry, texture continuity, and construction details. Garment identity anchor: ruana_wrap, draped silhouette, open front opening, cocoon hem behavior, cape_like sleeve architecture. Catalog-ready minimal styling with the garment as the hero piece. Keep accessories subtle and secondary to the garment. Build new styling independent from the reference person's lower-body look, footwear, and props unless explicitly requested.",
+  "scene_description": "refined Brazilian premium showroom with softly textured neutral walls, pale stone floor, clean daylight, and minimal decor",
+  "pose_description": "Use a clean standing catalog pose with full garment visibility.",
+  "base_candidates": [
+    {
+      "index": 1,
+      "filename": "gen_castbase_20260311_192658_1.png",
+      "url": "/outputs/castbase_20260311_192658/gen_castbase_20260311_192658_1.png",
+      "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/castbase_20260311_192658/gen_castbase_20260311_192658_1.png",
+      "size_kb": 2206.9,
+      "mime_type": "image/png",
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.92,
+        "construction_fidelity": 0.9,
+        "natural_model_score": 0.98,
+        "photorealism_score": 0.97,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.94,
+        "issues": [],
+        "summary": "The generated image shows exceptional fidelity to the original garment, accurately capturing the specific green and pink striped pattern, the crochet-like texture, and the unique cocoon-like drape of the ruana. The model's pose and the lighting are professional and catalog-ready, with the garment clearly presented as the hero piece. The transition of the stripes at the seams and the overall construction are highly consistent with the reference photos."
+      }
+    },
+    {
+      "index": 2,
+      "filename": "gen_castbase_20260311_192658_2.png",
+      "url": "/outputs/castbase_20260311_192658/gen_castbase_20260311_192658_2.png",
+      "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/castbase_20260311_192658/gen_castbase_20260311_192658_2.png",
+      "size_kb": 1919.0,
+      "mime_type": "image/png",
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.92,
+        "construction_fidelity": 0.9,
+        "natural_model_score": 0.95,
+        "photorealism_score": 0.98,
+        "commercial_quality_score": 0.92,
+        "overall_score": 0.93,
+        "issues": [],
+        "summary": "The generated image shows exceptional fidelity to the reference garment, accurately capturing the specific green and pink striped crochet pattern and the cocoon-like ruana silhouette. The texture of the knit is well-preserved. The model and lighting are highly photorealistic, and the styling is significantly improved for a commercial catalog context compared to the original reference photos."
+      }
+    }
+  ],
+  "best_base": {
+    "index": 1,
+    "filename": "gen_castbase_20260311_192658_1.png",
+    "url": "/outputs/castbase_20260311_192658/gen_castbase_20260311_192658_1.png",
+    "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/castbase_20260311_192658/gen_castbase_20260311_192658_1.png",
+    "size_kb": 2206.9,
+    "mime_type": "image/png",
+    "evaluation": {
+      "garment_fidelity": 0.95,
+      "silhouette_fidelity": 0.9,
+      "texture_fidelity": 0.92,
+      "construction_fidelity": 0.9,
+      "natural_model_score": 0.98,
+      "photorealism_score": 0.97,
+      "commercial_quality_score": 0.95,
+      "overall_score": 0.94,
+      "issues": [],
+      "summary": "The generated image shows exceptional fidelity to the original garment, accurately capturing the specific green and pink striped pattern, the crochet-like texture, and the unique cocoon-like drape of the ruana. The model's pose and the lighting are professional and catalog-ready, with the garment clearly presented as the hero piece. The transition of the stripes at the seams and the overall construction are highly consistent with the reference photos."
+    }
+  },
+  "casting_results": [
+    {
+      "variant": "cast_1",
+      "casting_profile": {
+        "family_id": "br_soft_editorial",
+        "family_label": "BR Soft Editorial",
+        "age": "late 20s",
+        "skin": "light olive skin",
+        "hair": "soft loose waves with a subtle side part",
+        "makeup": "sheer editorial makeup",
+        "expression": "subtle introspective gaze",
+        "presence": "soft premium-editorial presence",
+        "signature": "br_soft_editorial|late 20s|light olive skin|soft loose waves with a subtle side part|sheer editorial makeup|subtle introspective gaze",
+        "identity_sentence": "a distinctly different adult Brazilian woman in her late 20s with light olive skin, soft loose waves with a subtle side part, sheer editorial makeup, subtle introspective gaze, and soft premium-editorial presence",
+        "difference_instruction": "This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy.",
+        "recent_avoid": [
+          "friendly polished smile",
+          "a sleek jaw-length dark bob"
+        ],
+        "debug": {
+          "recent_family_counts": {},
+          "recent_hair": [],
+          "seed_hint": "20260311_192658:0"
+        }
+      },
+      "edit_prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a distinctly different adult Brazilian woman in her late 20s with light olive skin, soft loose waves with a subtle side part, sheer editorial makeup, subtle introspective gaze, and soft premium-editorial presence. This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy. This casting should not resemble recent outputs characterized by friendly polished smile, a sleek jaw-length dark bob. Change the inner top to a clean white crew-neck tee. Place her in a refined Brazilian premium showroom with softly textured neutral walls, pale stone floor, clean daylight, and minimal decor. Use a clean standing catalog pose with full garment visibility. Keep the image highly photorealistic, premium fashion catalog quality, with natural skin texture and realistic body proportions.",
+      "output": {
+        "index": 1,
+        "filename": "edit_asting_20260311_192658_0_1.png",
+        "url": "/outputs/asting_20260311_192658_0/edit_asting_20260311_192658_0_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/asting_20260311_192658_0/edit_asting_20260311_192658_0_1.png",
+        "size_kb": 2243.4,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 0.8,
+        "environment_change_strength": 0.1,
+        "innerwear_change_strength": 0.9,
+        "photorealism_score": 0.95,
+        "commercial_quality_score": 0.9,
+        "overall_score": 0.92,
+        "issues": [],
+        "summary": "The edit successfully preserves the garment's complex knit texture and stripe pattern while effectively changing the model's identity and the innerwear from a black top and blue trousers to a white dress. The environment remains consistent with the stage-1 base as requested by the workflow."
+      }
+    },
+    {
+      "variant": "cast_2",
+      "casting_profile": {
+        "family_id": "br_afro_modern",
+        "family_label": "BR Afro Modern",
+        "age": "late 20s",
+        "skin": "medium-deep warm skin",
+        "hair": "short sculpted natural curls with a crisp silhouette",
+        "makeup": "clean luminous makeup",
+        "expression": "calm self-assured expression",
+        "presence": "modern premium-catalog presence",
+        "signature": "br_afro_modern|late 20s|medium-deep warm skin|short sculpted natural curls with a crisp silhouette|clean luminous makeup|calm self-assured expression",
+        "identity_sentence": "a distinctly different adult Brazilian woman in her late 20s with medium-deep warm skin, short sculpted natural curls with a crisp silhouette, clean luminous makeup, calm self-assured expression, and modern premium-catalog presence",
+        "difference_instruction": "This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy.",
+        "recent_avoid": [
+          "straight dark brown shoulder-length hair",
+          "long loose chestnut waves"
+        ],
+        "debug": {
+          "recent_family_counts": {
+            "br_soft_editorial": 1
+          },
+          "recent_hair": [
+            "soft loose waves with a subtle side part"
+          ],
+          "seed_hint": "20260311_192658:1"
+        }
+      },
+      "edit_prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a distinctly different adult Brazilian woman in her late 20s with medium-deep warm skin, short sculpted natural curls with a crisp silhouette, clean luminous makeup, calm self-assured expression, and modern premium-catalog presence. This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy. This casting should not resemble recent outputs characterized by straight dark brown shoulder-length hair, long loose chestnut waves. Change the inner top to a clean white crew-neck tee. Place her in a refined Brazilian premium showroom with softly textured neutral walls, pale stone floor, clean daylight, and minimal decor. Use a clean standing catalog pose with full garment visibility. Keep the image highly photorealistic, premium fashion catalog quality, with natural skin texture and realistic body proportions.",
+      "output": {
+        "index": 1,
+        "filename": "edit_asting_20260311_192658_1_1.png",
+        "url": "/outputs/asting_20260311_192658_1/edit_asting_20260311_192658_1_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/asting_20260311_192658_1/edit_asting_20260311_192658_1_1.png",
+        "size_kb": 2364.2,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 0.8,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.95,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.93,
+        "issues": [],
+        "summary": "The edit successfully preserves the garment's complex knit texture and striped pattern while executing a complete model swap. The new model's identity, hair, and skin tone are distinct and high-quality. The change from a black to a white innerwear top is clean, and the environment remains consistent with a premium catalog aesthetic."
+      }
+    },
+    {
+      "variant": "cast_3",
+      "casting_profile": {
+        "family_id": "br_mature_elegant",
+        "family_label": "BR Mature Elegant",
+        "age": "early 40s",
+        "skin": "medium olive skin",
+        "hair": "a sharp dark chin-length bob tucked behind one ear",
+        "makeup": "understated refined makeup",
+        "expression": "elegant calm expression",
+        "presence": "elegant high-end catalog presence",
+        "signature": "br_mature_elegant|early 40s|medium olive skin|a sharp dark chin-length bob tucked behind one ear|understated refined makeup|elegant calm expression",
+        "identity_sentence": "a distinctly different adult Brazilian woman in her early 40s with medium olive skin, a sharp dark chin-length bob tucked behind one ear, understated refined makeup, elegant calm expression, and elegant high-end catalog presence",
+        "difference_instruction": "This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy.",
+        "recent_avoid": [
+          "long loose chestnut waves",
+          "short sculpted natural curls"
+        ],
+        "debug": {
+          "recent_family_counts": {
+            "br_soft_editorial": 1,
+            "br_afro_modern": 1
+          },
+          "recent_hair": [
+            "soft loose waves with a subtle side part",
+            "short sculpted natural curls with a crisp silhouette"
+          ],
+          "seed_hint": "20260311_192658:2"
+        }
+      },
+      "edit_prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a distinctly different adult Brazilian woman in her early 40s with medium olive skin, a sharp dark chin-length bob tucked behind one ear, understated refined makeup, elegant calm expression, and elegant high-end catalog presence. This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy. This casting should not resemble recent outputs characterized by long loose chestnut waves, short sculpted natural curls. Change the inner top to a clean white crew-neck tee. Place her in a refined Brazilian premium showroom with softly textured neutral walls, pale stone floor, clean daylight, and minimal decor. Use a clean standing catalog pose with full garment visibility. Keep the image highly photorealistic, premium fashion catalog quality, with natural skin texture and realistic body proportions.",
+      "output": {
+        "index": 1,
+        "filename": "edit_asting_20260311_192658_2_1.png",
+        "url": "/outputs/asting_20260311_192658_2/edit_asting_20260311_192658_2_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/asting_20260311_192658_2/edit_asting_20260311_192658_2_1.png",
+        "size_kb": 2292.9,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 0.0,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.95,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.93,
+        "issues": [],
+        "summary": "The edit successfully preserves the complex striped knit texture and cocoon silhouette of the ruana while executing a complete model swap to the requested Brazilian persona. The innerwear was also successfully changed from black to white as part of the restyling, maintaining high commercial quality."
+      }
+    }
+  ]
+}

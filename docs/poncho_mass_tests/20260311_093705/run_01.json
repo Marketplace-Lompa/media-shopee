@@ -1,0 +1,160 @@
+{
+  "session_id": "223858c4",
+  "prompt": "RAW photo, A radiant Baiana Ford Models Brazil new face, features blend 'Dandara' and 'Taís Costa' Wearing Textured horizontal stripes of olive green and dusty rose in a flat-weave crochet. Oversized cocoon silhouette with fluid draped arm coverage, draping softly with a knit weight She is wearing a single-piece ruana wrap draped over the shoulders. The same knitted edge flows from the neckline directly into the soft front opening. The outer silhouette falls in a rounded cocoon side drop reaching upper-thigh length relative to the model body. Arm coverage is created by the same continuous body panel as the garment, forming a fluid draped wrap over the arms. continuous neckline-to-front edge rounded cocoon side drop ribbed texture stripes pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible balanced frontal stance, arms natural, garment front fully readable exact texture, stitch, and fiber relief bright minimalist apartment with neutral decor and clean background polished model, natural expression warm near-camera look with relaxed expression dappled natural light revealing fabric texture and depth slim straight jeans, clean white sneakers. Sony A7III, 50mm f/1.8 lens. Natural daylight from a large window creates soft shadows. Visible fabric fiber detail and natural skin texture with subtle pores and realistic light falloff.",
+  "base_prompt": "RAW photo, A radiant Baiana Ford Models Brazil new face, features blend 'Dandara' and 'Taís Costa' Wearing Textured horizontal stripes of olive green and dusty rose in a flat-weave crochet. Oversized cocoon silhouette with fluid draped arm coverage, draping softly with a knit weight She is wearing a single-piece ruana wrap draped over the shoulders. The same knitted edge flows from the neckline directly into the soft front opening. The outer silhouette falls in a rounded cocoon side drop reaching upper-thigh length relative to the model body. Arm coverage is created by the same continuous body panel as the garment, forming a fluid draped wrap over the arms. continuous neckline-to-front edge rounded cocoon side drop ribbed texture stripes pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible balanced frontal stance, arms natural, garment front fully readable exact texture, stitch, and fiber relief bright minimalist apartment with neutral decor and clean background polished model, natural expression warm near-camera look with relaxed expression dappled natural light revealing fabric texture and depth slim straight jeans, clean white sneakers",
+  "camera_and_realism": "Sony A7III, 50mm f/1.8 lens. Natural daylight from a large window creates soft shadows. Visible fabric fiber detail and natural skin texture with subtle pores and realistic light falloff.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/223858c4/gen_223858c4_1.png",
+  "grounding": {
+    "effective": true,
+    "queries": [
+      "cocoon shrug silhouette terminology batwing sleeves kimono cardigan ruana cape",
+      "striped crochet cocoon shrug with dolman sleeves Portuguese English name",
+      "how does a cocoon shrug drape on the body",
+      "professional photography techniques for cocoon shrugs and dolman sleeves",
+      "\"casulo\" shrug crochet português",
+      "nome de \"cocoon shrug\" em português moda",
+      "\"bolero casulo\" crochê",
+      "\"cardigã casulo\" crochê"
+    ],
+    "sources": [
+      {
+        "title": "etsy.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHq-95E-bTzpj1nxm_Ak658Yx9yHxpjlL6_vFIxRLlPdPJnIyTl7hqXORERVZRzg1WV0TUzU6J_eA2F3eFos-xit_zZfy8MLgmy5e2DL2HaO6gJAJwfBa7dEH8i70HAwA1-dLHtF-G90TZyErBtQnaRzNMSJtZlrQaQYhZmKs1R1sdZYKeLGg==",
+        "snippet": ""
+      }
+    ],
+    "engine": "gemini_google_search",
+    "source_engine": "gemini_google_search",
+    "mode": "lexical",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_effective_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "lexical",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.307,
+    "complexity_score": 0.533,
+    "garment_hypothesis": "A textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creating a warm and art...",
+    "garment_hint": "A textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creating a warm and art...",
+    "hint_confidence": 0.75,
+    "trigger_reason": "ambiguous_or_uncertain_garment",
+    "attempted": true
+  },
+  "reason_codes": [
+    "grounding_effective_sources"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "She is wearing a single-piece ruana wrap draped over the shoulders.",
+        "source": "garment_subtype"
+      },
+      {
+        "text": "The same knitted edge flows from the neckline directly into the soft front opening.",
+        "source": "front_opening"
+      },
+      {
+        "text": "The outer silhouette falls in a rounded cocoon side drop reaching upper-thigh length relative to the model body.",
+        "source": "garment_length"
+      },
+      {
+        "text": "Arm coverage is created by the same continuous body panel as the garment, forming a fluid draped wrap over the arms.",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "continuous neckline-to-front edge",
+        "source": "must_keep"
+      },
+      {
+        "text": "rounded cocoon side drop",
+        "source": "must_keep"
+      },
+      {
+        "text": "ribbed texture stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "balanced frontal stance, arms natural, garment front fully readable",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "bright minimalist apartment with neutral decor and clean background",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "warm near-camera look with relaxed expression",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "dappled natural light revealing fabric texture and depth",
+        "source": "lighting_hint"
+      },
+      {
+        "text": "slim straight jeans, clean white sneakers",
+        "source": "bottom_complement"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "generic:wide batwing sleeve opening"
+      },
+      {
+        "text": "golden hour side light, subject crisp, environment blurred",
+        "reason": "budget(P4, 4w left, need 8w)"
+      }
+    ],
+    "base_words": 45,
+    "base_truncated": false,
+    "total_words": 181,
+    "word_budget": 186,
+    "residual_negatives": [],
+    "camera_words": 29,
+    "base_budget": 186,
+    "final_words": 210,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 0.6,
+    "silhouette_fidelity": 0.4,
+    "texture_pattern_fidelity": 0.8,
+    "construction_fidelity": 0.5,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 0.9,
+    "brazilian_scene_plausibility": 0.9,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.5,
+    "main_failures": [
+      "The generated garment has set-in sleeves which do not exist in the reference",
+      "The reference is a continuous draped wrap/ruana, while the output is a structured cardigan",
+      "The stripe orientation on the sleeves is horizontal in the output but diagonal/draped in the reference"
+    ],
+    "summary": "The AI successfully captured the color palette and crochet texture, but failed significantly on the garment's construction. It transformed a draped, single-panel ruana/wrap into a standard set-in sleeve cardigan, which fundamentally changes the silhouette and design intent."
+  }
+}

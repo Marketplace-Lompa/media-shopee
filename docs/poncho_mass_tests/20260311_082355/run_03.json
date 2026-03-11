@@ -1,0 +1,170 @@
+{
+  "session_id": "b41fa693",
+  "prompt": "RAW photo, an elegant Sulista Vogue Brasil editorial talent, her facial features are a beautiful natural blend reminiscent of Taís and Dandara Ferreira. front panel fully open and draping hip length relative to model body draped fluid silhouette straight hem arm coverage from a continuous draped panel horizontal stripes knit texture preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible balanced frontal stance, arms natural, garment front fully readable exact texture, stitch, and fiber relief fitted dark trousers, minimal footwear polished model, natural expression warm near-camera look with relaxed expression upscale fashion showroom with neutral white background and diffused light golden hour side light, subject crisp, environment blurred, interior setting. Sony A7III, 85mm f/1.8 lens, visible natural pores, fabric responding to gravity with natural wear creases, soft bokeh. subtle film grain and mild lens halation.",
+  "base_prompt": "RAW photo, an elegant Sulista Vogue Brasil editorial talent, her facial features are a beautiful natural blend reminiscent of Taís and Dandara Ferreira. front panel fully open and draping hip length relative to model body draped fluid silhouette straight hem arm coverage from a continuous draped panel horizontal stripes knit texture preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible balanced frontal stance, arms natural, garment front fully readable exact texture, stitch, and fiber relief fitted dark trousers, minimal footwear polished model, natural expression warm near-camera look with relaxed expression upscale fashion showroom with neutral white background and diffused light golden hour side light, subject crisp, environment blurred, interior setting",
+  "camera_and_realism": "Sony A7III, 85mm f/1.8 lens, visible natural pores, fabric responding to gravity with natural wear creases, soft bokeh. subtle film grain and mild lens halation.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/b41fa693/gen_b41fa693_1.png",
+  "grounding": {
+    "effective": true,
+    "queries": [
+      "how does a ruana wrap drape and fall on the body",
+      "ruana wrap silhouette terminology batwing sleeves kimono cardigan cape",
+      "how to photograph a ruana wrap professional photography tips",
+      "striped knit ruana wrap exact garment type name Portuguese English",
+      "difference between ruana and kimono cardigan silhouette terminology",
+      "professional fashion photography angles for capes and ruanas",
+      "\"ruana wrap\" photography poses for models",
+      "ruana de tricô listrada terminologia moda"
+    ],
+    "sources": [
+      {
+        "title": "stylingrannymama.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFOuPwlG3yHLIU9fCrduYN97NRRGrWk0dybxSUc_nl1uJ_chHlGzDRIXZOPwnrdiQVNj3Vtqn0gKhREs5dIM0PWOr26Jae9kGZSx3SEiBhMPsMLiacz0kmGgmQkC9annbH_7StmvoTxUisfuXfKcUZpYyoJFqN27Uxev5L983ZmkM9ND0iIgYIz262nxcYM",
+        "snippet": ""
+      }
+    ],
+    "engine": "gemini_google_search",
+    "source_engine": "gemini_google_search",
+    "mode": "full",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "visual_disabled",
+    "reason_codes": [
+      "grounding_effective_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "full",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.567,
+    "complexity_score": 0.753,
+    "garment_hypothesis": "A woman is wearing a striped, open-front knit wrap over a black bodysuit and denim shorts.",
+    "garment_hint": "A woman is wearing a striped, open-front knit wrap over a black bodysuit and denim shorts.",
+    "hint_confidence": 0.87,
+    "trigger_reason": "auto_visual_complexity_full",
+    "attempted": true
+  },
+  "reason_codes": [
+    "atypical_or_uncertain",
+    "auto_ref_not_off",
+    "grounding_effective_sources",
+    "visual_complexity_full"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "front panel fully open and draping",
+        "source": "front_opening"
+      },
+      {
+        "text": "hip length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "straight hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "arm coverage from draped fabric panel only, no separate sleeve tubes",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "horizontal stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "knit texture",
+        "source": "must_keep"
+      },
+      {
+        "text": "preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length",
+        "source": "grounding_atypical"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "balanced frontal stance, arms natural, garment front fully readable",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "fitted dark trousers, minimal footwear",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "warm near-camera look with relaxed expression",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "upscale fashion showroom with neutral white background and diffused light",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "golden hour side light, subject crisp, environment blurred, interior setting",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "[base narrative]",
+        "reason": "base_truncation(base exceeded 28w after P1+P2P_reserve)"
+      }
+    ],
+    "base_words": 23,
+    "base_truncated": true,
+    "total_words": 127,
+    "word_budget": 140,
+    "residual_negatives": [],
+    "camera_words": 25,
+    "base_budget": 140,
+    "final_words": 152,
+    "camera_profile": "editorial_analog"
+  },
+  "evaluation": {
+    "garment_type_match": 1.0,
+    "silhouette_fidelity": 0.8,
+    "texture_pattern_fidelity": 0.9,
+    "construction_fidelity": 0.85,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 0.9,
+    "brazilian_scene_plausibility": 0.7,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.85,
+    "main_failures": [
+      "The generated garment has a more structured, blazer-like collar/lapel compared to the simple draped edge of the original",
+      "The stripe orientation on the front panels is horizontal in the generation but diagonal/chevron-like in the reference"
+    ],
+    "summary": "The AI successfully captured the knit texture and color palette of the striped cardigan. While the overall silhouette is preserved, the generation introduced a more formal lapel structure and changed the stripe direction on the front panels from diagonal to horizontal."
+  }
+}

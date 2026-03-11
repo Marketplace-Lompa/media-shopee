@@ -1,0 +1,106 @@
+{
+  "run_stamp": "20260311_193626",
+  "best_base": {
+    "index": 1,
+    "filename": "gen_kernelb_20260311_193626_1.png",
+    "url": "/outputs/kernelb_20260311_193626/gen_kernelb_20260311_193626_1.png",
+    "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/kernelb_20260311_193626/gen_kernelb_20260311_193626_1.png",
+    "size_kb": 2031.1,
+    "mime_type": "image/png",
+    "evaluation": {
+      "garment_fidelity": 0.95,
+      "silhouette_fidelity": 0.9,
+      "texture_fidelity": 0.95,
+      "construction_fidelity": 0.9,
+      "natural_model_score": 0.95,
+      "photorealism_score": 0.98,
+      "commercial_quality_score": 0.95,
+      "overall_score": 0.94,
+      "issues": [],
+      "summary": "The generated image shows exceptional fidelity to the reference garment. The striped pattern, crochet-like texture, and color palette (olive green and dusty pink) are perfectly captured. The cocoon/ruana silhouette is accurately translated into a professional catalog setting. The model and lighting are highly realistic, resulting in a high-quality commercial image."
+    }
+  },
+  "results": [
+    {
+      "variant": "kernel_cafe_recife",
+      "output": {
+        "index": 1,
+        "filename": "edit_kernel_20260311_193626_0_1.png",
+        "url": "/outputs/kernel_20260311_193626_0/edit_kernel_20260311_193626_0_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/kernel_20260311_193626_0/edit_kernel_20260311_193626_0_1.png",
+        "size_kb": 2642.7,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 1.0,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.9,
+        "commercial_quality_score": 0.85,
+        "overall_score": 0.92,
+        "issues": [],
+        "summary": "The edited output successfully preserves the garment's specific crochet texture, stripe pattern, and cocoon silhouette while completely transforming the model identity, environment, and styling as requested. The transition from the stage-1 base to the final lifestyle shot is seamless and maintains high fidelity to the original garment's construction."
+      },
+      "prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a distinctly different adult Brazilian woman with warm medium skin, dark brown wavy shoulder-length hair, soft natural makeup, and an approachable commercial expression. Change the lower-body styling to relaxed off-white tailored shorts. [1. STYLE & ANGLE] Candid lifestyle photography, (amateur/semi-pro capture:1.2), 3/4 standing angle with one shoulder slightly forward and direct eye contact. [2. SCENE] airy Recife apartment balcony with textured plaster wall, woven chair, authentic context, (cluttered/lived-in background:0.9). [3. MODEL HERO] mixed-race Brazilian phenotype, 29yo model, relaxed standing pose with one hand lightly touching the ruana opening, (natural skin texture, visible pores, asymmetric features:1.3). [4. CAMERA] Shot on iPhone 15 Pro, 48mm equivalent, (subtle chromatic aberration, ISO 500 noise, slight motion blur:1.2). [5. LIGHTING] bright coastal late-morning daylight with warm ambient reflections, mixed color temperature, (imperfect ambient bounce:1.1). [6. TEXTURE LOCK] (Macro-accurate crochet knit wool blend:1.5), exact thread count, proper fabric weight, (realistic light absorption on olive green and dusty rose striped yarn:1.4). [7. NEGATIVE] (studio perfection:1.4), (plastic skin:1.5), (AI mannequin:1.5), symmetrical face, altered clothing silhouette, over-smoothed fabric."
+    },
+    {
+      "variant": "kernel_pinheiros_living",
+      "output": {
+        "index": 1,
+        "filename": "edit_kernel_20260311_193626_1_1.png",
+        "url": "/outputs/kernel_20260311_193626_1/edit_kernel_20260311_193626_1_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/kernel_20260311_193626_1/edit_kernel_20260311_193626_1_1.png",
+        "size_kb": 2470.8,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.85,
+        "silhouette_fidelity": 0.7,
+        "texture_fidelity": 0.9,
+        "construction_fidelity": 0.65,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 0.95,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.9,
+        "commercial_quality_score": 0.8,
+        "overall_score": 0.78,
+        "issues": [
+          "Garment construction changed from an open-front cocoon wrap to a closed-front poncho/cowl neck style",
+          "The vertical stripe orientation on the front panels from the base image was lost in favor of horizontal stripes"
+        ],
+        "summary": "The edit successfully transformed the model identity, environment, and lower-body styling as requested. However, it failed to maintain the garment's fundamental construction, converting an open-front wrap into a closed pullover garment and altering the stripe direction."
+      },
+      "prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a distinctly different adult Brazilian woman with light olive skin, a sleek dark chin-length bob, understated refined makeup, and a calm upscale expression. Change the lower-body styling to high-waisted blue wide-leg trousers. [1. STYLE & ANGLE] Candid lifestyle photography, (amateur/semi-pro capture:1.2), eye-level full-body framing with a slight weight shift to one leg. [2. SCENE] lived-in Pinheiros apartment living room with books, plant shadows, linen armchair, authentic context, (cluttered/lived-in background:0.9). [3. MODEL HERO] urban Brazilian phenotype, 41yo model, calm standing pose with arms relaxed and garment fully visible, (natural skin texture, visible pores, asymmetric features:1.3). [4. CAMERA] Shot on Canon R6, 50mm lens, (subtle chromatic aberration, ISO 800 noise, slight motion blur:1.2). [5. LIGHTING] mixed window daylight and warm floor-lamp spill, mixed color temperature, (imperfect ambient bounce:1.1). [6. TEXTURE LOCK] (Macro-accurate crochet knit wool blend:1.5), exact thread count, proper fabric weight, (realistic light absorption on olive green and dusty rose striped yarn:1.4). [7. NEGATIVE] (studio perfection:1.4), (plastic skin:1.5), (AI mannequin:1.5), symmetrical face, altered clothing silhouette, over-smoothed fabric."
+    },
+    {
+      "variant": "kernel_curitiba_cafe",
+      "output": {
+        "index": 1,
+        "filename": "edit_kernel_20260311_193626_2_1.png",
+        "url": "/outputs/kernel_20260311_193626_2/edit_kernel_20260311_193626_2_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/kernel_20260311_193626_2/edit_kernel_20260311_193626_2_1.png",
+        "size_kb": 2729.4,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 1.0,
+        "innerwear_change_strength": 0.8,
+        "photorealism_score": 0.95,
+        "commercial_quality_score": 0.9,
+        "overall_score": 0.93,
+        "issues": [],
+        "summary": "The edited output successfully preserves the complex crochet texture and stripe pattern of the garment while completely transforming the model identity, environment, and styling. The transition from a studio setting to a realistic cafe environment is seamless, and the new model matches the prompt description perfectly."
+      },
+      "prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a distinctly different adult Brazilian woman with deep brown skin, short sculpted natural curls, luminous natural makeup, and a confident modern expression. Change the lower-body styling to dark indigo straight jeans. [1. STYLE & ANGLE] Candid lifestyle photography, (amateur/semi-pro capture:1.2), slight low-angle environmental shot with a casual mid-step pause. [2. SCENE] neighborhood coffee shop in Curitiba with concrete floor, wood counter, pastry case, authentic context, (cluttered/lived-in background:0.9). [3. MODEL HERO] Afro-Brazilian phenotype, 27yo model, natural paused walking pose with one hand adjusting the ruana edge, (natural skin texture, visible pores, asymmetric features:1.3). [4. CAMERA] Shot on Fujifilm X-T4, 35mm lens, (subtle chromatic aberration, ISO 1000 noise, slight motion blur:1.2). [5. LIGHTING] cool overcast street daylight mixing with warm café practicals, mixed color temperature, (imperfect ambient bounce:1.1). [6. TEXTURE LOCK] (Macro-accurate crochet knit wool blend:1.5), exact thread count, proper fabric weight, (realistic light absorption on olive green and dusty rose striped yarn:1.4). [7. NEGATIVE] (studio perfection:1.4), (plastic skin:1.5), (AI mannequin:1.5), symmetrical face, altered clothing silhouette, over-smoothed fabric."
+    }
+  ]
+}

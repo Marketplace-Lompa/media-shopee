@@ -284,11 +284,10 @@ const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse
             <div className="image-card-overlay">
                 <div className="image-card-badges">
                     {item.aspect_ratio && <span className="badge badge--sm">{item.aspect_ratio}</span>}
+                    {item.shot_type && item.shot_type !== 'auto' && <span className="badge badge--sm">{item.shot_type}</span>}
                     {item.thinking_level && <span className="badge badge--sm badge--accent">{item.thinking_level}</span>}
-                    {item.grounding_effective != null && (
-                        <span className={`badge badge--sm ${item.grounding_effective ? 'badge--success' : ''}`}>
-                            {item.grounding_effective ? '🌐 Pesquisa web' : 'Sem pesquisa'}
-                        </span>
+                    {item.grounding_effective && (
+                        <span className="badge badge--sm badge--success">🌐</span>
                     )}
                 </div>
                 <span className="image-card-time"><Clock size={9} /> {timeAgo(item.created_at)}</span>

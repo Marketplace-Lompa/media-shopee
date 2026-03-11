@@ -11,7 +11,7 @@ from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 
-from agent import run_agent
+from agent import run_agent, normalize_prompt_text
 from guided_mode import guided_force_grounding_floor, guided_summary, normalize_guided_brief
 from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
 from generator import generate_images
@@ -66,15 +66,6 @@ async def generate_stream(
 
         session_id = str(uuid.uuid4())[:8]
         from config import OUTPUTS_DIR
-        reference_urls = []
-        if uploaded_bytes:
-            session_dir = OUTPUTS_DIR / session_id
-            session_dir.mkdir(parents=True, exist_ok=True)
-            for idx, img_bytes in enumerate(uploaded_bytes):
-                ref_filename = f"ref_{idx+1}.jpg"
-                img_path = session_dir / ref_filename
-                img_path.write_bytes(img_bytes)
-                reference_urls.append(f"/outputs/{session_id}/{ref_filename}")
 
         n_uploads = len(uploaded_bytes)
         pipeline_mode = "reference_mode" if n_uploads > 0 else "text_mode"
@@ -83,10 +74,51 @@ async def generate_stream(
 
         reference_pack = build_reference_pack(uploaded_bytes)
         analysis_images = reference_pack.get("analysis_images", [])
-        generation_images = reference_pack.get("generation_images", [])
+        curated_images = reference_pack.get("generation_images", [])
         reference_pack_stats = reference_pack.get("stats", {})
+        # Persistir apenas referências curadas efetivamente usadas no job
+        reference_urls: List[str] = []
+        if curated_images:
+            session_dir = OUTPUTS_DIR / session_id
+            session_dir.mkdir(parents=True, exist_ok=True)
+            for idx, img_bytes in enumerate(curated_images):
+                ref_filename = f"ref_curated_{idx+1}.jpg"
+                (session_dir / ref_filename).write_bytes(img_bytes)
+                reference_urls.append(f"/outputs/{session_id}/{ref_filename}")
 
-        diversity_target = select_diversity_target(seed_hint=prompt or "", guided_brief=normalized_guided)
+        # ── Art Director: triagem visual ANTES da diversidade (R3) ──────────
+        unified_triage_result = None
+        image_analysis_text = ""
+        garment_aesthetic = None
+        structural_contract_for_diversity = None
+        structural_hint_for_nano = None  # string para role_prefix do Nano Banana
+        if n_uploads > 0:
+            from agent_runtime.triage import _infer_unified_vision_triage
+            try:
+                unified_triage_result = _infer_unified_vision_triage(analysis_images or curated_images, prompt)
+                if unified_triage_result:
+                    image_analysis_text = unified_triage_result.get("image_analysis", "")
+                    garment_aesthetic = unified_triage_result.get("garment_aesthetic")
+                    structural_contract_for_diversity = unified_triage_result.get("structural_contract")
+                    # Construir hint textual para o Nano Banana preservar silhueta
+                    if structural_contract_for_diversity:
+                        sc = structural_contract_for_diversity
+                        parts_hint = [sc.get("garment_subtype", "")]
+                        if sc.get("silhouette_volume"):
+                            parts_hint.append(f"{sc['silhouette_volume']} silhouette")
+                        if sc.get("sleeve_type") and sc.get("sleeve_type") != "set-in":
+                            parts_hint.append(f"{sc['sleeve_type']} sleeves")
+                        structural_hint_for_nano = ", ".join(p for p in parts_hint if p) or None
+            except Exception as e:
+                print(f"Erro na triagem visual unificada antecipada: {e}")
+
+        # Diversidade garment-aware: usa estética da peça para casting inteligente
+        diversity_target = select_diversity_target(
+            seed_hint=prompt or "",
+            guided_brief=normalized_guided,
+            garment_aesthetic=garment_aesthetic,
+            structural_contract=structural_contract_for_diversity,
+        )
 
         yield _sse_event("mode_selected", {
             "message": "Modo com referência ativado" if pipeline_mode == "reference_mode" else "Modo sem referência ativado",
@@ -97,7 +129,7 @@ async def generate_stream(
 
         strategy = normalize_grounding_strategy(grounding_strategy, use_grounding)
         yield _sse_event("analyzing", {
-            "message": f"Agente analisando {len(analysis_images)} imagem(ns) curada(s)…" if n_uploads > 0 else "Agente criando prompt…",
+            "message": f"Agente analisando {len(analysis_images or curated_images)} imagem(ns) curada(s)…" if n_uploads > 0 else "Agente criando prompt…",
             "n_uploads": n_uploads,
         })
 
@@ -107,29 +139,14 @@ async def generate_stream(
         decision = {"reason_codes": [], "trigger_reason": "unknown"}
 
         try:
-            baseline_result = await asyncio.to_thread(
-                run_agent,
-                user_prompt=prompt,
-                uploaded_images=analysis_images if analysis_images else None,
-                pool_context=pool_context,
-                aspect_ratio=aspect_ratio,
-                resolution=resolution,
-                use_grounding=False,
-                diversity_target=diversity_target,
-                guided_brief=normalized_guided,
-            )
-            baseline_structural = baseline_result.get("structural_contract") if isinstance(
-                baseline_result.get("structural_contract"), dict
-            ) else None
-
             triage = compute_grounding_triage(
                 user_prompt=prompt,
-                image_analysis=baseline_result.get("image_analysis", ""),
+                image_analysis=image_analysis_text,
                 has_images=n_uploads > 0,
             )
             classifier_summary = classify_visual_context(
                 user_prompt=prompt,
-                image_analysis=baseline_result.get("image_analysis", ""),
+                image_analysis=image_analysis_text,
                 has_images=n_uploads > 0,
                 reference_pack_stats=reference_pack_stats,
             )
@@ -161,32 +178,46 @@ async def generate_stream(
                 "reason_codes": decision.get("reason_codes", []),
             })
 
-            if applied_mode == "off":
-                agent_result = baseline_result
-            else:
+            if applied_mode != "off":
                 yield _sse_event("researching", {
                     "message": "Pesquisando referências na web…",
                     "grounding_mode": applied_mode,
                 })
-                try:
+
+            try:
+                agent_result = await asyncio.to_thread(
+                    run_agent,
+                    user_prompt=prompt,
+                    uploaded_images=analysis_images or curated_images or None,
+                    pool_context=pool_context,
+                    aspect_ratio=aspect_ratio,
+                    resolution=resolution,
+                    use_grounding=(applied_mode != "off"),
+                    grounding_mode=applied_mode,
+                    grounding_context_hint=triage.get("garment_hypothesis") if applied_mode != "off" else None,
+                    diversity_target=diversity_target,
+                    guided_brief=normalized_guided,
+                    unified_vision_triage_result=unified_triage_result,
+                )
+            except Exception as e:
+                if applied_mode != "off":
+                    print(f"[STREAM] ⚠️ Grounding failed, fallback baseline: {e}")
+                    applied_mode = "off"
                     agent_result = await asyncio.to_thread(
                         run_agent,
                         user_prompt=prompt,
-                        uploaded_images=analysis_images if analysis_images else None,
+                        uploaded_images=analysis_images or curated_images or None,
                         pool_context=pool_context,
                         aspect_ratio=aspect_ratio,
                         resolution=resolution,
-                        use_grounding=True,
-                        grounding_mode=applied_mode,
-                        grounding_context_hint=triage.get("garment_hypothesis"),
+                        use_grounding=False,
                         diversity_target=diversity_target,
                         guided_brief=normalized_guided,
-                        structural_contract_hint=baseline_structural,
+                        unified_vision_triage_result=unified_triage_result,
                     )
-                except Exception as grounding_error:
-                    print(f"[STREAM] ⚠️ Grounding failed, fallback baseline: {grounding_error}")
-                    agent_result = baseline_result
-                    applied_mode = "off"
+                else:
+                    raise
+
         except Exception as e:
             yield _sse_event("error", {"message": f"Erro no Prompt Agent: {str(e)}"})
             return
@@ -203,7 +234,7 @@ async def generate_stream(
 
         grounding_sources = (agent_result.get("grounding", {}) or {}).get("sources", []) or []
         grounded_images_count = int((agent_result.get("grounding", {}) or {}).get("grounded_images_count", 0) or 0)
-        grounding_effective = bool(len(grounding_sources) >= 2 or grounded_images_count >= 1)
+        grounding_effective = bool(len(grounding_sources) > 0 or grounded_images_count > 0)
         grounding_attempted = applied_mode != "off"
 
         grounding_info = {
@@ -242,13 +273,18 @@ async def generate_stream(
             "reference_pack_stats": reference_pack_stats,
             "guided_applied": bool(guided_sum),
             "guided_summary": guided_sum,
+            "prompt_compiler_debug": agent_result.get("prompt_compiler_debug"),
         })
 
         generated_images = []
         failed_indices = []
         image_assessments = []
         repair_applied = False
-        reason_codes = set((decision.get("reason_codes", []) or []) + (quality_contract.get("reason_codes", []) or []))
+        reason_codes = set(
+            (decision.get("reason_codes", []) or []) + 
+            (quality_contract.get("reason_codes", []) or []) +
+            (grounding_info.get("reason_codes", []) or [])
+        )
 
         for i in range(n_images):
             yield _sse_event("generating", {
@@ -271,10 +307,11 @@ async def generate_stream(
                         aspect_ratio=aspect_ratio,
                         resolution=resolution,
                         n_images=1,
-                        uploaded_images=generation_images if generation_images else None,
+                        uploaded_images=curated_images if curated_images else None,
                         grounded_images=grounded_images if grounded_images else None,
                         session_id=session_id,
                         start_index=i + 1,
+                        structural_hint=structural_hint_for_nano,
                     )
                     selected_batch = batch
                     selected_assessment = assess_generated_image(
@@ -304,6 +341,7 @@ async def generate_stream(
                     classifier_summary,
                     list(reason_codes.union(set(selected_assessment.get("reason_codes", []) or []))),
                 )
+                repair_prompt = normalize_prompt_text(repair_prompt)
                 img_path = Path(selected_batch[0]["path"])
                 first_bytes = img_path.read_bytes() if img_path.exists() else b""
                 first_score = float(selected_assessment.get("candidate_score", 0.0) or 0.0)
@@ -315,10 +353,11 @@ async def generate_stream(
                         aspect_ratio=aspect_ratio,
                         resolution=resolution,
                         n_images=1,
-                        uploaded_images=generation_images if generation_images else None,
+                        uploaded_images=curated_images if curated_images else None,
                         grounded_images=grounded_images if grounded_images else None,
                         session_id=session_id,
                         start_index=i + 1,
+                        structural_hint=structural_hint_for_nano,
                     )
                     repaired_assessment = assess_generated_image(
                         repaired_batch[0]["path"], repair_prompt, classifier_summary
@@ -360,6 +399,7 @@ async def generate_stream(
             "images": generated_images,
             "failed_indices": failed_indices or None,
             "pool_refs_used": 0,
+            "image_analysis": agent_result.get("image_analysis") or None,
             "grounding": grounding_info,
             "quality_contract": quality_contract,
             "fidelity_score": quality_contract.get("fidelity_score"),
@@ -372,9 +412,15 @@ async def generate_stream(
             "classifier_summary": classifier_summary,
             "guided_applied": bool(guided_sum),
             "guided_summary": guided_sum,
+            "prompt_compiler_debug": agent_result.get("prompt_compiler_debug"),
         }
 
         grounding_eff = grounding_info.get("effective", False) if isinstance(grounding_info, dict) else False
+        _base_prompt = agent_result.get("base_prompt") or None
+        _camera_and_realism = agent_result.get("camera_and_realism") or None
+        _camera_profile = agent_result.get("camera_profile") or None
+        _grounding_mode = grounding_info.get("applied_mode") or applied_mode or None
+        _reason_codes = sorted(reason_codes) if reason_codes else []
         for img in generated_images:
             try:
                 history_add(
@@ -388,6 +434,11 @@ async def generate_stream(
                     resolution=resolution,
                     grounding_effective=grounding_eff,
                     references=reference_urls,
+                    base_prompt=_base_prompt,
+                    camera_and_realism=_camera_and_realism,
+                    camera_profile=_camera_profile,
+                    grounding_mode=_grounding_mode,
+                    reason_codes=_reason_codes,
                 )
             except Exception as hist_err:
                 print(f"[HISTORY] ⚠️ Falha ao persistir: {hist_err}")

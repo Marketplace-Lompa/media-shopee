@@ -26,6 +26,16 @@ OUTPUTS_DIR = ROOT_DIR / "app" / "outputs"
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _detect_image_mime(image_bytes: bytes) -> str:
+    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if image_bytes.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/jpeg"
+
+
 def generate_images(
     prompt: str,
     thinking_level: str,
@@ -37,6 +47,7 @@ def generate_images(
     grounded_images: Optional[List[bytes]] = None,   # refs visuais coletadas no grounding full
     session_id: Optional[str] = None,
     start_index: int = 1,
+    structural_hint: Optional[str] = None,           # e.g. "poncho/ruana, cocoon silhouette, no sleeves"
 ) -> List[dict]:
     """
     Gera n_images imagens com o Nano Banana 2.
@@ -60,11 +71,18 @@ def generate_images(
         # 3. Prompt textual (sempre por último — maior peso semântico)
         content_parts = []
 
+        # Per-part media_resolution=HIGH faz o Nano Banana processar as referências
+        # com mais tokens/detalhes, melhorando fidelidade de garment.
+        # Nota: media_resolution no GenerateContentConfig causa 400 no Nano Banana —
+        # DEVE ser per-part (no objeto Part) para funcionar com image gen models.
+        _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
+
         if uploaded_images:
             for img_bytes in uploaded_images:
                 content_parts.append(
                     types.Part(
-                        inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)
+                        inline_data=types.Blob(mime_type=_detect_image_mime(img_bytes), data=img_bytes),
+                        media_resolution=_hi_res,
                     )
                 )
 
@@ -72,18 +90,43 @@ def generate_images(
             for img_bytes in grounded_images[:3]:
                 content_parts.append(
                     types.Part(
-                        inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)
+                        inline_data=types.Blob(mime_type=_detect_image_mime(img_bytes), data=img_bytes),
+                        media_resolution=_hi_res,
                     )
                 )
 
+        # M4: Object fidelity labeling para Nano Banana.
+        # As fotos de referência são rotuladas como OBJECT REFERENCE (peça de roupa),
+        # NÃO como character reference. Isso ativa object fidelity no Nano
+        # e evita character consistency (copiar a pessoa).
+        # O Nano gera a modelo por conta própria — não precisamos descrever físico.
+        _effective_prompt = prompt
+        if uploaded_images and not any(
+            kw in prompt.lower() for kw in ("user text to incorporate", "refine this user prompt")
+        ):
+            # Referência visual continua sendo a autoridade principal.
+            # structural_hint entra só como ancora curta para reduzir drift de subtype.
+            _role_prefix = (
+                "COPY this garment from the reference photos EXACTLY — "
+                "same design, colors, texture, stitch pattern, and drape. "
+            )
+            if structural_hint:
+                _role_prefix += f"Honor this garment identity: {structural_hint}. "
+            _role_prefix += (
+                "The references show the garment only, not a person to copy. "
+                "Generate a new fashion model wearing this garment in a catalog-worthy editorial look: "
+            )
+            _effective_prompt = _role_prefix + prompt
+
         # Prompt textual (sempre por último para ter peso máximo)
-        content_parts.append(types.Part(text=prompt))
+        content_parts.append(types.Part(text=_effective_prompt))
 
         response = client.models.generate_content(
             model=MODEL_IMAGE,
             contents=[types.Content(role="user", parts=content_parts)],
         config=types.GenerateContentConfig(
             response_modalities=["TEXT", "IMAGE"],
+            temperature=1.0,
             image_config=types.ImageConfig(
                 aspect_ratio=aspect_ratio,
                 image_size=resolution,
@@ -146,13 +189,21 @@ def edit_image(
     session_dir.mkdir(parents=True, exist_ok=True)
 
     # Montar content: imagem original + referências + prompt de edição
+    # Per-part media_resolution=HIGH para fidelidade máxima na edição
+    _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
     content_parts = [
-        types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=source_image_bytes)),
+        types.Part(
+            inline_data=types.Blob(mime_type=_detect_image_mime(source_image_bytes), data=source_image_bytes),
+            media_resolution=_hi_res,
+        ),
     ]
     # Adicionar imagens de referência (se houver)
     for ref_bytes in (reference_images_bytes or []):
         content_parts.append(
-            types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=ref_bytes))
+            types.Part(
+                inline_data=types.Blob(mime_type=_detect_image_mime(ref_bytes), data=ref_bytes),
+                media_resolution=_hi_res,
+            )
         )
     content_parts.append(types.Part(text=edit_prompt))
 

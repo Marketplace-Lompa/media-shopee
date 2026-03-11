@@ -1,0 +1,167 @@
+{
+  "session_id": "f2657de8",
+  "prompt": "RAW photo, a sophisticated Carioca São Paulo Fashion Week casting aesthetic model, her facial features are a beautiful natural blend reminiscent of 'Bruna' and 'Letícia Ferreira' She is front panel fully open and draping hip length relative to model body draped fluid silhouette straight hem arm coverage from a continuous draped panel horizontal stripes knit texture preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible slight body turn with direct eye contact, clean garment silhouette exact texture, stitch, and fiber relief high-waist dark leggings, ankle boots polished model, natural expression engaging eye contact cozy premium cafe terrace with tidy warm-lit composition shallow depth of field, warm backlight rim, clean negative space. Sony A7R IV, 50mm f/1.8 lens, soft natural morning light, visible fabric fiber texture, natural skin pores and subtle peach fuzz, shallow depth of field with blurred architectural background.",
+  "base_prompt": "RAW photo, a sophisticated Carioca São Paulo Fashion Week casting aesthetic model, her facial features are a beautiful natural blend reminiscent of 'Bruna' and 'Letícia Ferreira' She is front panel fully open and draping hip length relative to model body draped fluid silhouette straight hem arm coverage from a continuous draped panel horizontal stripes knit texture preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible slight body turn with direct eye contact, clean garment silhouette exact texture, stitch, and fiber relief high-waist dark leggings, ankle boots polished model, natural expression engaging eye contact cozy premium cafe terrace with tidy warm-lit composition shallow depth of field, warm backlight rim, clean negative space",
+  "camera_and_realism": "Sony A7R IV, 50mm f/1.8 lens, soft natural morning light, visible fabric fiber texture, natural skin pores and subtle peach fuzz, shallow depth of field with blurred architectural background.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/f2657de8/gen_f2657de8_1.png",
+  "grounding": {
+    "effective": false,
+    "queries": [
+      "how does a ruana wrap drape and fall on the body fashion description",
+      "ruana wrap vs cape vs kimono cardigan terminology",
+      "professional photography techniques for shooting ruana wraps and capes",
+      "striped knit ruana wrap name in Portuguese and English silhouette terminology",
+      "como se chama ruana em português brasil",
+      "ruana wrap photography styling tips model poses",
+      "ruana wrap em português nome vestuário",
+      "professional photography poses for ruana wraps and capes"
+    ],
+    "sources": [],
+    "engine": "none",
+    "source_engine": "none",
+    "mode": "full",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_internal_suppressed",
+      "grounding_no_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "full",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.567,
+    "complexity_score": 0.753,
+    "garment_hypothesis": "A woman is wearing a striped, open-front knit wrap over a black bodysuit and denim shorts.",
+    "garment_hint": "A woman is wearing a striped, open-front knit wrap over a black bodysuit and denim shorts.",
+    "hint_confidence": 0.87,
+    "trigger_reason": "auto_visual_complexity_full",
+    "attempted": true
+  },
+  "reason_codes": [
+    "atypical_or_uncertain",
+    "auto_ref_not_off",
+    "grounding_internal_suppressed",
+    "grounding_no_sources",
+    "grounding_not_effective",
+    "visual_complexity_full"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "front panel fully open and draping",
+        "source": "front_opening"
+      },
+      {
+        "text": "hip length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "straight hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "arm coverage from draped fabric panel only, no separate sleeve tubes",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "horizontal stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "knit texture",
+        "source": "must_keep"
+      },
+      {
+        "text": "preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length",
+        "source": "grounding_atypical"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "slight body turn with direct eye contact, clean garment silhouette",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "high-waist dark leggings, ankle boots",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "engaging eye contact",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "cozy premium cafe terrace with tidy warm-lit composition",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "shallow depth of field, warm backlight rim, clean negative space",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "[base narrative]",
+        "reason": "base_truncation(base exceeded 28w after P1+P2P_reserve)"
+      }
+    ],
+    "base_words": 28,
+    "base_truncated": true,
+    "total_words": 128,
+    "word_budget": 136,
+    "residual_negatives": [],
+    "camera_words": 29,
+    "base_budget": 136,
+    "final_words": 157,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 1.0,
+    "silhouette_fidelity": 0.9,
+    "texture_pattern_fidelity": 0.95,
+    "construction_fidelity": 0.85,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 1.0,
+    "brazilian_scene_plausibility": 0.9,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.9,
+    "main_failures": [
+      "The generated garment has a slightly more structured shawl collar than the reference",
+      "The drape at the hem is more rounded in the generation compared to the flatter reference hem"
+    ],
+    "summary": "The AI successfully captured the complex horizontal stripe pattern and the specific knit texture of the crochet-style cardigan. The silhouette is largely preserved, though the generated version appears slightly more tailored around the neck. The model and scene transition are excellent for a commercial catalog look."
+  }
+}

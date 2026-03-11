@@ -1,0 +1,181 @@
+{
+  "session_id": "bf5a2a28",
+  "prompt": "RAW photo, A fresh-faced Brasília native editorial model, features blend 'Nayara' and 'Juliana Ferreira' Wearing Horizontal draped knit wrap in olive green and dusty rose. Features an open-weave texture, fluid draped arm coverage, and a draped chrysalis silhouette that tapers at the waist front panel fully open and draping waist length relative to model body draped fluid silhouette cocoon hem batwing/dolman sleeve volume elbow-length sleeves continuous neckline-to-front edge rounded cocoon side drop wide batwing arm opening preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible gentle step forward, relaxed arms, confident gaze, garment fully visible exact texture, stitch, and fiber relief serene home studio with large diffused window light and simple backdrop polished model, natural expression direct confident gaze at camera dappled natural light revealing fabric texture and depth fitted dark trousers, minimal footwear shallow depth of field, warm backlight rim, clean negative space. Sony A7R IV, 85mm f/1.8 lens, soft natural window light. High realism with visible natural skin pores, subtle peach fuzz, and intricate yarn fiber definition showing realistic fabric tension. subtle film grain and mild lens halation.",
+  "base_prompt": "RAW photo, A fresh-faced Brasília native editorial model, features blend 'Nayara' and 'Juliana Ferreira' Wearing Horizontal draped knit wrap in olive green and dusty rose. Features an open-weave texture, fluid draped arm coverage, and a draped chrysalis silhouette that tapers at the waist front panel fully open and draping waist length relative to model body draped fluid silhouette cocoon hem batwing/dolman sleeve volume elbow-length sleeves continuous neckline-to-front edge rounded cocoon side drop wide batwing arm opening preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible gentle step forward, relaxed arms, confident gaze, garment fully visible exact texture, stitch, and fiber relief serene home studio with large diffused window light and simple backdrop polished model, natural expression direct confident gaze at camera dappled natural light revealing fabric texture and depth fitted dark trousers, minimal footwear shallow depth of field, warm backlight rim, clean negative space",
+  "camera_and_realism": "Sony A7R IV, 85mm f/1.8 lens, soft natural window light. High realism with visible natural skin pores, subtle peach fuzz, and intricate yarn fiber definition showing realistic fabric tension. subtle film grain and mild lens halation.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/bf5a2a28/gen_bf5a2a28_1.png",
+  "grounding": {
+    "effective": true,
+    "queries": [
+      "how a cocoon shrug drapes and falls on the body fashion description",
+      "cocoon shrug silhouette terminology batwing sleeves kimono cardigan ruana cape",
+      "striped crochet cocoon shrug with dolman sleeves Portuguese English name",
+      "professional photography techniques for cocoon shrugs and dolman sleeves",
+      "cardigã casulo ou shrug casulo termo técnico moda",
+      "professional photography poses for cocoon shrugs and batwing sleeves",
+      "como se chama cocoon shrug em português moda",
+      "how to pose for cocoon cardigan photoshoot to show silhouette"
+    ],
+    "sources": [
+      {
+        "title": "youtube.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHWEtR6JgjiteiQGBqxKSWgq9v_wWPfTPpPrJA-FmjA-RiNIUbcc1BtMXP6NsFgftcISfVnd_7ENgZ2yPz0N8jNwtlWOaVtYRPi0JF7C_THAS3L9BUlKq3nCcfb9bkl5K8IuGAwHZE=",
+        "snippet": ""
+      },
+      {
+        "title": "youtube.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHygE1pFltWGi24im0T6heJHgL4HPNB77ZlDOZsjdvSU3tQlpzuPyF-PZJSkj8muE5THyvcD-GXJwkBkoALijS3mRWfY-r4YVprBPRYCLqtGB-UpDAZu2wbU14R_a7Mzz1TUqnts8E=",
+        "snippet": ""
+      },
+      {
+        "title": "benetricot.com.br",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFR_vM9ArsN-Z0uADwLZlaJ1fIrt-auBkdBQM3Es8QJ1OIhnUViB6YJ1Y55Nr2SZpKRcTZiK5whGe7CgDsD780uCeu0qzdOuENsWtgza6UqmIQGl7PS313Q0mSfZcvCVF48KXBYuJ9mXu8RQzv02ECiDu3s1vnTHBX0-uYQSfCFbRK5BBO62rhtax8fEcnUqzpwhV3JY9UTZoHDMWE=",
+        "snippet": ""
+      },
+      {
+        "title": "youtube.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQE1BUrjC1TTSa__36CQVt5AOzwy9E81fKyCXlIa1yEjkQpNcuLayIGh-L3ED1VKZp3ahaZ5tKPkv2ZJxQ7LT6y05L2Pnw6KDXBx6wc-lXlan4i7p_PG7a0lCe21RJBE8JjIG25e2Zk=",
+        "snippet": ""
+      }
+    ],
+    "engine": "gemini_google_search",
+    "source_engine": "gemini_google_search",
+    "mode": "full",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "visual_disabled",
+    "reason_codes": [
+      "grounding_effective_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "full",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.647,
+    "complexity_score": 0.787,
+    "garment_hypothesis": "This garment is a textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creatin...",
+    "garment_hint": "This garment is a textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creatin...",
+    "hint_confidence": 0.87,
+    "trigger_reason": "auto_visual_complexity_full",
+    "attempted": true
+  },
+  "reason_codes": [
+    "atypical_or_uncertain",
+    "auto_ref_not_off",
+    "grounding_effective_sources",
+    "visual_complexity_full"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "front panel fully open and draping",
+        "source": "front_opening"
+      },
+      {
+        "text": "waist length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "cocoon hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "batwing/dolman sleeve volume",
+        "source": "sleeve_type"
+      },
+      {
+        "text": "elbow-length sleeves",
+        "source": "sleeve_length"
+      },
+      {
+        "text": "continuous neckline-to-front edge",
+        "source": "must_keep"
+      },
+      {
+        "text": "rounded cocoon side drop",
+        "source": "must_keep"
+      },
+      {
+        "text": "wide batwing arm opening",
+        "source": "must_keep"
+      },
+      {
+        "text": "preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length",
+        "source": "grounding_atypical"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "gentle step forward, relaxed arms, confident gaze, garment fully visible",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "serene home studio with large diffused window light and simple backdrop",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "direct confident gaze at camera",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "dappled natural light revealing fabric texture and depth",
+        "source": "lighting_hint"
+      },
+      {
+        "text": "fitted dark trousers, minimal footwear",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "shallow depth of field, warm backlight rim, clean negative space",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      }
+    ],
+    "base_words": 43,
+    "base_truncated": false,
+    "total_words": 161,
+    "word_budget": 179,
+    "residual_negatives": [],
+    "camera_words": 36,
+    "base_budget": 179,
+    "final_words": 197,
+    "camera_profile": "editorial_analog"
+  },
+  "evaluation": {
+    "garment_type_match": 0.9,
+    "silhouette_fidelity": 0.85,
+    "texture_pattern_fidelity": 0.95,
+    "construction_fidelity": 0.8,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 1.0,
+    "brazilian_scene_plausibility": 0.9,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.88,
+    "main_failures": [
+      "The generated garment has a slightly more structured front edge compared to the raw draped edge of the reference",
+      "The cocoon taper at the hem is slightly more pronounced in the AI version than the reference"
+    ],
+    "summary": "The AI successfully captured the complex knit texture and the specific olive/rose stripe pattern. The silhouette is very close, maintaining the batwing/cocoon shape, though it adds a slightly more defined 'border' to the front opening that isn't as prominent in the original. The model and scene are completely transformed into a professional catalog aesthetic."
+  }
+}

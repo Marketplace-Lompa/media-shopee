@@ -15,7 +15,7 @@ from config import (
     MODEL_AGENT,
     SAFETY_CONFIG,
 )
-from agent import REFERENCE_KNOWLEDGE
+from agent_runtime.constants import REFERENCE_KNOWLEDGE
 
 client = genai.Client(api_key=GOOGLE_AI_API_KEY)
 

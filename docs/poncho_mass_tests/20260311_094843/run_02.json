@@ -1,0 +1,154 @@
+{
+  "session_id": "e9ac12c7",
+  "prompt": "RAW photo, A chic Paulistana editorial beauty, features blend 'Camila' and 'Isadora Ribeiro' Wearing Drapeddraped knit wrap in flat uniform crochet with olive green and dusty rose horizontal stripes. fluid draped arm coverage create a voluminous silhouette with a rhythmic, textured pattern She is wearing a single-piece ruana wrap draped over the shoulders. The same knitted edge flows from the neckline directly into the soft front opening. The outer silhouette falls in a rounded cocoon side drop reaching upper-thigh length relative to the model body. Arm coverage is created by the same continuous body panel as the garment, forming a fluid draped wrap over the arms. continuous neckline-to-front edge rounded cocoon side drop ribbed edge finish pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible subtle 3/4 angle toward camera, weight on back foot, front panel clear exact texture, stitch, and fiber relief lush botanical garden path with gentle backlight and soft greenery polished model, natural expression engaging eye contact dappled natural light revealing fabric texture and depth wide-leg cropped pants, simple flats. Sony A7R IV, 85mm f/1.4 lens. Soft rim lighting, natural skin texture with visible pores and subtle peach fuzz. Realistic fabric drape and tension points at the shoulders. subtle film grain and mild lens halation.",
+  "base_prompt": "RAW photo, A chic Paulistana editorial beauty, features blend 'Camila' and 'Isadora Ribeiro' Wearing Drapeddraped knit wrap in flat uniform crochet with olive green and dusty rose horizontal stripes. fluid draped arm coverage create a voluminous silhouette with a rhythmic, textured pattern She is wearing a single-piece ruana wrap draped over the shoulders. The same knitted edge flows from the neckline directly into the soft front opening. The outer silhouette falls in a rounded cocoon side drop reaching upper-thigh length relative to the model body. Arm coverage is created by the same continuous body panel as the garment, forming a fluid draped wrap over the arms. continuous neckline-to-front edge rounded cocoon side drop ribbed edge finish pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible subtle 3/4 angle toward camera, weight on back foot, front panel clear exact texture, stitch, and fiber relief lush botanical garden path with gentle backlight and soft greenery polished model, natural expression engaging eye contact dappled natural light revealing fabric texture and depth wide-leg cropped pants, simple flats",
+  "camera_and_realism": "Sony A7R IV, 85mm f/1.4 lens. Soft rim lighting, natural skin texture with visible pores and subtle peach fuzz. Realistic fabric drape and tension points at the shoulders. subtle film grain and mild lens halation.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/e9ac12c7/gen_e9ac12c7_1.png",
+  "grounding": {
+    "effective": false,
+    "queries": [
+      "cocoon shrug vs kimono cardigan vs ruana vs cape silhouette terminology",
+      "striped crochet cocoon shrug with dolman sleeves Portuguese English name",
+      "casaco de crochê cocoon shrug nome em português",
+      "how a cocoon shrug drapes on the body",
+      "how to photograph a cocoon shrug or dolman sleeve cardigan professional photography tips"
+    ],
+    "sources": [],
+    "engine": "none",
+    "source_engine": "none",
+    "mode": "lexical",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_internal_suppressed",
+      "grounding_no_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "lexical",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.307,
+    "complexity_score": 0.533,
+    "garment_hypothesis": "A textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creating a warm and art...",
+    "garment_hint": "A textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creating a warm and art...",
+    "hint_confidence": 0.75,
+    "trigger_reason": "ambiguous_or_uncertain_garment",
+    "attempted": true
+  },
+  "reason_codes": [
+    "grounding_internal_suppressed",
+    "grounding_no_sources",
+    "grounding_not_effective"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "She is wearing a single-piece ruana wrap draped over the shoulders.",
+        "source": "garment_subtype"
+      },
+      {
+        "text": "The same knitted edge flows from the neckline directly into the soft front opening.",
+        "source": "front_opening"
+      },
+      {
+        "text": "The outer silhouette falls in a rounded cocoon side drop reaching upper-thigh length relative to the model body.",
+        "source": "garment_length"
+      },
+      {
+        "text": "Arm coverage is created by the same continuous body panel as the garment, forming a fluid draped wrap over the arms.",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "continuous neckline-to-front edge",
+        "source": "must_keep"
+      },
+      {
+        "text": "rounded cocoon side drop",
+        "source": "must_keep"
+      },
+      {
+        "text": "ribbed edge finish",
+        "source": "must_keep"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "subtle 3/4 angle toward camera, weight on back foot, front panel clear",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "lush botanical garden path with gentle backlight and soft greenery",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "engaging eye contact",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "dappled natural light revealing fabric texture and depth",
+        "source": "lighting_hint"
+      },
+      {
+        "text": "wide-leg cropped pants, simple flats",
+        "source": "bottom_complement"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "generic:integrated sleeve-to-body construction"
+      },
+      {
+        "text": "golden hour side light, subject crisp, environment blurred",
+        "reason": "budget(P4, 1w left, need 8w)"
+      }
+    ],
+    "base_words": 42,
+    "base_truncated": false,
+    "total_words": 179,
+    "word_budget": 180,
+    "residual_negatives": [],
+    "camera_words": 35,
+    "base_budget": 180,
+    "final_words": 214,
+    "camera_profile": "editorial_analog"
+  },
+  "evaluation": {
+    "garment_type_match": 0.7,
+    "silhouette_fidelity": 0.6,
+    "texture_pattern_fidelity": 0.85,
+    "construction_fidelity": 0.65,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 0.9,
+    "brazilian_scene_plausibility": 0.95,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.65,
+    "main_failures": [
+      "The generated garment has a structured ribbed collar/lapel that is not present in the original crochet wrap",
+      "The sleeve construction in the generated image is more defined like a kimono sleeve rather than the continuous draped panel of the reference",
+      "The stripe orientation on the front panels is vertical/diagonal in the generation whereas the reference is horizontal/concentric"
+    ],
+    "summary": "The generated image successfully captures the color palette and crochet texture, but fails on the specific construction of the wrap. It introduces a structured ribbed opening and more defined sleeve seams that turn the fluid ruana-style wrap into a more conventional cardigan/kimono hybrid. The scene and model change are excellent."
+  }
+}

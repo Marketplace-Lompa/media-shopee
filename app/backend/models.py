@@ -40,6 +40,20 @@ class GeneratedImage(BaseModel):
     mime_type: str
 
 
+class PromptCompilerDebug(BaseModel):
+    """Telemetria leve do Prompt Compiler V2 — por job."""
+    used_clauses:      List[dict] = Field(default_factory=list,  description="Cláusulas incluídas: [{text, source}]")
+    discarded_clauses: List[dict] = Field(default_factory=list,  description="Cláusulas descartadas: [{text, reason}]")
+    base_words:        int        = Field(default=0,             description="Palavras do prompt base (saída do modelo)")
+    base_truncated:    bool       = Field(default=False,         description="Se o base foi truncado por sentença para caber o budget")
+    total_words:       int        = Field(default=0,             description="Total de palavras no prompt final")
+    word_budget:       int        = Field(default=220,           description="Orçamento de palavras configurado")
+    residual_negatives: List[str] = Field(default_factory=list, description="Tokens negativos não mapeados no prompt final (para tuning)")
+    camera_words:      int        = Field(default=0,             description="Palavras no bloco de câmera e realismo")
+    base_budget:       int        = Field(default=0,             description="Orçamento base calculado (budget - camera_words)")
+    final_words:       int        = Field(default=0,             description="Qtd real de palavras do prompt consolidado")
+    camera_profile:    Optional[str] = Field(default=None,       description="Perfil de câmera/realismo selecionado: catalog_clean | catalog_natural | editorial_analog")
+
 class GenerateResponse(BaseModel):
     """Resposta do POST /generate"""
     session_id: Optional[str] = Field(default=None, description="ID da sessão de geração")
@@ -64,8 +78,10 @@ class GenerateResponse(BaseModel):
     repair_applied: Optional[bool] = Field(default=None, description="Se aplicou repair pass")
     reference_pack_stats: Optional[dict] = Field(default=None, description="Stats da curadoria de referências")
     classifier_summary: Optional[dict] = Field(default=None, description="Resumo do classificador visual")
+    image_analysis: Optional[str] = Field(default=None, description="Análise visual da peça extraída na triagem unificada")
     guided_applied: Optional[bool] = Field(default=None, description="Se o modo guiado foi aplicado no job")
     guided_summary: Optional[dict] = Field(default=None, description="Resumo do brief guiado efetivamente aplicado")
+    prompt_compiler_debug: Optional[PromptCompilerDebug] = Field(default=None, description="Telemetria do Prompt Compiler V2")
 
 
 class PoolItem(BaseModel):

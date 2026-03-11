@@ -1,0 +1,175 @@
+{
+  "session_id": "8105c3d0",
+  "prompt": "RAW photo, A striking Brazilian model with a Northeastern vibe, her facial features a beautiful natural blend reminiscent of 'Marina' and 'Valentina Gomes' She is wearing an oversized front panel fully open and draping hip length relative to model body draped fluid silhouette straight hem arm coverage from a continuous draped panel horizontal stripes knit texture pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible gentle step forward, relaxed arms, confident gaze, garment fully visible exact texture, stitch, and fiber relief fitted dark trousers, minimal footwear polished model, natural expression warm near-camera look with relaxed expression bright minimalist apartment with neutral decor and clean background golden hour side light, subject crisp, environment blurred, interior setting. Sony A7III, 85mm f/1.8. Natural daylight from a large window, soft shadows. Focus on fabric grain and knit intersections. Unretouched skin texture with visible pores.",
+  "base_prompt": "RAW photo, A striking Brazilian model with a Northeastern vibe, her facial features a beautiful natural blend reminiscent of 'Marina' and 'Valentina Gomes' She is wearing an oversized front panel fully open and draping hip length relative to model body draped fluid silhouette straight hem arm coverage from a continuous draped panel horizontal stripes knit texture pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible gentle step forward, relaxed arms, confident gaze, garment fully visible exact texture, stitch, and fiber relief fitted dark trousers, minimal footwear polished model, natural expression warm near-camera look with relaxed expression bright minimalist apartment with neutral decor and clean background golden hour side light, subject crisp, environment blurred, interior setting",
+  "camera_and_realism": "Sony A7III, 85mm f/1.8. Natural daylight from a large window, soft shadows. Focus on fabric grain and knit intersections. Unretouched skin texture with visible pores.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/8105c3d0/gen_8105c3d0_1.png",
+  "grounding": {
+    "effective": true,
+    "queries": [
+      "how a ruana wrap drapes and falls on the body",
+      "ruana wrap silhouette terminology batwing sleeves kimono cardigan cape",
+      "how professional photographers shoot ruana wraps photography tips",
+      "striped knit ruana wrap exact garment type name Portuguese English"
+    ],
+    "sources": [
+      {
+        "title": "cottoncreekfarms.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF14PbLYe64nTWHn8TljDGGfAMfx572hDAwBvr_9ynUh_i8yUH8VB0BsYkglAd5eOz-mp6Oii2wiJb7IIjcmoLBLQkNldr2tW8w096dCCg2sTMlfjD7Ad9bltdVgY5ivnO1W6NNRd6RXbjkqXIrf6LYhUOA",
+        "snippet": ""
+      },
+      {
+        "title": "shesheshow.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF5kFfxsrRXgoJM-0yhee24SZTVo-_TBWDmooTcV7Qn_JM-Sv2ppe18Hs7CE-RMTdUVdFxg2qDdlKiP47XgcsWJfcNxncS3fQh0rbSf3vxYKNztuMtDuR9vUpEMZnj_mf6292dVDX0aiY8DVxCOG-501gM7Uw==",
+        "snippet": ""
+      },
+      {
+        "title": "sivanaspirit.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGYYxbaD-WBvo8m7zcV4FLbEyGr32xogeN4Lm140u91HVgxM8ADzjEidD9kvPR0BTLC7WAgF1oswDVZ3IcYaD90A2zjfk4thehvjsyUmfflsdNaGOgkSo0LLRD8-Yqt_GGhYN1AHbMEv1Pb_hrXj9hgDlXL27l4kg==",
+        "snippet": ""
+      },
+      {
+        "title": "stylingrannymama.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEqZX4f2mj3q07nyYhmimugel9wVI_J-dy4hiYivrsGa49MirXDp_4l_T-w9YJyHH6azuz7-KQpC1VlP1_Rpa_Aqyle3TT8Re1Q03dlNpY0iya8PBazuver8lXU7SMgBiLdrwNNIYDbuJ2rffsnGHwz1DL96x89lYwXF8C2AAFUT28sItuPfbhbY9N-2tJR",
+        "snippet": ""
+      }
+    ],
+    "engine": "gemini_google_search",
+    "source_engine": "gemini_google_search",
+    "mode": "lexical",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_effective_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "lexical",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.227,
+    "complexity_score": 0.533,
+    "garment_hypothesis": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "garment_hint": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "hint_confidence": 0.75,
+    "trigger_reason": "ambiguous_or_uncertain_garment",
+    "attempted": true
+  },
+  "reason_codes": [
+    "grounding_effective_sources"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "front panel fully open and draping",
+        "source": "front_opening"
+      },
+      {
+        "text": "hip length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "straight hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "arm coverage from draped fabric panel only, no separate sleeve tubes",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "horizontal stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "knit texture",
+        "source": "must_keep"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "gentle step forward, relaxed arms, confident gaze, garment fully visible",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "fitted dark trousers, minimal footwear",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "warm near-camera look with relaxed expression",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "bright minimalist apartment with neutral decor and clean background",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "golden hour side light, subject crisp, environment blurred, interior setting",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "[base narrative]",
+        "reason": "base_truncation(base exceeded 28w after P1+P2P_reserve)"
+      }
+    ],
+    "base_words": 28,
+    "base_truncated": true,
+    "total_words": 121,
+    "word_budget": 140,
+    "residual_negatives": [],
+    "camera_words": 25,
+    "base_budget": 140,
+    "final_words": 146,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 1.0,
+    "silhouette_fidelity": 0.7,
+    "texture_pattern_fidelity": 0.8,
+    "construction_fidelity": 0.6,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 0.9,
+    "brazilian_scene_plausibility": 0.9,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.7,
+    "main_failures": [
+      "stripe orientation changed from horizontal/diagonal to vertical",
+      "sleeve construction changed from a continuous draped panel to a more defined set-in sleeve look",
+      "drape behavior is stiffer in the generated image compared to the fluid reference"
+    ],
+    "summary": "The generated garment maintains the knit texture and color palette well, but fails significantly on the stripe orientation, which is vertical in the output instead of horizontal. The silhouette is also more structured and less 'poncho-like' than the original."
+  }
+}

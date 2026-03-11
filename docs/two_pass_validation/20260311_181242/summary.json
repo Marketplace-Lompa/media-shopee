@@ -1,0 +1,113 @@
+{
+  "selector_stats": {
+    "raw_count": 20,
+    "unique_count": 19,
+    "duplicate_count": 1,
+    "complex_garment": true,
+    "small_input_mode": false
+  },
+  "selected_names": {
+    "base_generation": [
+      "IMG_3326.jpg",
+      "IMG_3323.jpg",
+      "IMG_3324.jpg",
+      "IMG_3330.jpg"
+    ],
+    "strict_single_pass": [
+      "IMG_3326.jpg",
+      "IMG_3324.jpg",
+      "referencia.jpeg",
+      "referencia2.jpeg"
+    ],
+    "edit_anchors": [
+      "referencia.jpeg",
+      "referencia2.jpeg"
+    ]
+  },
+  "base_prompt": "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment. Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible, clean premium indoor composition, soft natural daylight. Preserve exact garment geometry, texture continuity, and construction details. Garment identity anchor: ruana_wrap, draped silhouette, open front opening, cocoon hem behavior, cape_like sleeve architecture. Catalog-ready minimal styling with the garment as the hero piece. Keep accessories subtle and secondary to the garment. Build new styling independent from the reference person's lower-body look, footwear, and props unless explicitly requested.",
+  "edit_prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, arm coverage formed by draped panel. Replace the model with a clearly different adult woman with different face, skin tone, and hair. Change the inner top to a clean white crew-neck tee. Place her in a bright premium indoor catalog environment with natural window light. Use a standing pose with full garment visibility. Keep the image highly photorealistic, premium fashion catalog quality, with natural skin texture and realistic body proportions.",
+  "base_candidates": [
+    {
+      "index": 1,
+      "filename": "gen_twopassb_20260311_181242_1.png",
+      "url": "/outputs/twopassb_20260311_181242/gen_twopassb_20260311_181242_1.png",
+      "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/twopassb_20260311_181242/gen_twopassb_20260311_181242_1.png",
+      "size_kb": 2041.5,
+      "mime_type": "image/png",
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.9,
+        "construction_fidelity": 0.85,
+        "natural_model_score": 0.95,
+        "photorealism_score": 0.98,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.92,
+        "issues": [],
+        "summary": "The generated image shows exceptional fidelity to the reference garment's striped pattern, color palette (olive green and dusty rose), and crochet texture. The cocoon-like silhouette and draped construction are accurately translated into a professional catalog setting. The model and lighting are highly realistic, meeting commercial standards."
+      }
+    },
+    {
+      "index": 2,
+      "filename": "gen_twopassb_20260311_181242_2.png",
+      "url": "/outputs/twopassb_20260311_181242/gen_twopassb_20260311_181242_2.png",
+      "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/twopassb_20260311_181242/gen_twopassb_20260311_181242_2.png",
+      "size_kb": 2089.6,
+      "mime_type": "image/png",
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "natural_model_score": 0.95,
+        "photorealism_score": 0.98,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.94,
+        "issues": [],
+        "summary": "The generated image shows exceptional fidelity to the reference garment, accurately capturing the specific green and pink striped knit pattern and texture. The silhouette correctly interprets the ruana/wrap construction with the appropriate drape and sleeve architecture. The model and lighting are highly realistic, meeting professional commercial catalog standards."
+      }
+    }
+  ],
+  "best_base": {
+    "index": 2,
+    "filename": "gen_twopassb_20260311_181242_2.png",
+    "url": "/outputs/twopassb_20260311_181242/gen_twopassb_20260311_181242_2.png",
+    "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/twopassb_20260311_181242/gen_twopassb_20260311_181242_2.png",
+    "size_kb": 2089.6,
+    "mime_type": "image/png",
+    "evaluation": {
+      "garment_fidelity": 0.95,
+      "silhouette_fidelity": 0.9,
+      "texture_fidelity": 0.95,
+      "construction_fidelity": 0.9,
+      "natural_model_score": 0.95,
+      "photorealism_score": 0.98,
+      "commercial_quality_score": 0.95,
+      "overall_score": 0.94,
+      "issues": [],
+      "summary": "The generated image shows exceptional fidelity to the reference garment, accurately capturing the specific green and pink striped knit pattern and texture. The silhouette correctly interprets the ruana/wrap construction with the appropriate drape and sleeve architecture. The model and lighting are highly realistic, meeting professional commercial catalog standards."
+    }
+  },
+  "edited_result": {
+    "index": 1,
+    "filename": "edit_twopasse_20260311_181242_1.png",
+    "url": "/outputs/twopasse_20260311_181242/edit_twopasse_20260311_181242_1.png",
+    "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/twopasse_20260311_181242/edit_twopasse_20260311_181242_1.png",
+    "size_kb": 2303.2,
+    "mime_type": "image/png"
+  },
+  "edited_evaluation": {
+    "garment_fidelity": 0.95,
+    "silhouette_fidelity": 0.9,
+    "texture_fidelity": 0.95,
+    "construction_fidelity": 0.9,
+    "model_change_strength": 1.0,
+    "environment_change_strength": 0.8,
+    "innerwear_change_strength": 1.0,
+    "photorealism_score": 0.95,
+    "commercial_quality_score": 0.95,
+    "overall_score": 0.93,
+    "issues": [],
+    "summary": "The edit successfully preserves the garment's specific knit texture, stripe pattern, and cocoon silhouette while completely changing the model's identity and the environment. The innerwear was correctly updated to a white crew-neck tee as requested, and the overall image quality is high-end catalog standard."
+  }
+}

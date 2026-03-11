@@ -1,0 +1,172 @@
+{
+  "session_id": "8c50ca9f",
+  "prompt": "RAW photo, A fresh-faced Brasília native Vogue Brasil talent, features blend 'Nayara' and 'Juliana Ferreira' open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes knit texture open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible subtle 3/4 angle toward camera, weight on back foot, front panel clear exact texture, stitch, and fiber relief high-waist dark leggings, ankle boots polished model, natural expression engaging eye contact elegant open-air courtyard with dappled natural light and clean background subject sharp, background softly defocused, balanced natural light. Sony A7R IV, 50mm f/1.8 lens. Soft natural lighting with dappled shadows. Professional e-commerce realism, visible knit fiber texture, natural fabric drape, unretouched skin with visible pores.",
+  "base_prompt": "RAW photo, A fresh-faced Brasília native Vogue Brasil talent, features blend 'Nayara' and 'Juliana Ferreira' open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes knit texture open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible subtle 3/4 angle toward camera, weight on back foot, front panel clear exact texture, stitch, and fiber relief high-waist dark leggings, ankle boots polished model, natural expression engaging eye contact elegant open-air courtyard with dappled natural light and clean background subject sharp, background softly defocused, balanced natural light",
+  "camera_and_realism": "Sony A7R IV, 50mm f/1.8 lens. Soft natural lighting with dappled shadows. Professional e-commerce realism, visible knit fiber texture, natural fabric drape, unretouched skin with visible pores.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/8c50ca9f/gen_8c50ca9f_1.png",
+  "grounding": {
+    "effective": true,
+    "queries": [
+      "how a ruana wrap drapes and falls on the body fashion description",
+      "professional photography tips for shooting ruana wraps and capes",
+      "ruana wrap silhouette terminology batwing sleeves kimono cardigan cape",
+      "striped knit ruana wrap draped silhouette Portuguese English name",
+      "\"ruana\" em português vestuário",
+      "como se chama ruana em português moda",
+      "\"poncho aberto\" vs \"ruana\" português brasil portugal"
+    ],
+    "sources": [
+      {
+        "title": "infopedia.pt",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEviMKuYH5o_dJYfBflJGVUN2iHmGUE_RC2EQxMUsBHBVwPllCaNdjnzfSig1hTg0JybdtVyDDwNTraApp1bNmczBMZq_ECc1if8UaUzl4yzbUpntBJTd2gvj3pCkryEccNKZdSlvFW5yeRa5S0wzNWekW-4Q0xVg==",
+        "snippet": ""
+      },
+      {
+        "title": "stylingrannymama.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFMVF2IZNGtUpoUFEk3ll1PiU6XjCcsnoS9AzOeezY7fRTIzj7EPn6XEGJpk_WR6adfsmZ1vMZjx64RSVWYvS31q9_-_2Youb_QapOql-vPirY8AzfVdoayrg9nK6OQsA78KxaejFTNg8e9hf_DUW18vNXExewIDZMBbwC0bJN12M34EbT9B98_Xgkug6bg",
+        "snippet": ""
+      },
+      {
+        "title": "letras.mus.br",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEEPornRmLI3ephkZKkXxeo9X7YymvsQai4OuwBb9_R5icWprTh-zlUzJ0FlNIpFBZNDT6DZ0X1btHzTWX9kDAkWsLCelb0eh_HZXaHDbnKglaz6WCfi9pLtK2_UwIgAOM9gdS2WycDzI1C0Kwl_wkYWg1bgra5ahBXiWLhqMHOGw==",
+        "snippet": ""
+      }
+    ],
+    "engine": "gemini_google_search",
+    "source_engine": "gemini_google_search",
+    "mode": "lexical",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_effective_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "lexical",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.227,
+    "complexity_score": 0.533,
+    "garment_hypothesis": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "garment_hint": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "hint_confidence": 0.75,
+    "trigger_reason": "ambiguous_or_uncertain_garment",
+    "attempted": true
+  },
+  "reason_codes": [
+    "grounding_effective_sources"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "open-front ruana-wrap construction",
+        "source": "garment_subtype"
+      },
+      {
+        "text": "soft open front edge with uninterrupted drape",
+        "source": "front_opening"
+      },
+      {
+        "text": "hip length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "asymmetric hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "horizontal stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "knit texture",
+        "source": "must_keep"
+      },
+      {
+        "text": "open front",
+        "source": "must_keep"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "subtle 3/4 angle toward camera, weight on back foot, front panel clear",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "high-waist dark leggings, ankle boots",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "engaging eye contact",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "elegant open-air courtyard with dappled natural light and clean background",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "subject sharp, background softly defocused, balanced natural light",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      }
+    ],
+    "base_words": 15,
+    "base_truncated": false,
+    "total_words": 122,
+    "word_budget": 138,
+    "residual_negatives": [],
+    "camera_words": 27,
+    "base_budget": 138,
+    "final_words": 149,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 0.8,
+    "silhouette_fidelity": 0.7,
+    "texture_pattern_fidelity": 0.9,
+    "construction_fidelity": 0.75,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 0.9,
+    "brazilian_scene_plausibility": 0.9,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.75,
+    "main_failures": [
+      "The generated garment introduces a more structured, jacket-like front edge compared to the raw, draped edge of the reference",
+      "The silhouette in the generated image appears more like a cardigan with defined armholes rather than the continuous draped panel/ruana construction of the original"
+    ],
+    "summary": "The generated image successfully captures the color palette and the specific crochet/knit stripe texture. However, it loses some of the 'ruana' essence by adding more structure to the front opening and making the sleeves look more like traditional set-in sleeves rather than a draped wrap."
+  }
+}

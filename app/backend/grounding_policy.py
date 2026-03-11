@@ -166,6 +166,9 @@ def compute_grounding_triage(
         # nunca deixar auto em OFF.
         if atypical_hits > 0:
             recommended_mode = "lexical"
+        elif not prompt_text and not analysis_text:
+            # Sem texto e sem análise visual explícita, evita falso OFF em auto.
+            recommended_mode = "lexical"
         elif silhouette_confidence < 0.82 and (texture_hits > 0 or ambiguous_hits > 0):
             recommended_mode = "lexical"
 

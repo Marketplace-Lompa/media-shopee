@@ -11,9 +11,9 @@ from typing import Any, Callable, List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from agent import run_agent
+from agent import run_agent, normalize_prompt_text
 from history import add_entry as history_add, purge_oldest as history_purge
-from config import VALID_ASPECT_RATIOS, VALID_N_IMAGES, VALID_RESOLUTIONS
+from config import VALID_ASPECT_RATIOS, VALID_N_IMAGES, VALID_RESOLUTIONS, OUTPUTS_DIR
 from generator import generate_images
 from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
 from guided_mode import guided_force_grounding_floor, guided_summary, normalize_guided_brief
@@ -32,6 +32,78 @@ from pipeline_effectiveness import (
 )
 
 router = APIRouter(prefix="/generate", tags=["generate"])
+
+
+def _is_strict_reference_mode(guided_brief: Optional[dict], uploaded_bytes: List[bytes]) -> bool:
+    if not uploaded_bytes or not guided_brief:
+        return False
+    return str(guided_brief.get("fidelity_mode", "balanceada")).strip().lower() == "estrita"
+
+
+def _build_strict_reference_prompt(
+    user_prompt: Optional[str],
+    classifier_summary: dict[str, Any],
+    guided_brief: Optional[dict],
+    structural_contract: Optional[dict[str, Any]] = None,
+) -> str:
+    scene_cfg = (guided_brief or {}).get("scene", {}) or {}
+    pose_cfg = (guided_brief or {}).get("pose", {}) or {}
+    garment_cfg = (guided_brief or {}).get("garment", {}) or {}
+
+    scene_type = str(scene_cfg.get("type", "interno")).strip().lower()
+    pose_style = str(pose_cfg.get("style", "tradicional")).strip().lower()
+    set_mode = str(garment_cfg.get("set_mode", "unica")).strip().lower()
+    category = str(classifier_summary.get("garment_category", "general")).strip().lower()
+
+    scene_clause = (
+        "clean premium indoor composition"
+        if scene_type != "externo"
+        else "clean premium outdoor composition"
+    )
+    pose_clause = (
+        "natural movement pose with full garment visibility"
+        if pose_style == "criativa"
+        else "standing pose"
+    )
+    garment_lock = (
+        "Preserve exact garment geometry, drape, sleeve architecture, hem behavior, stripe scale, and stitch pattern."
+        if category in {"complex_knit", "outerwear"}
+        else "Preserve exact garment geometry, texture continuity, and construction details."
+    )
+    structural_clause = ""
+    if structural_contract and structural_contract.get("enabled"):
+        subtype = structural_contract.get("garment_subtype", "garment")
+        front = structural_contract.get("front_opening", "unknown")
+        hem = structural_contract.get("hem_shape", "unknown")
+        volume = structural_contract.get("silhouette_volume", "unknown")
+        sleeve = structural_contract.get("sleeve_type", "unknown")
+        structural_clause = (
+            f"Garment identity anchor: {subtype}, {volume} silhouette, {front} front opening, "
+            f"{hem} hem behavior, {sleeve} sleeve architecture."
+        )
+
+    clauses = [
+        "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment.",
+        "Direct eye contact, realistic skin texture, natural body proportions,",
+        pose_clause + ",",
+        "full garment clearly visible,",
+        scene_clause + ",",
+        "soft natural daylight.",
+        garment_lock,
+        structural_clause,
+        "Catalog-ready minimal styling with the garment as the hero piece.",
+        "Keep accessories subtle and secondary to the garment.",
+    ]
+    if set_mode != "conjunto":
+        clauses.append(
+            "Build new styling independent from the reference person's lower-body look, footwear, and props unless explicitly requested."
+        )
+
+    raw_user_prompt = (user_prompt or "").strip()
+    if raw_user_prompt:
+        clauses.append(f"Additional commercial direction: {raw_user_prompt}")
+
+    return " ".join(part.strip() for part in clauses if part and part.strip())
 
 
 def _run_generate_pipeline(
@@ -53,6 +125,9 @@ def _run_generate_pipeline(
             except Exception:
                 pass
 
+    normalized_guided = normalize_guided_brief(guided_brief)
+    strict_reference_mode = _is_strict_reference_mode(normalized_guided, uploaded_bytes)
+
     if aspect_ratio not in VALID_ASPECT_RATIOS:
         raise ValueError(f"aspect_ratio inválido. Use: {VALID_ASPECT_RATIOS}")
     if resolution not in VALID_RESOLUTIONS:
@@ -61,20 +136,65 @@ def _run_generate_pipeline(
         raise ValueError(f"n_images inválido. Use: {VALID_N_IMAGES}")
 
     pool_context = "POOL_RUNTIME_DISABLED"
-    pipeline_mode = "reference_mode" if uploaded_bytes else "text_mode"
-    strategy = normalize_grounding_strategy(grounding_strategy, use_grounding)
-    normalized_guided = normalize_guided_brief(guided_brief)
+    pipeline_mode = "reference_mode_strict" if strict_reference_mode else ("reference_mode" if uploaded_bytes else "text_mode")
+    strategy = "off" if strict_reference_mode else normalize_grounding_strategy(grounding_strategy, use_grounding)
 
     reference_pack = build_reference_pack(uploaded_bytes)
     analysis_images = reference_pack.get("analysis_images", [])
-    generation_images = reference_pack.get("generation_images", [])
+    curated_images = (
+        reference_pack.get("strict_generation_images", [])
+        if strict_reference_mode
+        else reference_pack.get("generation_images", [])
+    )
     reference_pack_stats = reference_pack.get("stats", {})
-    diversity_target = select_diversity_target(seed_hint=prompt or "", guided_brief=normalized_guided)
+
+    # ── Art Director: triagem visual ANTES da diversidade (R3) ──────────
+    # A triagem extrai garment_aesthetic que alimenta select_diversity_target()
+    unified_triage_result = None
+    image_analysis_text = ""
+    garment_aesthetic = None
+    structural_contract_for_diversity = None
+    structural_hint_for_nano = None  # string para role_prefix do Nano Banana
+    if uploaded_bytes:
+        from agent_runtime.triage import _infer_unified_vision_triage
+        try:
+            unified_triage_result = _infer_unified_vision_triage(analysis_images or curated_images, prompt)
+            if unified_triage_result:
+                image_analysis_text = unified_triage_result.get("image_analysis", "")
+                garment_aesthetic = unified_triage_result.get("garment_aesthetic")
+                structural_contract_for_diversity = unified_triage_result.get("structural_contract")
+                # Construir hint textual para o Nano Banana preservar silhueta
+                if structural_contract_for_diversity:
+                    sc = structural_contract_for_diversity
+                    parts_hint = [sc.get("garment_subtype", "")]
+                    if sc.get("silhouette_volume"):
+                        parts_hint.append(f"{sc['silhouette_volume']} silhouette")
+                    if sc.get("sleeve_type") and sc.get("sleeve_type") != "set-in":
+                        parts_hint.append(f"{sc['sleeve_type']} sleeves")
+                    structural_hint_for_nano = ", ".join(p for p in parts_hint if p) or None
+        except Exception as e:
+            print(f"Erro na triagem visual unificada antecipada: {e}")
+
+    # Diversidade garment-aware: usa estética da peça para casting inteligente
+    diversity_target = (
+        {}
+        if strict_reference_mode
+        else select_diversity_target(
+            seed_hint=prompt or "",
+            guided_brief=normalized_guided,
+            garment_aesthetic=garment_aesthetic,
+            structural_contract=structural_contract_for_diversity,
+        )
+    )
 
     emit(
         "mode_selected",
         {
-            "message": "Modo com referência ativado" if uploaded_bytes else "Modo sem referência ativado",
+            "message": (
+                "Modo de fidelidade estrita ativado"
+                if strict_reference_mode
+                else ("Modo com referência ativado" if uploaded_bytes else "Modo sem referência ativado")
+            ),
             "pipeline_mode": pipeline_mode,
             "reference_pack_stats": reference_pack_stats,
             "model_profile_id": diversity_target.get("profile_id"),
@@ -84,7 +204,7 @@ def _run_generate_pipeline(
         "analyzing",
         {
             "message": (
-                f"Agente analisando {len(analysis_images)} imagem(ns) curada(s)…"
+                f"Agente analisando {len(analysis_images or curated_images)} imagem(ns) curada(s)…"
                 if uploaded_bytes
                 else "Agente criando prompt…"
             ),
@@ -96,48 +216,44 @@ def _run_generate_pipeline(
     classifier_summary: dict[str, Any] = {}
     decision: dict[str, Any] = {"grounding_mode": "off", "trigger_reason": "unknown", "reason_codes": []}
     applied_mode = "off"
+    agent_result: dict[str, Any] = {}
 
     try:
-        baseline_result = run_agent(
-            user_prompt=prompt,
-            uploaded_images=analysis_images if analysis_images else None,
-            pool_context=pool_context,
-            aspect_ratio=aspect_ratio,
-            resolution=resolution,
-            use_grounding=False,
-            diversity_target=diversity_target,
-            guided_brief=normalized_guided,
-        )
-        baseline_structural = baseline_result.get("structural_contract") if isinstance(
-            baseline_result.get("structural_contract"), dict
-        ) else None
         triage = compute_grounding_triage(
             user_prompt=prompt,
-            image_analysis=baseline_result.get("image_analysis", ""),
+            image_analysis=image_analysis_text,
             has_images=bool(uploaded_bytes),
         )
         classifier_summary = classify_visual_context(
             user_prompt=prompt,
-            image_analysis=baseline_result.get("image_analysis", ""),
+            image_analysis=image_analysis_text,
             has_images=bool(uploaded_bytes),
             reference_pack_stats=reference_pack_stats,
         )
-        decision = decide_grounding_mode(
-            strategy=strategy,
-            has_images=bool(uploaded_bytes),
-            triage=triage,
-            classifier_summary=classifier_summary,
-        )
-        applied_mode = decision.get("grounding_mode", "off")
-
-        if strategy == "auto" and applied_mode == "off" and guided_force_grounding_floor(
-            normalized_guided, bool(uploaded_bytes)
-        ):
-            applied_mode = "lexical"
-            decision["trigger_reason"] = "guided_floor_forced_grounding"
-            decision["reason_codes"] = sorted(
-                set((decision.get("reason_codes", []) or []) + ["guided_floor_forced_grounding"])
+        if strict_reference_mode:
+            decision = {
+                "grounding_mode": "off",
+                "trigger_reason": "strict_reference_mode",
+                "reason_codes": ["strict_reference_mode"],
+            }
+            applied_mode = "off"
+        else:
+            decision = decide_grounding_mode(
+                strategy=strategy,
+                has_images=bool(uploaded_bytes),
+                triage=triage,
+                classifier_summary=classifier_summary,
             )
+            applied_mode = decision.get("grounding_mode", "off")
+
+            if strategy == "auto" and applied_mode == "off" and guided_force_grounding_floor(
+                normalized_guided, bool(uploaded_bytes)
+            ):
+                applied_mode = "lexical"
+                decision["trigger_reason"] = "guided_floor_forced_grounding"
+                decision["reason_codes"] = sorted(
+                    set((decision.get("reason_codes", []) or []) + ["guided_floor_forced_grounding"])
+                )
 
         emit(
             "triage_done",
@@ -156,9 +272,7 @@ def _run_generate_pipeline(
             },
         )
 
-        if applied_mode == "off":
-            agent_result = baseline_result
-        else:
+        if applied_mode != "off":
             emit(
                 "researching",
                 {
@@ -166,27 +280,77 @@ def _run_generate_pipeline(
                     "grounding_mode": applied_mode,
                 },
             )
+
+        if strict_reference_mode:
+            optimized_prompt = _build_strict_reference_prompt(
+                user_prompt=prompt,
+                classifier_summary=classifier_summary,
+                guided_brief=normalized_guided,
+                structural_contract=structural_contract_for_diversity,
+            )
+            agent_result = {
+                "pipeline_mode": pipeline_mode,
+                "prompt": optimized_prompt,
+                "thinking_level": "MINIMAL",
+                "thinking_reason": "strict_reference_mode",
+                "shot_type": "full",
+                "realism_level": 2,
+                "image_analysis": image_analysis_text,
+                "grounding": {
+                    "requested_strategy": "off",
+                    "applied_mode": "off",
+                    "attempted": False,
+                    "effective": False,
+                    "sources": [],
+                    "grounded_images_count": 0,
+                    "reason_codes": ["strict_reference_mode"],
+                },
+                "prompt_compiler_debug": {
+                    "mode": "strict_reference_mode",
+                    "source": "direct_template",
+                    "used_reference_count": len(curated_images or []),
+                },
+            }
+        else:
             try:
                 agent_result = run_agent(
                     user_prompt=prompt,
-                    uploaded_images=analysis_images if analysis_images else None,
+                    uploaded_images=analysis_images or curated_images or None,
                     pool_context=pool_context,
                     aspect_ratio=aspect_ratio,
                     resolution=resolution,
-                    use_grounding=True,
+                    use_grounding=(applied_mode != "off"),
                     grounding_mode=applied_mode,
-                    grounding_context_hint=triage.get("garment_hypothesis"),
+                    grounding_context_hint=triage.get("garment_hypothesis") if applied_mode != "off" else None,
                     diversity_target=diversity_target,
                     guided_brief=normalized_guided,
-                    structural_contract_hint=baseline_structural,
+                    unified_vision_triage_result=unified_triage_result,
                 )
-            except Exception:
-                agent_result = baseline_result
-                applied_mode = "off"
+            except Exception as e:
+                if applied_mode != "off":
+                    print(f"[GENERATE] Fallback: rodando agente sem grounding após erro: {e}")
+                    applied_mode = "off"
+                    agent_result = run_agent(
+                        user_prompt=prompt,
+                        uploaded_images=analysis_images or curated_images or None,
+                        pool_context=pool_context,
+                        aspect_ratio=aspect_ratio,
+                        resolution=resolution,
+                        use_grounding=False,
+                        diversity_target=diversity_target,
+                        guided_brief=normalized_guided,
+                        unified_vision_triage_result=unified_triage_result,
+                    )
+                else:
+                    raise
     except Exception as e:
         raise RuntimeError(f"Erro no Prompt Agent: {e}") from e
 
-    grounded_images = list(agent_result.pop("_grounded_images", []) or [])
+    # ONDA 1.4: Em qualquer reference_mode (strict ou normal), grounded_images
+    # do grounding research podem conflitar com as referências visuais reais.
+    # Apenas text_mode se beneficia de imagens grounded.
+    _skip_grounded = strict_reference_mode or pipeline_mode.startswith("reference_mode")
+    grounded_images = [] if _skip_grounded else list(agent_result.pop("_grounded_images", []) or [])
     pipeline_mode = agent_result.get("pipeline_mode", pipeline_mode)
     optimized_prompt = agent_result.get("prompt", "")
     thinking_level = agent_result.get("thinking_level", "MINIMAL")
@@ -197,7 +361,7 @@ def _run_generate_pipeline(
 
     grounding_sources = (agent_result.get("grounding", {}) or {}).get("sources", []) or []
     grounded_images_count = int((agent_result.get("grounding", {}) or {}).get("grounded_images_count", 0) or 0)
-    grounding_effective = bool(len(grounding_sources) >= 2 or grounded_images_count >= 1)
+    grounding_effective = bool(len(grounding_sources) > 0 or grounded_images_count > 0)
 
     grounding_info = {
         **(agent_result.get("grounding", {}) or {}),
@@ -237,15 +401,31 @@ def _run_generate_pipeline(
             "reference_pack_stats": reference_pack_stats,
             "guided_applied": bool(guided_sum),
             "guided_summary": guided_sum,
+            "prompt_compiler_debug": agent_result.get("prompt_compiler_debug"),
         },
     )
 
     session_id = str(uuid.uuid4())[:8]
+
+    # Persistir referências em disco (paridade com stream.py) para auditoria e reuso
+    reference_urls: List[str] = []
+    if curated_images:
+        session_dir = OUTPUTS_DIR / session_id
+        session_dir.mkdir(parents=True, exist_ok=True)
+        for idx, img_bytes in enumerate(curated_images):
+            ref_filename = f"ref_curated_{idx+1}.jpg"
+            (session_dir / ref_filename).write_bytes(img_bytes)
+            reference_urls.append(f"/outputs/{session_id}/{ref_filename}")
+
     raw_images: List[dict] = []
     failed_indices: List[int] = []
     image_assessments: List[dict] = []
     repair_applied = False
-    reason_codes = set((decision.get("reason_codes", []) or []) + (quality_contract.get("reason_codes", []) or []))
+    reason_codes = set(
+        (decision.get("reason_codes", []) or []) + 
+        (quality_contract.get("reason_codes", []) or []) +
+        (grounding_info.get("reason_codes", []) or [])
+    )
 
     for i in range(n_images):
         emit(
@@ -269,10 +449,11 @@ def _run_generate_pipeline(
                     aspect_ratio=aspect_ratio,
                     resolution=resolution,
                     n_images=1,
-                    uploaded_images=generation_images if generation_images else None,
+                    uploaded_images=curated_images if curated_images else None,
                     grounded_images=grounded_images if grounded_images else None,
                     session_id=session_id,
                     start_index=i + 1,
+                    structural_hint=structural_hint_for_nano,
                 )
                 selected_batch = batch
                 selected_assessment = assess_generated_image(batch[0]["path"], optimized_prompt, classifier_summary)
@@ -289,12 +470,13 @@ def _run_generate_pipeline(
         best_batch = selected_batch
         best_assessment = selected_assessment
 
-        if not selected_assessment.get("pass", False):
+        if not strict_reference_mode and not selected_assessment.get("pass", False):
             repair_prompt = build_repair_prompt(
                 optimized_prompt,
                 classifier_summary,
                 list(reason_codes.union(set(selected_assessment.get("reason_codes", []) or []))),
             )
+            repair_prompt = normalize_prompt_text(repair_prompt)
             img_path = Path(selected_batch[0]["path"])
             first_bytes = img_path.read_bytes() if img_path.exists() else b""
             first_score = float(selected_assessment.get("candidate_score", 0.0) or 0.0)
@@ -305,10 +487,11 @@ def _run_generate_pipeline(
                     aspect_ratio=aspect_ratio,
                     resolution=resolution,
                     n_images=1,
-                    uploaded_images=generation_images if generation_images else None,
+                    uploaded_images=curated_images if curated_images else None,
                     grounded_images=grounded_images if grounded_images else None,
                     session_id=session_id,
                     start_index=i + 1,
+                    structural_hint=structural_hint_for_nano,
                 )
                 repaired_assessment = assess_generated_image(repaired_batch[0]["path"], repair_prompt, classifier_summary)
                 repaired_score = float(repaired_assessment.get("candidate_score", 0.0) or 0.0)
@@ -335,6 +518,11 @@ def _run_generate_pipeline(
 
     # ── Persistir no histórico ────────────────────────────────────
     grounding_eff = grounding_info.get("effective", False) if isinstance(grounding_info, dict) else False
+    _base_prompt = agent_result.get("base_prompt") or None
+    _camera_and_realism = agent_result.get("camera_and_realism") or None
+    _camera_profile = agent_result.get("camera_profile") or None
+    _grounding_mode = grounding_info.get("applied_mode") or applied_mode or None
+    _reason_codes = sorted(reason_codes) if reason_codes else []
     for img in raw_images:
         try:
             history_add(
@@ -347,6 +535,12 @@ def _run_generate_pipeline(
                 aspect_ratio=aspect_ratio,
                 resolution=resolution,
                 grounding_effective=grounding_eff,
+                references=reference_urls,
+                base_prompt=_base_prompt,
+                camera_and_realism=_camera_and_realism,
+                camera_profile=_camera_profile,
+                grounding_mode=_grounding_mode,
+                reason_codes=_reason_codes,
             )
         except Exception as hist_err:
             print(f"[HISTORY] ⚠️ Falha ao persistir: {hist_err}")
@@ -380,6 +574,7 @@ def _run_generate_pipeline(
         images=[GeneratedImage(**img) for img in raw_images],
         failed_indices=failed_indices or None,
         pool_refs_used=0,
+        image_analysis=agent_result.get("image_analysis") or None,
         grounding=grounding_info,
         quality_contract=quality_contract,
         fidelity_score=quality_contract.get("fidelity_score"),
@@ -392,6 +587,7 @@ def _run_generate_pipeline(
         classifier_summary=classifier_summary,
         guided_applied=bool(guided_sum),
         guided_summary=guided_sum,
+        prompt_compiler_debug=agent_result.get("prompt_compiler_debug"),
     )
 
     emit(

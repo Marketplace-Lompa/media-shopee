@@ -1,0 +1,40 @@
+{
+  "selector_stats": {
+    "raw_count": 20,
+    "unique_count": 19,
+    "duplicate_count": 1,
+    "complex_garment": true
+  },
+  "selected_names": {
+    "base_generation": [
+      "IMG_3323.jpg",
+      "IMG_3329.jpg",
+      "IMG_3330.jpg",
+      "IMG_3328.jpg"
+    ],
+    "strict_single_pass": [
+      "IMG_3323.jpg",
+      "IMG_3329.jpg",
+      "referencia.jpeg",
+      "referencia2.jpeg"
+    ],
+    "edit_anchors": [
+      "referencia.jpeg",
+      "referencia2.jpeg"
+    ]
+  },
+  "prompt": "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment. Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible, clean premium indoor composition, soft natural daylight. Preserve exact garment geometry, texture continuity, and construction details. Garment identity anchor: ruana_wrap, draped silhouette, open front opening, cocoon hem behavior, cape_like sleeve architecture. Catalog-ready minimal styling with the garment as the hero piece. Keep accessories subtle and secondary to the garment. Build new styling independent from the reference person's lower-body look, footwear, and props unless explicitly requested.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/refsel_20260311_175237/gen_refsel_20260311_175237_1.png",
+  "evaluation": {
+    "garment_fidelity": 0.95,
+    "silhouette_fidelity": 0.9,
+    "texture_fidelity": 0.95,
+    "construction_fidelity": 0.9,
+    "natural_model_score": 0.95,
+    "photorealism_score": 0.98,
+    "commercial_quality_score": 0.95,
+    "overall_score": 0.94,
+    "issues": [],
+    "summary": "The generated image shows exceptional fidelity to the original garment's striped pattern, knit texture, and olive/pink color palette. The silhouette correctly captures the ruana/wrap construction with the characteristic cocoon-like drape. The model and environment are highly realistic and suitable for a premium fashion catalog, successfully replacing the casual reference setting with a professional studio aesthetic."
+  }
+}

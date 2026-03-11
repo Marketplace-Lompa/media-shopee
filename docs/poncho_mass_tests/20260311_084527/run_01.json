@@ -1,0 +1,174 @@
+{
+  "session_id": "979f05a2",
+  "prompt": "RAW photo, An elegant Sulista high-end commercial beauty, features blend 'Sofia' and 'Aline Gomes' open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes knit texture open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible balanced frontal stance, arms natural, garment front fully readable exact texture, stitch, and fiber relief fitted dark trousers, minimal footwear polished model, natural expression engaging eye contact upscale shopping district at golden hour with blurred storefronts shallow depth of field, warm backlight rim, clean negative space. Shot on Sony A7III, 85mm f/1.8 lens. Golden hour rim light, soft bokeh with blurred storefronts. Natural unretouched skin realism with visible pores and subtle peach fuzz. Fabric shows natural movement and weave texture.",
+  "base_prompt": "RAW photo, An elegant Sulista high-end commercial beauty, features blend 'Sofia' and 'Aline Gomes' open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes knit texture open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible balanced frontal stance, arms natural, garment front fully readable exact texture, stitch, and fiber relief fitted dark trousers, minimal footwear polished model, natural expression engaging eye contact upscale shopping district at golden hour with blurred storefronts shallow depth of field, warm backlight rim, clean negative space",
+  "camera_and_realism": "Shot on Sony A7III, 85mm f/1.8 lens. Golden hour rim light, soft bokeh with blurred storefronts. Natural unretouched skin realism with visible pores and subtle peach fuzz. Fabric shows natural movement and weave texture.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/979f05a2/gen_979f05a2_1.png",
+  "grounding": {
+    "effective": true,
+    "queries": [
+      "how a ruana wrap drapes and falls on the body",
+      "professional photography tips for shooting ruana wraps and capes",
+      "ruana wrap em português nome exato",
+      "striped knit ruana wrap draped silhouette Portuguese English name",
+      "ruana wrap silhouette terminology batwing sleeves kimono cardigan cape",
+      "diferença técnica ruana vs poncho vs capa moda português",
+      "como descrever o caimento de uma ruana em português",
+      "termo técnico moda ruana listrada tricô português"
+    ],
+    "sources": [
+      {
+        "title": "distinctlysouthernstyle.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFdVGksLwnXVFxXXpMnQo6TPV71mpp_USbvaW__s2wXZQ8mvpkw8UjtBIrT3T9jTEHG59EuKqX57rDKe-4OoknY7DQ-bCfIYT4i8JSlE2Ltxyhq4Sq_5AMape-1Bx9bOEtOR3UeFaX1Cmm8c7o_VXlhMn6WLQ4SZ-YNGQ==",
+        "snippet": ""
+      },
+      {
+        "title": "stylingrannymama.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFzHEVKXBGZC-AFOqOV2yDpKuP8AN1m9i491wRzrvZSeaI75iP7Hvwx48mbRTiUz0ZL-E6M0aVwz2jAbgpGUbgEC6Lyu4EQ3poXQBFNejLe0DLp_l257vTVkMtERhwRQnio-kIa_lrUoWk27u3O9yoVtk2pQPd0_5_5XHg4bA785svHpQF6c67vzyHWM60=",
+        "snippet": ""
+      },
+      {
+        "title": "tendenzadimoda.com.br",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGcOgSxJstE3WXNmAVYKxwU_g7YXHbsBRThEj8Brg3bYQEy3IEwp0G1ATwz_4oAycg_S-XLwu_KelV3fjUzeOXgcfl-K2Gq_IK-ztowMfwH6Jt-ZitywQSBpGSPYComsZzDFmj8Y296gQUZbT3FJRN9zg==",
+        "snippet": ""
+      }
+    ],
+    "engine": "gemini_google_search",
+    "source_engine": "gemini_google_search",
+    "mode": "lexical",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_effective_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "lexical",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.227,
+    "complexity_score": 0.533,
+    "garment_hypothesis": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "garment_hint": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "hint_confidence": 0.75,
+    "trigger_reason": "ambiguous_or_uncertain_garment",
+    "attempted": true
+  },
+  "reason_codes": [
+    "grounding_effective_sources"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "open-front ruana-wrap construction",
+        "source": "garment_subtype"
+      },
+      {
+        "text": "soft open front edge with uninterrupted drape",
+        "source": "front_opening"
+      },
+      {
+        "text": "hip length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "asymmetric hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "horizontal stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "knit texture",
+        "source": "must_keep"
+      },
+      {
+        "text": "open front",
+        "source": "must_keep"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "balanced frontal stance, arms natural, garment front fully readable",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "fitted dark trousers, minimal footwear",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "engaging eye contact",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "upscale shopping district at golden hour with blurred storefronts",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "shallow depth of field, warm backlight rim, clean negative space",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      }
+    ],
+    "base_words": 14,
+    "base_truncated": false,
+    "total_words": 119,
+    "word_budget": 131,
+    "residual_negatives": [],
+    "camera_words": 34,
+    "base_budget": 131,
+    "final_words": 153,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 0.6,
+    "silhouette_fidelity": 0.5,
+    "texture_pattern_fidelity": 0.7,
+    "construction_fidelity": 0.4,
+    "model_change_score": 0.9,
+    "pose_catalog_score": 0.9,
+    "brazilian_scene_plausibility": 0.8,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.5,
+    "main_failures": [
+      "The generated garment has a structured cardigan/jacket opening with lapel-like edges not present in the reference",
+      "The stripe direction is altered from horizontal to a chevron/diagonal pattern at the front",
+      "The continuous draped panel construction of the original ruana is lost in favor of a more traditional sweater-jacket silhouette"
+    ],
+    "summary": "The generated image fails to capture the unique construction of the reference garment. While the colors and knit texture are similar, the original is a draped ruana/wrap with a continuous panel, whereas the AI generated a structured cardigan with distinct lapels and a different stripe orientation."
+  }
+}

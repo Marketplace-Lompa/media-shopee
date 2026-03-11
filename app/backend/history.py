@@ -49,6 +49,12 @@ def add_entry(
     references: Optional[list[str]] = None,
     source_session_id: Optional[str] = None,
     edit_instruction: Optional[str] = None,
+    # ── Metadata de auditoria ─────────────────────────────────────
+    base_prompt: Optional[str] = None,
+    camera_and_realism: Optional[str] = None,
+    camera_profile: Optional[str] = None,
+    grounding_mode: Optional[str] = None,
+    reason_codes: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     """Adiciona uma entrada ao histórico e retorna a entry criada."""
     entry = {
@@ -64,6 +70,12 @@ def add_entry(
         "grounding_effective": grounding_effective,
         "references": references or [],
         "created_at": int(time.time() * 1000),
+        # Auditoria — fallback None para compatibilidade com entries antigas
+        "base_prompt": base_prompt or None,
+        "camera_and_realism": camera_and_realism or None,
+        "camera_profile": camera_profile or None,
+        "grounding_mode": grounding_mode or None,
+        "reason_codes": reason_codes or [],
     }
     if source_session_id:
         entry["source_session_id"] = source_session_id

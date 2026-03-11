@@ -102,6 +102,26 @@ export interface QualityContract {
     reason_codes?: string[];
 }
 
+export interface PromptCompilerDebugClause {
+    text: string;
+    source: string;
+}
+
+export interface PromptCompilerDebugDropped {
+    text: string;
+    reason: string;
+}
+
+export interface PromptCompilerDebug {
+    used_clauses:       PromptCompilerDebugClause[];
+    discarded_clauses:  PromptCompilerDebugDropped[];
+    base_words:         number;
+    base_truncated:     boolean;
+    total_words:        number;
+    word_budget:        number;
+    residual_negatives: string[];
+}
+
 export interface GenerateResponse {
     session_id: string;
     optimized_prompt: string;
@@ -126,6 +146,7 @@ export interface GenerateResponse {
     classifier_summary?: ClassifierSummary;
     guided_applied?: boolean;
     guided_summary?: GuidedSummary;
+    prompt_compiler_debug?: PromptCompilerDebug;
 }
 
 export interface MediaHistoryItem {
@@ -143,6 +164,12 @@ export interface MediaHistoryItem {
     grounding_effective?: boolean;
     references?: string[];
     created_at: number;
+    // Auditoria — presente apenas em gerações novas
+    base_prompt?: string;
+    camera_and_realism?: string;
+    camera_profile?: string;
+    grounding_mode?: string;
+    reason_codes?: string[];
 }
 
 export interface PoolItem {
@@ -182,6 +209,7 @@ export type GenerationStatus =
         reference_pack_stats?: Record<string, number>;
         guided_applied?: boolean;
         guided_summary?: GuidedSummary;
+        prompt_compiler_debug?: PromptCompilerDebug;
     }
     | { type: 'editing'; message: string }
     | { type: 'generating'; message: string; current: number; total: number }

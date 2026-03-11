@@ -1,0 +1,88 @@
+{
+  "base_image": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/twopassb_20260311_181242/gen_twopassb_20260311_181242_2.png",
+  "base_prompt": "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment. Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible, clean premium indoor composition, soft natural daylight. Preserve exact garment geometry, texture continuity, and construction details. Garment identity anchor: ruana_wrap, draped silhouette, open front opening, cocoon hem behavior, cape_like sleeve architecture. Catalog-ready minimal styling with the garment as the hero piece. Keep accessories subtle and secondary to the garment. Build new styling independent from the reference person's lower-body look, footwear, and props unless explicitly requested.",
+  "garment_refs": [
+    "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/roupa-referencia-teste/referencia.jpeg",
+    "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/roupa-referencia-teste/referencia2.jpeg"
+  ],
+  "results": [
+    {
+      "variant": "mercado_livre",
+      "prompt": "Keep the garment exactly the same: same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale, same open-front ruana construction, same draped cocoon silhouette, same rounded cocoon hem behavior, same cape-like arm coverage, and upper-thigh length. Replace the model with a clearly different adult Brazilian woman with medium-brown skin, long natural curly hair, subtle makeup, and a calm confident expression. Create the image in the style of a top-performing Mercado Livre Brasil fashion listing: bright neutral indoor apartment setting, white walls, pale floor, large windows, clean daylight, straightforward commercial readability, minimal decor, premium but conversion-focused. Use a standing frontal pose with full garment visibility. Change the inner top to a clean white crew-neck tee. Keep the image highly photorealistic, premium e-commerce catalog quality, natural skin texture, and strong product clarity.",
+      "output": {
+        "index": 1,
+        "filename": "edit_0311_190045mercado_livre_1.png",
+        "url": "/outputs/0311_190045mercado_livre/edit_0311_190045mercado_livre_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/0311_190045mercado_livre/edit_0311_190045mercado_livre_1.png",
+        "size_kb": 2184.8,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.95,
+        "texture_fidelity": 0.9,
+        "construction_fidelity": 0.95,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 0.8,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.9,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.93,
+        "issues": [],
+        "summary": "The edit successfully preserves the garment's complex knit texture and striped pattern while completely transforming the model identity and innerwear as requested. The transition from the base image to the final output shows a clear shift in model ethnicity and hair type, and the environment is updated to a clean, commercial studio look suitable for a high-end fashion listing."
+      }
+    },
+    {
+      "variant": "shopee",
+      "prompt": "Keep the garment exactly the same: same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale, same open-front ruana construction, same draped cocoon silhouette, same rounded cocoon hem behavior, same cape-like arm coverage, and upper-thigh length. Replace the model with a clearly different adult Brazilian woman with medium-brown skin, long natural curly hair, subtle makeup, and a friendly polished expression. Create the image in the style of a top-performing Shopee Brasil fashion listing: bright inviting indoor scene, soft warm daylight, simple premium apartment background, clean composition, accessible beauty, strong visual appeal for mobile shoppers, and clear garment readability. Use a natural subtle three-quarter standing pose with full garment visibility. Change the inner top to a clean white crew-neck tee. Keep the image highly photorealistic, premium marketplace catalog quality, natural skin texture, and strong click-through appeal.",
+      "output": {
+        "index": 1,
+        "filename": "edit_mkt20260311_190045shopee_1.png",
+        "url": "/outputs/mkt20260311_190045shopee/edit_mkt20260311_190045shopee_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/mkt20260311_190045shopee/edit_mkt20260311_190045shopee_1.png",
+        "size_kb": 2486.5,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.98,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.98,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 0.9,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.92,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.96,
+        "issues": [],
+        "summary": "The edited output successfully preserves the garment's complex knit texture and striped pattern with high fidelity while completely transforming the model identity, environment, and innerwear as requested. The transition from the stage-1 base to the final catalog-style image is seamless and professional."
+      }
+    },
+    {
+      "variant": "shein",
+      "prompt": "Keep the garment exactly the same: same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale, same open-front ruana construction, same draped cocoon silhouette, same rounded cocoon hem behavior, same cape-like arm coverage, and upper-thigh length. Replace the model with a clearly different adult Brazilian woman with medium-brown skin, long natural curly hair, subtle makeup, and a cool modern expression. Create the image in the style of a high-performing SHEIN Brasil knitwear product photo: polished minimalist indoor environment, soft daylight from large windows, slightly more fashion-forward composition, clean apartment showroom mood, premium yet trend-aware. Use a relaxed three-quarter standing pose with full garment visibility. Change the inner top to a clean white crew-neck tee. Keep the image highly photorealistic, premium fashion e-commerce quality, natural skin texture, and crisp garment presentation.",
+      "output": {
+        "index": 1,
+        "filename": "edit_rmkt20260311_190045shein_1.png",
+        "url": "/outputs/rmkt20260311_190045shein/edit_rmkt20260311_190045shein_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/rmkt20260311_190045shein/edit_rmkt20260311_190045shein_1.png",
+        "size_kb": 2362.8,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 0.8,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.9,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.93,
+        "issues": [],
+        "summary": "The edit successfully preserves the complex knit texture and stripe pattern of the ruana while completely transforming the model's identity and innerwear as requested. The transition from the base image to the final output shows high fidelity to the garment's construction and a significant, high-quality change in environment and styling."
+      }
+    }
+  ]
+}

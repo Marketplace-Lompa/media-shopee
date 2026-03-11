@@ -1,0 +1,173 @@
+{
+  "session_id": "4f1dc576",
+  "prompt": "RAW photo, a contemporary Mineira Ford Models Brazil new face, her facial features are a beautiful natural blend reminiscent of 'Sofia' and 'Marina Souza' She is wearing a front panel fully open and draping hip length relative to model body draped fluid silhouette straight hem arm coverage from a continuous draped panel horizontal stripes knit texture preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible contrapposto hip shift, relaxed shoulders, catalog-clean front reveal exact texture, stitch, and fiber relief polished model, natural expression engaging eye contact bright modern downtown with clean architecture and soft depth of field golden hour side light, subject crisp, environment blurred, outdoor setting. Sony A7III, 85mm f/1.8 lens. Natural daylight with soft shadows. visible natural pores and subtle peach fuzz. Fabric responding naturally to movement with realistic knit texture and slight wear creases.",
+  "base_prompt": "RAW photo, a contemporary Mineira Ford Models Brazil new face, her facial features are a beautiful natural blend reminiscent of 'Sofia' and 'Marina Souza' She is wearing a front panel fully open and draping hip length relative to model body draped fluid silhouette straight hem arm coverage from a continuous draped panel horizontal stripes knit texture preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible contrapposto hip shift, relaxed shoulders, catalog-clean front reveal exact texture, stitch, and fiber relief polished model, natural expression engaging eye contact bright modern downtown with clean architecture and soft depth of field golden hour side light, subject crisp, environment blurred, outdoor setting",
+  "camera_and_realism": "Sony A7III, 85mm f/1.8 lens. Natural daylight with soft shadows. visible natural pores and subtle peach fuzz. Fabric responding naturally to movement with realistic knit texture and slight wear creases.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/4f1dc576/gen_4f1dc576_1.png",
+  "grounding": {
+    "effective": true,
+    "queries": [
+      "how a ruana wrap drapes and falls on the body description",
+      "striped knit ruana wrap Portuguese translation garment type name",
+      "how professional photographers shoot ruana wrap garments poses and techniques",
+      "ruana wrap silhouette terminology batwing sleeves kimono cardigan cape",
+      "\"poncho aberto\" vs ruana português"
+    ],
+    "sources": [
+      {
+        "title": "momminginmanolos.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQETldXPIpMJmQLKYrDmjMo3iAGaDYVUJJD0vYQp5qAoeiCe2ei2XkEtWkaABK7jDHTFOyD3OOGCnobIrSrIuwmqs6lzyaNHJyjYGwHViz9C_51dTu-6UG9D8-XnhQ5POjf3cp8ZuQoaaH-aznPdYHOq5eRkBxsEr5RhVesN_oDYdyZZBJM8COs=",
+        "snippet": ""
+      },
+      {
+        "title": "wikipedia.org",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFRiBWECqihV8UBgXGYvlp4GMu5g_5ewwYO9Zrb6mx3z9Q85ImIjCQeoy6DSnhWhZQCZ7WCz13KEUdASVk36ZjI6EwdEDiotuTO8maO-LwbWV04OgoxTWWgmKnRPhMf",
+        "snippet": ""
+      },
+      {
+        "title": "skylum.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGFy2EM5Ckbzc7ACb6i81FqStEXV8m9JoIbh8oB4zl12apWSGaAnrdg8JL0JIzLl4NVkBkHpJkltLm5pQEAC5NXqyWlA_5T-5cQC1TlmIP1TFWbi-rle9sUzaNGz8aT6uXMuy8eJ6xdljC2femmzoauKTIFgYyar_wEY_2pDEJ-YigP5SfMTmpdNO9XQiys_N-X",
+        "snippet": ""
+      }
+    ],
+    "engine": "gemini_google_search",
+    "source_engine": "gemini_google_search",
+    "mode": "full",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "visual_disabled",
+    "reason_codes": [
+      "grounding_effective_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "full",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.567,
+    "complexity_score": 0.753,
+    "garment_hypothesis": "A woman is wearing a striped, open-front knit wrap over a black bodysuit and denim shorts.",
+    "garment_hint": "A woman is wearing a striped, open-front knit wrap over a black bodysuit and denim shorts.",
+    "hint_confidence": 0.87,
+    "trigger_reason": "auto_visual_complexity_full",
+    "attempted": true
+  },
+  "reason_codes": [
+    "atypical_or_uncertain",
+    "auto_ref_not_off",
+    "grounding_effective_sources",
+    "visual_complexity_full"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "front panel fully open and draping",
+        "source": "front_opening"
+      },
+      {
+        "text": "hip length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "straight hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "arm coverage from draped fabric panel only, no separate sleeve tubes",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "horizontal stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "knit texture",
+        "source": "must_keep"
+      },
+      {
+        "text": "preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length",
+        "source": "grounding_atypical"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "contrapposto hip shift, relaxed shoulders, catalog-clean front reveal",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "engaging eye contact",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "bright modern downtown with clean architecture and soft depth of field",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "golden hour side light, subject crisp, environment blurred, outdoor setting",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "[base narrative]",
+        "reason": "base_truncation(base exceeded 28w after P1+P2P_reserve)"
+      }
+    ],
+    "base_words": 28,
+    "base_truncated": true,
+    "total_words": 124,
+    "word_budget": 135,
+    "residual_negatives": [],
+    "camera_words": 30,
+    "base_budget": 135,
+    "final_words": 154,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 1.0,
+    "silhouette_fidelity": 0.9,
+    "texture_pattern_fidelity": 0.85,
+    "construction_fidelity": 0.9,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 1.0,
+    "brazilian_scene_plausibility": 1.0,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.9,
+    "main_failures": [
+      "stripe pattern on the sleeves in the generated image is slightly more diagonal/chevron-like compared to the reference's more horizontal drape",
+      "the green tone in the stripes is slightly more olive/brown than the reference"
+    ],
+    "summary": "The generated image successfully preserves the identity of the crochet cardigan, maintaining the open front, draped silhouette, and striped pattern. The model and scene have been completely transformed into a professional catalog aesthetic that feels authentic to a Brazilian urban setting. The texture and construction are highly accurate, with only minor deviations in stripe orientation on the sleeves."
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "base_image": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/twopassb_20260311_181242/gen_twopassb_20260311_181242_2.png",
+  "base_prompt": "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment. Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible, clean premium indoor composition, soft natural daylight. Preserve exact garment geometry, texture continuity, and construction details. Garment identity anchor: ruana_wrap, draped silhouette, open front opening, cocoon hem behavior, cape_like sleeve architecture. Catalog-ready minimal styling with the garment as the hero piece. Keep accessories subtle and secondary to the garment. Build new styling independent from the reference person's lower-body look, footwear, and props unless explicitly requested.",
+  "garment_refs": [
+    "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/roupa-referencia-teste/referencia.jpeg",
+    "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/roupa-referencia-teste/referencia2.jpeg"
+  ],
+  "style_refs": [
+    "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/grounding-manual-brasil/raw_refs/rafaela_4.jpg",
+    "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/grounding-manual-brasil/raw_refs/ariane_4.jpg",
+    "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/grounding-manual-brasil/raw_refs/ariane_5.jpg"
+  ],
+  "results": [
+    {
+      "variant": "a",
+      "prompt": "Keep the garment exactly the same: same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale, same open-front ruana construction, same draped cocoon silhouette, same rounded cocoon hem behavior, same cape-like arm coverage, and upper-thigh length. Use the extra style references only to guide Brazilian premium catalog mood, model vibe, and scene language. Replace the model with a clearly different adult Brazilian woman with natural Brazilian features, medium-brown skin, long natural curly hair, subtle makeup, and a calm confident expression. Place her in a bright premium Brazilian indoor catalog setting, like a refined Sao Paulo apartment showroom with white walls, pale stone floor, large daylight windows, and subtle wood furniture. Use a standing frontal pose with full garment visibility. Change the inner top to a clean white crew-neck tee. Keep the image highly photorealistic, premium marketplace catalog quality, natural skin texture, and clean e-commerce readability.",
+      "output": {
+        "index": 1,
+        "filename": "edit_manualbr20260311_183407a_1.png",
+        "url": "/outputs/manualbr20260311_183407a/edit_manualbr20260311_183407a_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/manualbr20260311_183407a/edit_manualbr20260311_183407a_1.png",
+        "size_kb": 2312.5,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 1.0,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.95,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.93,
+        "issues": [],
+        "summary": "The edit successfully transforms the image into a high-end commercial catalog shot. It maintains exceptional fidelity to the garment's knit texture, stripe pattern, and ruana construction while completely replacing the model, environment, and innerwear according to the prompt. The transition from the stage-1 base to the stage-2 output is a perfect execution of the requested style transfer."
+      }
+    },
+    {
+      "variant": "b",
+      "prompt": "Keep the garment exactly the same: same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale, same open-front ruana construction, same draped cocoon silhouette, same rounded cocoon hem behavior, same cape-like arm coverage, and upper-thigh length. Use the extra style references only to guide Brazilian premium catalog mood, model vibe, and scene language. Replace the model with a clearly different adult Brazilian woman with natural Brazilian features, medium-brown skin, long natural curly hair, subtle makeup, and a calm confident expression. Place her in a bright premium Brazilian indoor catalog setting, like a refined Sao Paulo apartment showroom with white walls, pale stone floor, large daylight windows, and subtle wood furniture. Use a natural subtle three-quarter standing pose with full garment visibility. Change the inner top to a clean white crew-neck tee. Keep the image highly photorealistic, premium marketplace catalog quality, natural skin texture, and clean e-commerce readability.",
+      "output": {
+        "index": 1,
+        "filename": "edit_manualbr20260311_183407b_1.png",
+        "url": "/outputs/manualbr20260311_183407b/edit_manualbr20260311_183407b_1.png",
+        "path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/manualbr20260311_183407b/edit_manualbr20260311_183407b_1.png",
+        "size_kb": 2357.5,
+        "mime_type": "image/png"
+      },
+      "evaluation": {
+        "garment_fidelity": 0.95,
+        "silhouette_fidelity": 0.9,
+        "texture_fidelity": 0.95,
+        "construction_fidelity": 0.9,
+        "model_change_strength": 1.0,
+        "environment_change_strength": 1.0,
+        "innerwear_change_strength": 1.0,
+        "photorealism_score": 0.95,
+        "commercial_quality_score": 0.95,
+        "overall_score": 0.95,
+        "issues": [],
+        "summary": "The edit successfully preserves the garment's complex knit texture and stripe pattern while completely transforming the model, environment, and innerwear. The transition from the stage-1 base to the stage-2 output perfectly follows the prompt's request for a new model identity and a premium catalog setting."
+      }
+    }
+  ]
+}

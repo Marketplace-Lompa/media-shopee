@@ -1,0 +1,174 @@
+{
+  "session_id": "8661325f",
+  "prompt": "RAW photo, a sophisticated Carioca FARM Rio lookbook model with facial features that are a beautiful natural blend open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes knit texture open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible contrapposto hip shift, relaxed shoulders, catalog-clean front reveal exact texture, stitch, and fiber relief slim straight jeans, clean white sneakers polished model, natural expression direct confident gaze at camera minimalist indoor studio corner with large soft window light golden hour side light, subject crisp, environment blurred, interior setting. Shot on Sony A7III, 85mm f/1.8 lens. Soft directional lighting creating gentle shadows. visible natural pores and subtle peach fuzz. Natural fabric response to movement with soft creases and realistic drape. Shallow depth of field with a clean, neutral background.",
+  "base_prompt": "RAW photo, a sophisticated Carioca FARM Rio lookbook model with facial features that are a beautiful natural blend open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes knit texture open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible contrapposto hip shift, relaxed shoulders, catalog-clean front reveal exact texture, stitch, and fiber relief slim straight jeans, clean white sneakers polished model, natural expression direct confident gaze at camera minimalist indoor studio corner with large soft window light golden hour side light, subject crisp, environment blurred, interior setting",
+  "camera_and_realism": "Shot on Sony A7III, 85mm f/1.8 lens. Soft directional lighting creating gentle shadows. visible natural pores and subtle peach fuzz. Natural fabric response to movement with soft creases and realistic drape. Shallow depth of field with a clean, neutral background.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/8661325f/gen_8661325f_1.png",
+  "grounding": {
+    "effective": true,
+    "queries": [
+      "how a ruana wrap drapes and falls on the body",
+      "professional photography tips for shooting ruana wraps and draped knitwear",
+      "ruana wrap silhouette terminology batwing sleeves kimono cardigan cape",
+      "striped knit ruana wrap draped silhouette name in Portuguese and English"
+    ],
+    "sources": [
+      {
+        "title": "brontemoon.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFthlF_IXW4gYHu8k1hIPsiQg68DprzArbpfFZ4EW3L2-rXQZzoHdp8eL5Vpb-Gxw073zkTg2WUZfTMpiWgfw6McSs6zDcO8zxdvNN4K3oNa6g64w19Z4UvbsHp9XPjvu6WSETjc22SHmOPXguKKNqPTzvSx53w",
+        "snippet": ""
+      },
+      {
+        "title": "shesheshow.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHeyj1g5_YB5lesFWV2Nk7ZvhR3MvdOfzP67wkdXuN82oZ_sLnfOKVJWN7HT9NtRHMXwlRPXFUyP9e2S6T5Jsx7orpX6GcST7dET1LfnNvkrjD8pqokBxVOvoYQistU5ZOuigbeNeXqNxWy7Gy9sNp-x42ZUQ==",
+        "snippet": ""
+      },
+      {
+        "title": "stylingrannymama.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQE-F3BkaG_dZ3dP0bVu21pgVZ1UCdB4H5vn4QpNL9Mi1mUDd3y3hX7op8-f8G7Xjo5b35Bp0ARZPdzpWlo_1o6cJBGHkrCPTpDHYP-9vN2tliB5YrTMyDB-9zUrE2czHAGaCkAKQX1NLShM45RD8ZZVZbL2wOrEH2Y6ow8pXu2LRnWzzy1TnQ8_M7fMIdU1",
+        "snippet": ""
+      }
+    ],
+    "engine": "gemini_google_search",
+    "source_engine": "gemini_google_search",
+    "mode": "lexical",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_effective_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "lexical",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.227,
+    "complexity_score": 0.533,
+    "garment_hypothesis": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "garment_hint": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "hint_confidence": 0.75,
+    "trigger_reason": "ambiguous_or_uncertain_garment",
+    "attempted": true
+  },
+  "reason_codes": [
+    "grounding_effective_sources"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "open-front ruana-wrap construction",
+        "source": "garment_subtype"
+      },
+      {
+        "text": "soft open front edge with uninterrupted drape",
+        "source": "front_opening"
+      },
+      {
+        "text": "hip length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "asymmetric hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "horizontal stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "knit texture",
+        "source": "must_keep"
+      },
+      {
+        "text": "open front",
+        "source": "must_keep"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "contrapposto hip shift, relaxed shoulders, catalog-clean front reveal",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "slim straight jeans, clean white sneakers",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "direct confident gaze at camera",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "minimalist indoor studio corner with large soft window light",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "golden hour side light, subject crisp, environment blurred, interior setting",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "[base narrative]",
+        "reason": "base_truncation(base exceeded 18w after P1+P2P_reserve)"
+      }
+    ],
+    "base_words": 18,
+    "base_truncated": true,
+    "total_words": 125,
+    "word_budget": 125,
+    "residual_negatives": [],
+    "camera_words": 40,
+    "base_budget": 125,
+    "final_words": 165,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 0.7,
+    "silhouette_fidelity": 0.6,
+    "texture_pattern_fidelity": 0.85,
+    "construction_fidelity": 0.65,
+    "model_change_score": 0.9,
+    "pose_catalog_score": 0.95,
+    "brazilian_scene_plausibility": 0.8,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.65,
+    "main_failures": [
+      "silhouette changed from a wide-draped ruana/wrap to a more structured cardigan-like fit",
+      "stripe orientation on the front panels became diagonal/v-shaped instead of horizontal",
+      "the continuous panel construction was replaced with more defined sleeve-like tapering"
+    ],
+    "summary": "The generated garment captures the color palette and knit texture well, but fails on the fundamental construction of the ruana. It introduces a more traditional cardigan silhouette with diagonal stripe patterns on the front, whereas the reference is a simple rectangular wrap with horizontal stripes throughout."
+  }
+}

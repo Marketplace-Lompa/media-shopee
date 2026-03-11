@@ -1,0 +1,160 @@
+{
+  "session_id": "3250bfd5",
+  "prompt": "RAW photo, A chic Paulistana editorial beauty, features blend 'Camila' and 'Isadora Ribeiro' Wearing Textured draped knit wrap with alternating olive and dusty rose stripes. Features a draped cocoon silhouette, soft open front edge, and fluid draped arm coverage with a soft, airy open-stitch construction front panel fully open and draping waist length relative to model body draped fluid silhouette cocoon hem batwing/dolman sleeve volume elbow-length sleeves continuous neckline-to-front edge rounded cocoon side drop wide batwing arm opening preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible contrapposto hip shift, relaxed shoulders, catalog-clean front reveal exact texture, stitch, and fiber relief upscale shopping district at golden hour with blurred storefronts polished model, natural expression engaging eye contact dappled natural light revealing fabric texture and depth wide-leg cropped pants, simple flats even soft light, gentle bokeh background, centered composition. Sony A7III, 85mm f/1.8 lens. Golden hour rim lighting, soft natural shadows. Visible natural skin pores, subtle peach fuzz, and realistic fabric tension with natural wear creases. subtle film grain and mild lens halation.",
+  "base_prompt": "RAW photo, A chic Paulistana editorial beauty, features blend 'Camila' and 'Isadora Ribeiro' Wearing Textured draped knit wrap with alternating olive and dusty rose stripes. Features a draped cocoon silhouette, soft open front edge, and fluid draped arm coverage with a soft, airy open-stitch construction front panel fully open and draping waist length relative to model body draped fluid silhouette cocoon hem batwing/dolman sleeve volume elbow-length sleeves continuous neckline-to-front edge rounded cocoon side drop wide batwing arm opening preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible contrapposto hip shift, relaxed shoulders, catalog-clean front reveal exact texture, stitch, and fiber relief upscale shopping district at golden hour with blurred storefronts polished model, natural expression engaging eye contact dappled natural light revealing fabric texture and depth wide-leg cropped pants, simple flats even soft light, gentle bokeh background, centered composition",
+  "camera_and_realism": "Sony A7III, 85mm f/1.8 lens. Golden hour rim lighting, soft natural shadows. Visible natural skin pores, subtle peach fuzz, and realistic fabric tension with natural wear creases. subtle film grain and mild lens halation.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/3250bfd5/gen_3250bfd5_1.png",
+  "grounding": {
+    "effective": false,
+    "queries": [
+      "how a cocoon shrug drapes and falls on the body",
+      "cocoon shrug silhouette terminology batwing sleeves kimono cardigan ruana cape",
+      "striped crochet cocoon shrug with dolman sleeves garment type name Portuguese English",
+      "how professional photographers shoot cocoon shrugs and dolman sleeve garments"
+    ],
+    "sources": [],
+    "engine": "none",
+    "source_engine": "none",
+    "mode": "full",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_internal_suppressed",
+      "grounding_no_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "full",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.647,
+    "complexity_score": 0.787,
+    "garment_hypothesis": "This garment is a textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creatin...",
+    "garment_hint": "This garment is a textured crochet shrug featuring horizontal stripes in earthy olive green and dusty rose pink, creatin...",
+    "hint_confidence": 0.87,
+    "trigger_reason": "auto_visual_complexity_full",
+    "attempted": true
+  },
+  "reason_codes": [
+    "atypical_or_uncertain",
+    "auto_ref_not_off",
+    "grounding_internal_suppressed",
+    "grounding_no_sources",
+    "grounding_not_effective",
+    "visual_complexity_full"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "front panel fully open and draping",
+        "source": "front_opening"
+      },
+      {
+        "text": "waist length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "cocoon hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "batwing/dolman sleeve volume",
+        "source": "sleeve_type"
+      },
+      {
+        "text": "elbow-length sleeves",
+        "source": "sleeve_length"
+      },
+      {
+        "text": "continuous neckline-to-front edge",
+        "source": "must_keep"
+      },
+      {
+        "text": "rounded cocoon side drop",
+        "source": "must_keep"
+      },
+      {
+        "text": "wide batwing arm opening",
+        "source": "must_keep"
+      },
+      {
+        "text": "preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length",
+        "source": "grounding_atypical"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "contrapposto hip shift, relaxed shoulders, catalog-clean front reveal",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "upscale shopping district at golden hour with blurred storefronts",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "engaging eye contact",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "dappled natural light revealing fabric texture and depth",
+        "source": "lighting_hint"
+      },
+      {
+        "text": "wide-leg cropped pants, simple flats",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "even soft light, gentle bokeh background, centered composition",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      }
+    ],
+    "base_words": 45,
+    "base_truncated": false,
+    "total_words": 155,
+    "word_budget": 181,
+    "residual_negatives": [],
+    "camera_words": 34,
+    "base_budget": 181,
+    "final_words": 189,
+    "camera_profile": "editorial_analog"
+  },
+  "evaluation": {
+    "garment_type_match": 0.7,
+    "silhouette_fidelity": 0.6,
+    "texture_pattern_fidelity": 0.8,
+    "construction_fidelity": 0.6,
+    "model_change_score": 1.0,
+    "pose_catalog_score": 0.9,
+    "brazilian_scene_plausibility": 1.0,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.65,
+    "main_failures": [
+      "The generated garment introduces a structured lapel/collar that is not present in the original cocoon wrap",
+      "The sleeve architecture changed from a continuous draped panel to a more defined set-in sleeve look",
+      "The generated garment features pockets which are absent in the reference"
+    ],
+    "summary": "The generated image captures the color palette and stripe pattern well, but fails on the specific construction of the cocoon wrap. It has transformed a simple draped shawl/wrap into a more structured cardigan with lapels and pockets, losing the unique batwing/continuous panel silhouette of the original piece."
+  }
+}

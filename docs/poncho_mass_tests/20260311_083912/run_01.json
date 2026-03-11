@@ -1,0 +1,188 @@
+{
+  "session_id": "5e4c68ae",
+  "prompt": "RAW photo, a fresh-faced Brasília native Vogue Brasil talent, her facial features are open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes textured knit open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible balanced frontal stance, arms natural, garment front fully readable exact texture, stitch, and fiber relief high-waist dark leggings, ankle boots polished model, natural expression warm near-camera look with relaxed expression lush botanical garden path with gentle backlight and soft greenery shallow depth of field, warm backlight rim, clean negative space, outdoor setting. Sony A7R IV, 85mm f/1.8 lens. Soft depth of field with creamy bokeh. Natural unretouched skin realism showing subtle pores and peach fuzz. Fabric realism captures the individual yarn twists and the tactile weight of the knit responding to her movement.",
+  "base_prompt": "RAW photo, a fresh-faced Brasília native Vogue Brasil talent, her facial features are open-front ruana-wrap construction soft open front edge with uninterrupted drape hip length relative to model body draped fluid silhouette asymmetric hem single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel horizontal stripes textured knit open front pocketless garment — clean surface, zero visible pockets catalog cover, standing pose, garment fully visible balanced frontal stance, arms natural, garment front fully readable exact texture, stitch, and fiber relief high-waist dark leggings, ankle boots polished model, natural expression warm near-camera look with relaxed expression lush botanical garden path with gentle backlight and soft greenery shallow depth of field, warm backlight rim, clean negative space, outdoor setting",
+  "camera_and_realism": "Sony A7R IV, 85mm f/1.8 lens. Soft depth of field with creamy bokeh. Natural unretouched skin realism showing subtle pores and peach fuzz. Fabric realism captures the individual yarn twists and the tactile weight of the knit responding to her movement.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/5e4c68ae/gen_5e4c68ae_1.png",
+  "grounding": {
+    "effective": true,
+    "queries": [
+      "how a ruana wrap drapes and falls on the body",
+      "ruana wrap silhouette terminology batwing kimono cape",
+      "striped knit ruana wrap draped silhouette Portuguese English name",
+      "professional photography techniques for ruana wrap garments",
+      "como se chama ruana em português moda",
+      "professional photography poses for ruana wraps movement shots",
+      "ruana garment name in Portuguese fashion",
+      "how to photograph a ruana to show drape and silhouette"
+    ],
+    "sources": [
+      {
+        "title": "shesheshow.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEkpns0l2xEjD11qpmzz6CiPgwsF2L_ZaWcWUs0-eag1D9hyIPnLA7QfDd6UKPFLL4GcvFDqEo0Nd_Ob2SMRxEW1tuOg3dW_Ep7CZzqnDEaZiNz_4UVxebaL_00cloaIqYpHTp_OkAeQ990DaAzeezSCVLQ3w==",
+        "snippet": ""
+      },
+      {
+        "title": "wikipedia.org",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGwwhjiczwf7-YjJmq3l0TaEqhArTjikwF9-bAnw0GbznHglnqTdIvhSDqje-PKtwE_HeHJd1902Ud8SxD_2Ie0Ut-BXVwNgSkmiBMVYjAN_rB5z9t6Tp4V9KmBtc8e",
+        "snippet": ""
+      },
+      {
+        "title": "over50feeling40.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGlE0ChUSbPOnSzThEf5d_pzCR4E0QsdcIw71I-M4dFlCZJI6DAgK7PAWLq6Wd5Oml6IMyZFGMF-nJ5aZ6kk6dpV25Za4R8T26hOMVMRIUEAdTxRWzCrJ21Eol1svz20IAiruPey2b9txMHTwxFYFEj-RJrjR_mNYpwbwRNMVex6Bj6",
+        "snippet": ""
+      },
+      {
+        "title": "cjpatterns.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFffb_1I43_0Mb1nUJxgj85kXQ7exuLLuxvYZHjmQpxbRCHwOApo960XHuaEMuUccg26Fg8nZlu5Nfk5CHKURLqAsvwJGKMTK3ONx1GA5G2Pun9ocxy7kWv7f_jHadT28dJqvnydiZfMQ9zTQ68TzBT73vRfdxCEVdYaxIBu_k99SQ=",
+        "snippet": ""
+      },
+      {
+        "title": "youtube.com",
+        "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHmrWFPhz3_nvzMdAGihkxWqSExOOxSWJ8UVHbFPjcWXtwA0oM69VoYhUymFf-9iDYJ6m4UQyDen_fnmsYrIS4bNIYfXJlMnA-8g4Sw6pSo-IUy5A6ajrVys95Tcb2qccxC9jHDftw=",
+        "snippet": ""
+      }
+    ],
+    "engine": "gemini_google_search",
+    "source_engine": "gemini_google_search",
+    "mode": "lexical",
+    "grounded_images_count": 0,
+    "visual_ref_engine": "none",
+    "reason_codes": [
+      "grounding_effective_sources"
+    ],
+    "requested_strategy": "auto",
+    "applied_mode": "lexical",
+    "pipeline_mode": "reference_mode",
+    "grounding_score": 0.227,
+    "complexity_score": 0.533,
+    "garment_hypothesis": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "garment_hint": "A woman is wearing a green and pink striped knit wrap over a black bodysuit and denim shorts.",
+    "hint_confidence": 0.75,
+    "trigger_reason": "ambiguous_or_uncertain_garment",
+    "attempted": true
+  },
+  "reason_codes": [
+    "grounding_effective_sources"
+  ],
+  "prompt_compiler_debug": {
+    "used_clauses": [
+      {
+        "text": "open-front ruana-wrap construction",
+        "source": "garment_subtype"
+      },
+      {
+        "text": "soft open front edge with uninterrupted drape",
+        "source": "front_opening"
+      },
+      {
+        "text": "hip length relative to model body",
+        "source": "garment_length"
+      },
+      {
+        "text": "draped fluid silhouette",
+        "source": "silhouette_volume"
+      },
+      {
+        "text": "asymmetric hem",
+        "source": "hem_shape"
+      },
+      {
+        "text": "single continuous body panel draped from shoulder to hem, with arm coverage formed by the same panel",
+        "source": "sleeve_arch"
+      },
+      {
+        "text": "horizontal stripes",
+        "source": "must_keep"
+      },
+      {
+        "text": "textured knit",
+        "source": "must_keep"
+      },
+      {
+        "text": "open front",
+        "source": "must_keep"
+      },
+      {
+        "text": "pocketless garment — clean surface, zero visible pockets",
+        "source": "no_pockets"
+      },
+      {
+        "text": "catalog cover, standing pose, garment fully visible",
+        "source": "auto_cover_default"
+      },
+      {
+        "text": "balanced frontal stance, arms natural, garment front fully readable",
+        "source": "auto_cover_stance"
+      },
+      {
+        "text": "exact texture, stitch, and fiber relief",
+        "source": "quality_texture"
+      },
+      {
+        "text": "high-waist dark leggings, ankle boots",
+        "source": "bottom_complement"
+      },
+      {
+        "text": "polished model, natural expression",
+        "source": "quality_model"
+      },
+      {
+        "text": "warm near-camera look with relaxed expression",
+        "source": "quality_gaze"
+      },
+      {
+        "text": "lush botanical garden path with gentle backlight and soft greenery",
+        "source": "diversity_scenario"
+      },
+      {
+        "text": "shallow depth of field, warm backlight rim, clean negative space, outdoor setting",
+        "source": "quality_scene"
+      }
+    ],
+    "discarded_clauses": [
+      {
+        "text": "sleeve_type",
+        "reason": "draped_override"
+      },
+      {
+        "text": "sleeve_length",
+        "reason": "draped_override"
+      },
+      {
+        "text": "must_keep",
+        "reason": "limit_reached"
+      },
+      {
+        "text": "[base narrative]",
+        "reason": "base_truncation(base exceeded 13w after P1+P2P_reserve)"
+      }
+    ],
+    "base_words": 13,
+    "base_truncated": true,
+    "total_words": 124,
+    "word_budget": 124,
+    "residual_negatives": [],
+    "camera_words": 41,
+    "base_budget": 124,
+    "final_words": 165,
+    "camera_profile": "catalog_natural"
+  },
+  "evaluation": {
+    "garment_type_match": 0.7,
+    "silhouette_fidelity": 0.6,
+    "texture_pattern_fidelity": 0.8,
+    "construction_fidelity": 0.5,
+    "model_change_score": 0.4,
+    "pose_catalog_score": 0.9,
+    "brazilian_scene_plausibility": 0.9,
+    "scene_change_score": 1.0,
+    "overall_fidelity": 0.6,
+    "main_failures": [
+      "The generated garment has a structured collar/lapel edge that does not exist in the reference",
+      "The sleeve construction changed from a continuous draped panel to more defined, set-in style sleeves",
+      "The model's facial features still bear a strong resemblance to the reference person"
+    ],
+    "summary": "The generated image captures the color palette and stripe pattern well, but fails on the construction of the ruana. It introduces a folded lapel and more structured shoulder/sleeve architecture, whereas the reference is a simple, continuous draped panel. The model's face is too similar to the original subject."
+  }
+}

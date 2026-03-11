@@ -503,6 +503,61 @@
     border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* ── Lightbox metadata (collapsible) ── */
+.lightbox-meta {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: var(--sp-2);
+}
+
+.lightbox-meta-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 0;
+    color: inherit;
+}
+
+.lightbox-meta-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: var(--sp-2);
+}
+
+.lightbox-meta-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.lightbox-meta-label {
+    font-size: 10px;
+    color: var(--c-text-tertiary, rgba(255,255,255,0.35));
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.lightbox-meta-value {
+    font-size: 11px;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.5;
+}
+
+.lightbox-meta-value--mono {
+    font-family: monospace;
+    font-size: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+    padding: 4px 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 /* ── Badge variants ── */
 .badge--accent {
     background: rgba(139, 92, 246, 0.2);

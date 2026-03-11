@@ -30,7 +30,7 @@ DEFAULT_ASPECT_RATIO = "1:1"
 DEFAULT_RESOLUTION   = "1K"
 DEFAULT_N_IMAGES     = 1
 
-VALID_ASPECT_RATIOS = ["1:1", "3:4", "4:3", "9:16", "16:9"]
+VALID_ASPECT_RATIOS = ["1:1", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"]
 VALID_RESOLUTIONS   = ["1K", "2K", "4K"]
 VALID_N_IMAGES      = [1, 2, 3, 4]
 

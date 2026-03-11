@@ -1,0 +1,11 @@
+{
+  "runs": 2,
+  "overall_fidelity_avg": 0.675,
+  "silhouette_fidelity_avg": 0.675,
+  "texture_fidelity_avg": 0.825,
+  "construction_fidelity_avg": 0.6000000000000001,
+  "model_change_avg": 0.8,
+  "pose_catalog_avg": 0.9,
+  "brazilian_scene_plausibility_avg": 0.8500000000000001,
+  "scene_change_avg": 1.0
+}

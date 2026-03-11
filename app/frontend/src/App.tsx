@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Copy, Download, Clock, Pencil } from 'lucide-react';
+import { X, Copy, Download, Clock, Pencil, ChevronDown } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { ChatInput } from './components/ChatInput';
 import { Gallery } from './components/Gallery';
@@ -19,6 +19,55 @@ import type {
 import './App.css';
 
 type Tab = 'generate' | 'pool' | 'settings';
+
+/* ── LightboxMeta: metadados técnicos colapsável ─────────── */
+function LightboxMeta({ item }: { item: MediaHistoryItem }) {
+  const [open, setOpen] = useState(false);
+  const hasMeta = item.base_prompt || item.camera_and_realism || item.grounding_mode || (item.reason_codes && item.reason_codes.length > 0);
+  if (!hasMeta) return null;
+  return (
+    <div className="lightbox-meta">
+      <button className="lightbox-meta-toggle" onClick={() => setOpen(o => !o)}>
+        <span className="t-xs text-tertiary">Metadados técnicos</span>
+        <ChevronDown size={12} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+      </button>
+      {open && (
+        <div className="lightbox-meta-body">
+          {item.grounding_mode && (
+            <div className="lightbox-meta-row">
+              <span className="lightbox-meta-label">grounding_mode</span>
+              <span className="lightbox-meta-value">{item.grounding_mode}</span>
+            </div>
+          )}
+          {item.camera_profile && (
+            <div className="lightbox-meta-row">
+              <span className="lightbox-meta-label">camera_profile</span>
+              <span className="lightbox-meta-value">{item.camera_profile}</span>
+            </div>
+          )}
+          {item.camera_and_realism && (
+            <div className="lightbox-meta-row">
+              <span className="lightbox-meta-label">camera_and_realism</span>
+              <span className="lightbox-meta-value lightbox-meta-value--mono">{item.camera_and_realism}</span>
+            </div>
+          )}
+          {item.base_prompt && (
+            <div className="lightbox-meta-row">
+              <span className="lightbox-meta-label">base_prompt</span>
+              <span className="lightbox-meta-value lightbox-meta-value--mono">{item.base_prompt}</span>
+            </div>
+          )}
+          {item.reason_codes && item.reason_codes.length > 0 && (
+            <div className="lightbox-meta-row">
+              <span className="lightbox-meta-label">reason_codes</span>
+              <span className="lightbox-meta-value">{item.reason_codes.join(', ')}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ── App ──────────────────────────────────────────────────── */
 export default function App() {
@@ -64,6 +113,11 @@ export default function App() {
         grounding_effective: e.grounding_effective as boolean | undefined,
         references: e.references as string[] | undefined,
         created_at: e.created_at as number,
+        base_prompt: e.base_prompt as string | undefined,
+        camera_and_realism: e.camera_and_realism as string | undefined,
+        camera_profile: e.camera_profile as string | undefined,
+        grounding_mode: e.grounding_mode as string | undefined,
+        reason_codes: e.reason_codes as string[] | undefined,
       }));
       setMediaHistory(items);
     } catch {
@@ -518,6 +572,9 @@ export default function App() {
                       </span>
                     </div>
                   )}
+
+                  {/* Metadados técnicos (colapsável) */}
+                  <LightboxMeta item={lightbox.item} />
                 </motion.div>
               )}
             </div>
