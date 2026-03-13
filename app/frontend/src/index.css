@@ -83,34 +83,40 @@
 }
 
 /* ============================================================
-   SEMANTIC TOKENS — Dark Mode (default)
+   SEMANTIC TOKENS — Dark Mode (Higgsfield AI Aesthetic)
    ============================================================ */
 :root {
-  --surface-bg:       var(--c-gray-950);
-  --surface-base:     var(--c-gray-900);
-  --surface-raised:   var(--c-gray-850);
-  --surface-overlay:  var(--c-gray-800);
-  --surface-border:   var(--c-gray-750);
-  --surface-border-subtle: rgba(255,255,255,0.06);
+  /* Background scale: deep, cinematic space levels */
+  --surface-bg:       #020202; /* Quase puro absoluto */
+  --surface-base:     #080808; 
+  --surface-raised:   #0e0e0e;
+  --surface-overlay:  rgba(15, 15, 15, 0.7); /* Glassmorphism ready */
+  --surface-border:   rgba(255, 255, 255, 0.08);
+  --surface-border-subtle: rgba(255, 255, 255, 0.04);
 
-  --text-primary:     var(--c-gray-50);
-  --text-secondary:   var(--c-gray-400);
-  --text-tertiary:    var(--c-gray-600);
-  --text-inverse:     var(--c-gray-950);
+  /* Typography scale */
+  --text-primary:     #f4f4f5; /* Off-white crisp */
+  --text-secondary:   #a1a1aa;
+  --text-tertiary:    #52525b;
+  --text-inverse:     #09090b;
 
-  --brand-primary:    var(--c-violet-500);
-  --brand-hover:      var(--c-violet-400);
-  --brand-glow:       rgba(139, 92, 246, 0.25);
-  --brand-accent:     var(--c-pink-400);
+  /* Brand and Accent scale: subtle but hi-tech */
+  --brand-primary:    #ffffff; /* Minimalista: branco é primary em app pro */
+  --brand-hover:      #e4e4e7;
+  --brand-glow:       rgba(255, 255, 255, 0.15);
+  --brand-accent:     var(--c-violet-500); /* Toque high tech */
 
-  --feedback-success: var(--c-emerald-400);
-  --feedback-error:   var(--c-red-400);
-  --feedback-warning: var(--c-amber-400);
+  /* States */
+  --feedback-success: var(--c-emerald-500);
+  --feedback-error:   #ef4444; /* red-500 */
+  --feedback-warning: var(--c-amber-500);
 
-  --shadow-sm:   0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md:   0 4px 12px rgba(0,0,0,0.5);
-  --shadow-lg:   0 8px 32px rgba(0,0,0,0.6);
-  --shadow-glow: 0 0 24px var(--brand-glow);
+  /* Elevation (Shadows + Blur setup) */
+  --shadow-sm:   0 2px 4px rgba(0,0,0,0.5);
+  --shadow-md:   0 8px 16px rgba(0,0,0,0.7);
+  --shadow-lg:   0 16px 40px rgba(0,0,0,0.8);
+  --shadow-glow: 0 0 32px var(--brand-glow);
+  --glass-blur:  blur(16px);
 }
 
 /* ============================================================
@@ -135,6 +141,8 @@ body {
   line-height: 1.6;
   color: var(--text-primary);
   background-color: var(--surface-bg);
+  background-image: radial-gradient(circle at 50% 0%, var(--surface-base), var(--surface-bg) 60%);
+  background-attachment: fixed;
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -231,12 +239,12 @@ body {
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--surface-raised) 25%,
-    var(--surface-overlay) 50%,
-    var(--surface-raised) 75%
+    rgba(255, 255, 255, 0.02) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.02) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 2s infinite ease-in-out;
   border-radius: var(--r-md);
 }
 

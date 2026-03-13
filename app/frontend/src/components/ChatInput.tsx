@@ -3,9 +3,18 @@ import type { DragEvent, KeyboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send, ImagePlus, X, Loader2,
-    SlidersHorizontal, ChevronDown, ChevronUp, Globe, Wand2, Pencil
+    SlidersHorizontal, ChevronDown, ChevronUp, Pencil
 } from 'lucide-react';
-import type { AspectRatio, Resolution, GenerationStatus, GroundingStrategy, GuidedBrief, EditTarget } from '../types';
+import type {
+    AspectRatio,
+    Resolution,
+    GenerationStatus,
+    EditTarget,
+    Preset,
+    ScenePreference,
+    FidelityMode,
+    PoseFlexMode,
+} from '../types';
 import './ChatInput.css';
 
 interface Props {
@@ -16,8 +25,10 @@ interface Props {
         n_images: number;
         aspect_ratio: AspectRatio;
         resolution: Resolution;
-        grounding_strategy: GroundingStrategy;
-        guided_brief?: GuidedBrief;
+        preset: Preset;
+        scene_preference: ScenePreference;
+        fidelity_mode: FidelityMode;
+        pose_flex_mode: PoseFlexMode;
     }) => void;
     externalData?: {
         prompt?: string;
@@ -29,15 +40,29 @@ interface Props {
     onEditCancel?: () => void;
 }
 
-const AR_OPTIONS: AspectRatio[] = ['1:1', '9:16', '16:9', '4:3', '3:4'];
+const AR_OPTIONS: AspectRatio[] = ['4:5', '1:1', '9:16', '16:9', '4:3', '3:4'];
 const RES_OPTIONS: Resolution[] = ['1K', '2K', '4K'];
 const N_OPTIONS = [1, 2, 3, 4];
-const AGE_OPTIONS = ['18-24', '25-34', '35-44', '45+'] as const;
-const SET_OPTIONS = ['unica', 'conjunto'] as const;
-const SCENE_OPTIONS = ['interno', 'externo'] as const;
-const POSE_OPTIONS = ['tradicional', 'criativa'] as const;
-const CAPTURE_OPTIONS = ['distante', 'media', 'proxima'] as const;
-
+const PRESET_OPTIONS: Array<{ value: Preset; label: string }> = [
+    { value: 'catalog_clean', label: 'Catálogo clean' },
+    { value: 'marketplace_lifestyle', label: 'Marketplace' },
+    { value: 'premium_lifestyle', label: 'Premium' },
+];
+const SCENE_PREF_OPTIONS: Array<{ value: ScenePreference; label: string }> = [
+    { value: 'auto_br', label: 'Auto BR' },
+    { value: 'indoor_br', label: 'Indoor BR' },
+    { value: 'outdoor_br', label: 'Outdoor BR' },
+];
+const FIDELITY_OPTIONS: Array<{ value: FidelityMode; label: string }> = [
+    { value: 'balanceada', label: 'Balanceada' },
+    { value: 'estrita', label: 'Estrita' },
+];
+const POSE_FLEX_OPTIONS: Array<{ value: PoseFlexMode; label: string }> = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'controlled', label: 'Controlada' },
+    { value: 'balanced', label: 'Balanceada' },
+    { value: 'dynamic', label: 'Dinâmica' },
+];
 interface HistoryDragPayload {
     url: string;
     filename?: string;
@@ -48,22 +73,21 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
     const [prompt, setPrompt] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     const [showParams, setShowParams] = useState(false);
-    const [ar, setAr] = useState<AspectRatio>('1:1');
+    const [ar, setAr] = useState<AspectRatio>('4:5');
     const [res, setRes] = useState<Resolution>('1K');
     const [n, setN] = useState(1);
-    const [groundingStrategy, setGroundingStrategy] = useState<GroundingStrategy>('auto');
-    const [guidedEnabled, setGuidedEnabled] = useState(false);
-    const [guidedExpanded, setGuidedExpanded] = useState(true);
-    const [guidedAgeRange, setGuidedAgeRange] = useState<(typeof AGE_OPTIONS)[number]>('25-34');
-    const [guidedSetMode, setGuidedSetMode] = useState<(typeof SET_OPTIONS)[number]>('unica');
-    const [guidedSceneType, setGuidedSceneType] = useState<(typeof SCENE_OPTIONS)[number]>('externo');
-    const [guidedPoseStyle, setGuidedPoseStyle] = useState<(typeof POSE_OPTIONS)[number]>('tradicional');
-    const [guidedCaptureDistance, setGuidedCaptureDistance] = useState<(typeof CAPTURE_OPTIONS)[number]>('media');
+    const [preset, setPreset] = useState<Preset>('marketplace_lifestyle');
+    const [scenePreference, setScenePreference] = useState<ScenePreference>('auto_br');
+    const [fidelityMode, setFidelityMode] = useState<FidelityMode>('balanceada');
+    const [poseFlexMode, setPoseFlexMode] = useState<PoseFlexMode>('auto');
     const [dragOver, setDragOver] = useState(false);
     const [dropMessage, setDropMessage] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const busy =
+        status.type === 'preparing_references' ||
+        status.type === 'stabilizing_garment' ||
+        status.type === 'creating_listing' ||
         status.type === 'mode_selected' ||
         status.type === 'researching' ||
         status.type === 'analyzing' ||
@@ -122,30 +146,16 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
 
     function handleSubmit() {
         if (busy) return;
-        if (guidedEnabled) {
-            setGuidedExpanded(false);
-        }
-        const guidedBrief: GuidedBrief | undefined = guidedEnabled
-            ? {
-                enabled: true,
-                model: { age_range: guidedAgeRange },
-                garment: {
-                    set_mode: guidedSetMode,
-                },
-                scene: { type: guidedSceneType },
-                pose: { style: guidedPoseStyle },
-                capture: { distance: guidedCaptureDistance },
-                fidelity_mode: files.length > 0 && guidedSetMode === 'conjunto' ? 'estrita' : 'balanceada',
-            }
-            : undefined;
         onSubmit({
             prompt,
             files,
             n_images: n,
             aspect_ratio: ar,
             resolution: res,
-            grounding_strategy: groundingStrategy,
-            guided_brief: guidedBrief,
+            preset,
+            scene_preference: scenePreference,
+            fidelity_mode: fidelityMode,
+            pose_flex_mode: poseFlexMode,
         });
         setPrompt('');
         setFiles([]);
@@ -219,13 +229,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
         setDropMessage(message);
         window.setTimeout(() => setDropMessage(null), 2200);
     }
-
-    function toggleGuidedMode() {
-        setGuidedEnabled(v => !v);
-        setGuidedExpanded(true);
-    }
-
-    const guidedSummary = `Idade ${guidedAgeRange} · ${guidedSetMode === 'conjunto' ? 'Conjunto' : 'Peça única'} · ${guidedSceneType} · ${guidedPoseStyle} · ${guidedCaptureDistance}`;
 
     function handleDragOver(event: DragEvent<HTMLDivElement>) {
         if (busy) return;
@@ -305,7 +308,44 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                 )}
             </AnimatePresence>
 
-            {/* Parâmetros de geração */}
+            {/* Preset e Cena — sempre visível */}
+            {!editTarget && (
+                <div className="preset-row">
+                    <fieldset className="param-group">
+                        <legend className="t-label text-tertiary">Estilo</legend>
+                        <div className="param-chips">
+                            {PRESET_OPTIONS.map(option => (
+                                <button
+                                    key={option.value}
+                                    className={`chip ${preset === option.value ? 'chip--active' : ''}`}
+                                    onClick={() => setPreset(option.value)}
+                                    type="button"
+                                    aria-pressed={preset === option.value}
+                                    disabled={busy}
+                                >{option.label}</button>
+                            ))}
+                        </div>
+                    </fieldset>
+
+                    <fieldset className="param-group">
+                        <legend className="t-label text-tertiary">Cena</legend>
+                        <div className="param-chips">
+                            {SCENE_PREF_OPTIONS.map(option => (
+                                <button
+                                    key={option.value}
+                                    className={`chip ${scenePreference === option.value ? 'chip--active' : ''}`}
+                                    onClick={() => setScenePreference(option.value)}
+                                    type="button"
+                                    aria-pressed={scenePreference === option.value}
+                                    disabled={busy}
+                                >{option.label}</button>
+                            ))}
+                        </div>
+                    </fieldset>
+                </div>
+            )}
+
+            {/* Painel avançado (recolhido por padrão) */}
             <AnimatePresence>
                 {showParams && (
                     <motion.div
@@ -316,6 +356,40 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                         transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                         <div className="params-row">
+                            <fieldset className="param-group">
+                                <legend className="t-label text-tertiary">Fidelidade</legend>
+                                <div className="param-chips">
+                                    {FIDELITY_OPTIONS.map(option => (
+                                        <button
+                                            key={option.value}
+                                            className={`chip ${fidelityMode === option.value ? 'chip--active' : ''}`}
+                                            onClick={() => setFidelityMode(option.value)}
+                                            type="button"
+                                            aria-pressed={fidelityMode === option.value}
+                                        >{option.label}</button>
+                                    ))}
+                                </div>
+                            </fieldset>
+
+                            <fieldset className="param-group">
+                                <legend className="t-label text-tertiary">Pose</legend>
+                                <div className="param-chips">
+                                    {POSE_FLEX_OPTIONS.map(option => (
+                                        <button
+                                            key={option.value}
+                                            className={`chip ${poseFlexMode === option.value ? 'chip--active' : ''}`}
+                                            onClick={() => setPoseFlexMode(option.value)}
+                                            type="button"
+                                            aria-pressed={poseFlexMode === option.value}
+                                            disabled={busy}
+                                        >{option.label}</button>
+                                    ))}
+                                </div>
+                                <p className="t-xs text-tertiary param-help">
+                                    Auto analisa as referências e decide a pose no momento do job.
+                                </p>
+                            </fieldset>
+
                             <fieldset className="param-group">
                                 <legend className="t-label text-tertiary">Aspecto</legend>
                                 <div className="param-chips">
@@ -360,163 +434,7 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                                     ))}
                                 </div>
                             </fieldset>
-
-                            <fieldset className="param-group param-group--toggle">
-                                <div className="param-chips" role="group" aria-label="Estratégia de grounding">
-                                    <button
-                                        className={`chip chip--toggle ${groundingStrategy === 'auto' ? 'chip--active chip--grounding' : ''}`}
-                                        onClick={() => setGroundingStrategy('auto')}
-                                        type="button"
-                                        aria-pressed={groundingStrategy === 'auto'}
-                                        title="Decide automaticamente quando pesquisar"
-                                    >
-                                        <Globe size={14} />
-                                        Auto
-                                    </button>
-                                    <button
-                                        className={`chip chip--toggle ${groundingStrategy === 'on' ? 'chip--active chip--grounding' : ''}`}
-                                        onClick={() => setGroundingStrategy('on')}
-                                        type="button"
-                                        aria-pressed={groundingStrategy === 'on'}
-                                        title="Força pesquisa web"
-                                    >
-                                        On
-                                    </button>
-                                    <button
-                                        className={`chip chip--toggle ${groundingStrategy === 'off' ? 'chip--active' : ''}`}
-                                        onClick={() => setGroundingStrategy('off')}
-                                        type="button"
-                                        aria-pressed={groundingStrategy === 'off'}
-                                        title="Desliga grounding"
-                                    >
-                                        Off
-                                    </button>
-                                </div>
-                            </fieldset>
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Modo guiado */}
-            <AnimatePresence>
-                {guidedEnabled && (
-                    <motion.div
-                        className="guided-panel"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2, ease: 'easeOut' }}
-                    >
-                        <div className="guided-panel-head">
-                            <span className="guided-panel-title">Modo Guiado</span>
-                            <button
-                                type="button"
-                                className="guided-toggle-btn"
-                                onClick={() => setGuidedExpanded(v => !v)}
-                                disabled={busy}
-                                aria-expanded={guidedExpanded}
-                                aria-label={guidedExpanded ? 'Recolher modo guiado' : 'Expandir modo guiado'}
-                            >
-                                {guidedExpanded ? 'Recolher' : 'Editar'}
-                            </button>
-                        </div>
-
-                        {guidedExpanded && (
-                            <div className="guided-grid">
-                                <fieldset className="param-group">
-                                    <legend className="t-label text-tertiary">Faixa etária</legend>
-                                    <div className="param-chips">
-                                        {AGE_OPTIONS.map(v => (
-                                            <button
-                                                key={v}
-                                                type="button"
-                                                className={`chip ${guidedAgeRange === v ? 'chip--active' : ''}`}
-                                                onClick={() => setGuidedAgeRange(v)}
-                                                aria-pressed={guidedAgeRange === v}
-                                                disabled={busy}
-                                            >
-                                                {v}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </fieldset>
-
-                                <fieldset className="param-group">
-                                    <legend className="t-label text-tertiary">Peça</legend>
-                                    <div className="param-chips">
-                                        {SET_OPTIONS.map(v => (
-                                            <button
-                                                key={v}
-                                                type="button"
-                                                className={`chip ${guidedSetMode === v ? 'chip--active' : ''}`}
-                                                onClick={() => setGuidedSetMode(v)}
-                                                aria-pressed={guidedSetMode === v}
-                                                disabled={busy}
-                                            >
-                                                {v === 'unica' ? 'Única' : 'Conjunto'}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </fieldset>
-
-                                <fieldset className="param-group">
-                                    <legend className="t-label text-tertiary">Cenário</legend>
-                                    <div className="param-chips">
-                                        {SCENE_OPTIONS.map(v => (
-                                            <button
-                                                key={v}
-                                                type="button"
-                                                className={`chip ${guidedSceneType === v ? 'chip--active' : ''}`}
-                                                onClick={() => setGuidedSceneType(v)}
-                                                aria-pressed={guidedSceneType === v}
-                                                disabled={busy}
-                                            >
-                                                {v}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </fieldset>
-
-                                <fieldset className="param-group">
-                                    <legend className="t-label text-tertiary">Pose</legend>
-                                    <div className="param-chips">
-                                        {POSE_OPTIONS.map(v => (
-                                            <button
-                                                key={v}
-                                                type="button"
-                                                className={`chip ${guidedPoseStyle === v ? 'chip--active' : ''}`}
-                                                onClick={() => setGuidedPoseStyle(v)}
-                                                aria-pressed={guidedPoseStyle === v}
-                                                disabled={busy}
-                                            >
-                                                {v}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </fieldset>
-
-                                <fieldset className="param-group">
-                                    <legend className="t-label text-tertiary">Captura</legend>
-                                    <div className="param-chips">
-                                        {CAPTURE_OPTIONS.map(v => (
-                                            <button
-                                                key={v}
-                                                type="button"
-                                                className={`chip ${guidedCaptureDistance === v ? 'chip--active' : ''}`}
-                                                onClick={() => setGuidedCaptureDistance(v)}
-                                                aria-pressed={guidedCaptureDistance === v}
-                                                disabled={busy}
-                                            >
-                                                {v}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </fieldset>
-                            </div>
-                        )}
-
-                        <p className="guided-summary-text">Brief Guiado: {guidedSummary}</p>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -530,11 +448,14 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                     >
-                        {files.map((f, i) => (
+                        {files.map((f, i) => {
+                            const previewUrl = URL.createObjectURL(f);
+                            return (
                             <div key={i} className="file-thumb">
                                 <img
-                                    src={URL.createObjectURL(f)}
+                                    src={previewUrl}
                                     alt={f.name}
+                                    onLoad={() => URL.revokeObjectURL(previewUrl)}
                                 />
                                 <button
                                     className="file-remove"
@@ -544,7 +465,8 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                                     <X size={10} />
                                 </button>
                             </div>
-                        ))}
+                            );
+                        })}
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -574,7 +496,7 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                 <textarea
                     ref={textareaRef}
                     className="chat-textarea"
-                    placeholder={editTarget ? 'Descreva a modificação desejada… (ex: troque o fundo por praia)' : 'Descreva a geração ou deixe vazio para o agente criar sozinho…'}
+                    placeholder={editTarget ? 'Descreva a modificação desejada…' : 'Descreva o que deseja ou envie fotos da peça…'}
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -588,24 +510,12 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                     className="input-action-btn"
                     onClick={() => setShowParams(v => !v)}
                     type="button"
-                    aria-label="Parâmetros de geração"
+                    aria-label="Configurações avançadas"
                     aria-expanded={showParams}
-                    title="Configurações"
+                    title="Avançado"
                 >
                     <SlidersHorizontal size={18} />
                     {showParams ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                </button>
-
-                <button
-                    className={`input-action-btn ${guidedEnabled ? 'input-action-btn--guided' : ''}`}
-                    onClick={toggleGuidedMode}
-                    type="button"
-                    aria-label="Alternar modo guiado"
-                    aria-pressed={guidedEnabled}
-                    title="Modo Guiado"
-                    disabled={busy}
-                >
-                    <Wand2 size={18} />
                 </button>
 
                 <button
@@ -633,22 +543,16 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
 
             <p id="chat-hint" className="t-xs text-tertiary" style={{ paddingLeft: 4 }}>
                 {busy
-                    ? status.type === 'mode_selected'
-                        ? '✦ Definindo modo do pipeline…'
-                        : status.type === 'analyzing'
-                            ? '✦ Agente analisando…'
-                            : status.type === 'triage_done'
-                                ? '✦ Triage de grounding…'
-                                : status.type === 'prompt_ready'
-                                    ? '✦ Prompt criado, enviando ao Nano…'
-                                    : status.type === 'editing'
-                                        ? '✏️ Editando imagem…'
-                                        : `✦ Gerando ${n > 1 ? n + ' imagens' : 'imagem'}…`
+                    ? status.type === 'editing'
+                        ? 'Editando imagem…'
+                        : status.type === 'generating'
+                            ? `Gerando ${n > 1 ? n + ' imagens' : 'imagem'}…`
+                            : 'Processando…'
                     : dragOver
                         ? 'Solte aqui para reutilizar a mídia como referência'
                         : editTarget
                             ? 'Enter para aplicar edição · Esc para cancelar'
-                            : 'Enter para gerar · Shift+Enter para nova linha · Sem prompt = modo autônomo'
+                            : 'Enter para gerar · Shift+Enter para nova linha'
                 }
             </p>
 

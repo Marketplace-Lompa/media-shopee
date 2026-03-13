@@ -1,4 +1,5 @@
 import os
+import time
 from typing import List, Any, Optional
 
 from google import genai
@@ -11,6 +12,51 @@ if not _GOOGLE_AI_API_KEY:
     raise ValueError("A variável de ambiente GOOGLE_AI_API_KEY não está configurada ou está vazia.")
 
 _client = genai.Client(api_key=_GOOGLE_AI_API_KEY)
+_TRANSIENT_PROVIDER_ERRORS = (
+    "server disconnected without sending a response",
+    "remoteprotocolerror",
+    "connection reset",
+    "temporarily unavailable",
+    "timed out",
+    "timeout",
+    "503",
+    "502",
+    "500",
+)
+
+
+def _is_transient_provider_error(exc: Exception) -> bool:
+    text = str(exc or "").strip().lower()
+    return any(token in text for token in _TRANSIENT_PROVIDER_ERRORS)
+
+
+def _generate_content_with_retry(
+    *,
+    model: str,
+    parts: List[types.Part],
+    config: types.GenerateContentConfig,
+    max_attempts: int = 3,
+) -> Any:
+    last_error: Optional[Exception] = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return _client.models.generate_content(
+                model=model,
+                contents=[types.Content(role="user", parts=parts)],
+                config=config,
+            )
+        except Exception as exc:
+            last_error = exc
+            if attempt >= max_attempts or not _is_transient_provider_error(exc):
+                raise
+            print(
+                "[GEMINI_CLIENT] transient failure; retrying "
+                f"(attempt={attempt + 1}/{max_attempts})"
+            )
+            time.sleep(0.8 * attempt)
+    if last_error:
+        raise last_error
+    raise RuntimeError("Gemini request failed without response")
 
 def generate_structured_json(
     parts: List[types.Part],
@@ -28,11 +74,7 @@ def generate_structured_json(
         response_json_schema=schema,
         thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
     )
-    return _client.models.generate_content(
-        model=MODEL_AGENT,
-        contents=[types.Content(role="user", parts=parts)],
-        config=config,
-    )
+    return _generate_content_with_retry(model=MODEL_AGENT, parts=parts, config=config)
 
 def generate_multimodal(
     parts: List[types.Part],
@@ -47,11 +89,7 @@ def generate_multimodal(
         safety_settings=SAFETY_CONFIG,
         thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
     )
-    return _client.models.generate_content(
-        model=MODEL_AGENT,
-        contents=[types.Content(role="user", parts=parts)],
-        config=config,
-    )
+    return _generate_content_with_retry(model=MODEL_AGENT, parts=parts, config=config)
 
 def generate_text_with_tools(
     parts: List[types.Part],
@@ -66,11 +104,7 @@ def generate_text_with_tools(
         safety_settings=SAFETY_CONFIG,
         tools=tools,
     )
-    return _client.models.generate_content(
-        model=MODEL_AGENT,
-        contents=[types.Content(role="user", parts=parts)],
-        config=config,
-    )
+    return _generate_content_with_retry(model=MODEL_AGENT, parts=parts, config=config)
 
 def generate_with_system_instruction(
     parts: List[types.Part],
@@ -83,9 +117,9 @@ def generate_with_system_instruction(
     # Se o schema for passado tentamos enforced JSON
     if schema:
         try:
-            return _client.models.generate_content(
+            return _generate_content_with_retry(
                 model=MODEL_AGENT,
-                contents=[types.Content(role="user", parts=parts)],
+                parts=parts,
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     temperature=temperature,
@@ -99,9 +133,9 @@ def generate_with_system_instruction(
             print(f"[GEMINI_CLIENT] ⚠️ Schema enforcement failed ({schema_err}), falling back to mime-only")
 
     # Fallback mime-only (ou caso uso thel sem schema estrito)
-    return _client.models.generate_content(
+    return _generate_content_with_retry(
         model=MODEL_AGENT,
-        contents=[types.Content(role="user", parts=parts)],
+        parts=parts,
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,
             temperature=temperature,

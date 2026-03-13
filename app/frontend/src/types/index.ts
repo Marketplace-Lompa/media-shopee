@@ -1,8 +1,16 @@
-export type AspectRatio = '1:1' | '9:16' | '16:9' | '4:3' | '3:4';
+export type AspectRatio = '1:1' | '9:16' | '16:9' | '4:3' | '3:4' | '4:5';
 export type Resolution = '1K' | '2K' | '4K';
 export type PoolType = 'modelo' | 'roupa' | 'cenario';
+export type PipelineMode = 'reference_mode' | 'reference_mode_strict' | 'text_mode';
+
+// ── V2 types ──
+export type Preset = 'catalog_clean' | 'marketplace_lifestyle' | 'premium_lifestyle';
+export type ScenePreference = 'auto_br' | 'indoor_br' | 'outdoor_br';
+export type FidelityMode = 'balanceada' | 'estrita';
+export type PoseFlexMode = 'auto' | 'controlled' | 'balanced' | 'dynamic';
+
+// ── Legacy types (mantidos para compatibilidade de leitura do histórico) ──
 export type GroundingStrategy = 'auto' | 'on' | 'off';
-export type PipelineMode = 'reference_mode' | 'text_mode';
 export type GuidedAgeRange = '18-24' | '25-34' | '35-44' | '45+';
 export type GuidedSetMode = 'unica' | 'conjunto';
 export type GuidedSceneType = 'interno' | 'externo';
@@ -49,6 +57,10 @@ export interface GenerateRequest {
     session_id?: string;
     grounding_strategy?: GroundingStrategy;
     guided_brief?: GuidedBrief;
+    preset?: Preset;
+    scene_preference?: ScenePreference;
+    fidelity_mode?: FidelityMode;
+    pose_flex_mode?: PoseFlexMode;
 }
 
 export interface GeneratedImage {
@@ -126,6 +138,7 @@ export interface GenerateResponse {
     session_id: string;
     optimized_prompt: string;
     pipeline_mode?: PipelineMode;
+    pipeline_version?: 'v2';
     thinking_level?: string;
     thinking_reason?: string;
     shot_type?: 'wide' | 'medium' | 'close-up' | 'auto';
@@ -147,6 +160,72 @@ export interface GenerateResponse {
     guided_applied?: boolean;
     guided_summary?: GuidedSummary;
     prompt_compiler_debug?: PromptCompilerDebug;
+    art_direction_summary?: Record<string, string>;
+    preset?: Preset;
+    scene_preference?: ScenePreference;
+    fidelity_mode?: FidelityMode;
+    pose_flex_mode?: PoseFlexMode;
+    pose_flex_guideline?: string;
+    debug_report_url?: string;
+    debug_report_path?: string;
+}
+
+export interface ReviewFinding {
+    severity: 'high' | 'medium' | 'low';
+    category: string;
+    title: string;
+    evidence: string;
+    refinement: string;
+}
+
+export interface ReviewGateResult {
+    available: boolean;
+    verdict?: 'pass' | 'soft_fail' | 'hard_fail' | null;
+    fidelity_score?: number | null;
+    issue_codes: string[];
+    summary?: string | null;
+    recovery_applied?: boolean;
+    index?: number;
+    selected?: string | null;
+}
+
+export interface JobReviewPayload {
+    session_id: string;
+    written_at: number;
+    report_url: string;
+    report_path: string;
+    assets: {
+        original_references: string[];
+        selected_base_references: string[];
+        selected_edit_anchors: string[];
+        selected_identity_safe: string[];
+        base_image?: string | null;
+        final_images: string[];
+        reuse_reference_urls: string[];
+    };
+    context: {
+        prompt?: string | null;
+        preset?: string | null;
+        scene_preference?: string | null;
+        fidelity_mode?: string | null;
+        pose_flex_mode?: string | null;
+        reference_guard_strength?: string | null;
+        selected_names?: Record<string, string[]>;
+        structural_contract?: Record<string, unknown> | null;
+        set_detection?: Record<string, unknown> | null;
+    };
+    gate?: {
+        enabled: boolean;
+        reasons: string[];
+        stage1: ReviewGateResult;
+        stage2_runs: ReviewGateResult[];
+    };
+    review: {
+        verdict: 'ok' | 'attention' | 'fail';
+        summary: string;
+        findings: ReviewFinding[];
+        recommended_actions: string[];
+    };
 }
 
 export interface MediaHistoryItem {
@@ -183,6 +262,11 @@ export interface PoolItem {
 
 export type GenerationStatus =
     | { type: 'idle' }
+    // ── V2 pipeline stages (seller-facing) ──
+    | { type: 'preparing_references'; message: string }
+    | { type: 'stabilizing_garment'; message: string }
+    | { type: 'creating_listing'; message: string; current?: number; total?: number }
+    // ── Legacy stages (mantidos para fluxo antigo) ──
     | { type: 'mode_selected'; message: string; pipeline_mode: PipelineMode }
     | { type: 'researching'; message: string }
     | { type: 'analyzing'; message: string }
@@ -211,6 +295,7 @@ export type GenerationStatus =
         guided_summary?: GuidedSummary;
         prompt_compiler_debug?: PromptCompilerDebug;
     }
+    // ── Common stages ──
     | { type: 'editing'; message: string }
     | { type: 'generating'; message: string; current: number; total: number }
     | { type: 'done'; response: GenerateResponse }

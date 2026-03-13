@@ -26,7 +26,7 @@ MODEL_AGENT   = "gemini-3-flash-preview"            # Prompt Agent (texto)
 MODEL_IMAGE   = "gemini-3.1-flash-image-preview"    # Nano Banana 2 (imagem)
 
 # ── Defaults de geração ───────────────────────────────────────────────────────
-DEFAULT_ASPECT_RATIO = "1:1"
+DEFAULT_ASPECT_RATIO = "4:5"
 DEFAULT_RESOLUTION   = "1K"
 DEFAULT_N_IMAGES     = 1
 

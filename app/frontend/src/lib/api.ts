@@ -1,10 +1,6 @@
 // Com Vite proxy configurado, BASE fica vazio — caminhos relativos passam pelo proxy
 const BASE = '';
 
-export async function generateImages(formData: FormData): Promise<Response> {
-    return fetch(`${BASE}/generate`, { method: 'POST', body: formData });
-}
-
 export async function listPool() {
     const r = await fetch(`${BASE}/pool`);
     if (!r.ok) throw new Error('Falha ao carregar pool');
@@ -26,6 +22,20 @@ export async function removeFromPool(id: string) {
 export async function listHistory(limit = 200, offset = 0) {
     const r = await fetch(`${BASE}/history?limit=${limit}&offset=${offset}`);
     if (!r.ok) throw new Error('Falha ao carregar histórico');
+    return r.json();
+}
+
+export async function getLatestReview(refresh = false) {
+    const suffix = refresh ? '?refresh=true' : '';
+    const r = await fetch(`${BASE}/review/latest${suffix}`);
+    if (!r.ok) throw new Error('Falha ao carregar revisão');
+    return r.json();
+}
+
+export async function getReviewBySession(sessionId: string, refresh = false) {
+    const suffix = refresh ? '?refresh=true' : '';
+    const r = await fetch(`${BASE}/review/session/${encodeURIComponent(sessionId)}${suffix}`);
+    if (!r.ok) throw new Error('Falha ao carregar revisão da sessão');
     return r.json();
 }
 

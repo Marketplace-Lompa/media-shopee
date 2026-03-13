@@ -1,28 +1,31 @@
 import './Sidebar.css';
-import { Images, Database, Settings, Sparkles } from 'lucide-react';
+import { Images, BookOpen, Sparkles, Search } from 'lucide-react';
+
+export type Tab = 'criar' | 'revisao' | 'historico' | 'biblioteca';
 
 interface Props {
-    activeTab: 'generate' | 'pool' | 'settings';
-    onTabChange: (tab: 'generate' | 'pool' | 'settings') => void;
+    activeTab: Tab;
+    onTabChange: (tab: Tab) => void;
 }
 
 const nav = [
-    { id: 'generate' as const, icon: Sparkles, label: 'Gerar' },
-    { id: 'pool' as const, icon: Database, label: 'Pool' },
-    { id: 'settings' as const, icon: Settings, label: 'Config' },
+    { id: 'criar' as const, icon: Sparkles, label: 'Criar' },
+    { id: 'revisao' as const, icon: Search, label: 'Revisão' },
+    { id: 'historico' as const, icon: Images, label: 'Histórico' },
+    { id: 'biblioteca' as const, icon: BookOpen, label: 'Biblioteca' },
 ];
 
 export function Sidebar({ activeTab, onTabChange }: Props) {
     return (
-        <aside className="sidebar" role="navigation" aria-label="Navegação principal">
+        <div className="sidebar">
             <div className="sidebar-brand">
-                <div className="brand-icon" aria-hidden="true">
-                    <Images size={20} />
+                <div className="brand-logo" aria-hidden="true">
+                    <img src="/studio-logo.png" alt="Studio Logo" />
                 </div>
                 <span className="brand-name">Studio</span>
             </div>
 
-            <nav className="sidebar-nav">
+            <nav className="sidebar-nav" aria-label="Navegação principal">
                 {nav.map(({ id, icon: Icon, label }) => (
                     <button
                         key={id}
@@ -38,8 +41,8 @@ export function Sidebar({ activeTab, onTabChange }: Props) {
             </nav>
 
             <div className="sidebar-footer">
-                <span className="t-xs text-tertiary">v0.1 · Nano Banana 2</span>
+                <span className="t-xs text-tertiary">v0.2</span>
             </div>
-        </aside>
+        </div>
     );
 }

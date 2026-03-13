@@ -10,7 +10,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--surface-bg);
+  position: relative;
+  background: radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.08) 0%, transparent 60%), var(--surface-bg);
 }
 
 /* ============================================================
@@ -32,6 +33,13 @@
   gap: var(--sp-4);
 }
 
+.generate-header h1 {
+  background: linear-gradient(135deg, var(--c-violet-400), var(--c-pink-400));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .generate-content {
   flex: 1;
   display: flex;
@@ -43,22 +51,6 @@
 .pool-layout {
   height: 100%;
   position: relative;
-}
-
-/* Settings placeholder */
-.settings-layout {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.settings-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-3);
-  text-align: center;
 }
 
 /* App.css override para reset Vite */

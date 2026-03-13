@@ -1,12 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, ZoomIn, X, CheckCircle, Search, Sparkles, Image, Globe, Layers, AlertTriangle, Clock, Trash2, Copy } from 'lucide-react';
+import { Download, ZoomIn, X, CheckCircle, Search, Sparkles, Image, Layers, AlertTriangle, Clock, Trash2, Copy } from 'lucide-react';
 import type {
-    ClassifierSummary,
     GenerationStatus,
-    GroundingInfo,
     MediaHistoryItem,
-    QualityContract,
 } from '../types';
 import { imageUrl } from '../lib/api';
 import './Gallery.css';
@@ -14,10 +11,9 @@ import React from 'react'; // Added React import for React.memo
 
 interface Props {
     status: GenerationStatus;
-    hadResearch: boolean;
     mediaHistory: MediaHistoryItem[];
-    onDelete: (id: string) => void; // Renamed from onHistoryDelete
-    onReuse?: (item: MediaHistoryItem) => void; // Made optional
+    onDelete: (id: string) => void;
+    onReuse?: (item: MediaHistoryItem) => void;
     onLightbox: (url: string) => void;
     onLightboxItem: (item: MediaHistoryItem) => void;
 }
@@ -34,15 +30,17 @@ function timeAgo(ts: number): string {
     return `${days}d`;
 }
 
-function setDragPayload(e: React.DragEvent, url: string, filename: string) {
+function setDragPayload(e: React.DragEvent, url: string, filename: string, prompt?: string) {
     if (!e?.dataTransfer) return;
+    const payload = JSON.stringify({ url, filename, prompt });
     e.dataTransfer.setData('text/plain', url);
-    e.dataTransfer.setData('application/x-studio-image', JSON.stringify({ url, filename }));
+    e.dataTransfer.setData('application/x-media-history', payload);
+    e.dataTransfer.setData('application/x-studio-image', payload);
     e.dataTransfer.effectAllowed = 'copy';
 }
 
 /* ── Stepper helpers ──────────────────────────────────────── */
-type StepId = 'mode_selected' | 'researching' | 'analyzing' | 'triage_done' | 'prompt_ready' | 'generating';
+type StepId = string;
 
 interface StepDef {
     id: StepId;
@@ -50,29 +48,36 @@ interface StepDef {
     icon: React.ReactNode;
 }
 
-const STEPS_BASE: StepDef[] = [
-    { id: 'mode_selected', label: 'Selecionando modo', icon: <Layers size={16} /> },
-    { id: 'analyzing', label: 'Analisando imagens', icon: <Search size={16} /> },
-    { id: 'triage_done', label: 'Triage grounding', icon: <Sparkles size={16} /> },
-    { id: 'prompt_ready', label: 'Prompt criado', icon: <Sparkles size={16} /> },
+// V2 pipeline steps — seller-facing
+const STEPS_V2: StepDef[] = [
+    { id: 'preparing_references', label: 'Preparando referências', icon: <Search size={16} /> },
+    { id: 'stabilizing_garment', label: 'Estabilizando a peça', icon: <Layers size={16} /> },
+    { id: 'creating_listing', label: 'Criando o anúncio', icon: <Image size={16} /> },
+];
+
+// Legacy steps (kept for old pipeline compat)
+const STEPS_LEGACY: StepDef[] = [
+    { id: 'mode_selected', label: 'Iniciando', icon: <Layers size={16} /> },
+    { id: 'analyzing', label: 'Analisando', icon: <Search size={16} /> },
+    { id: 'triage_done', label: 'Avaliando', icon: <Sparkles size={16} /> },
+    { id: 'prompt_ready', label: 'Preparando', icon: <Sparkles size={16} /> },
     { id: 'generating', label: 'Gerando imagem', icon: <Image size={16} /> },
 ];
 
-const STEP_RESEARCH: StepDef = { id: 'researching', label: 'Pesquisando referências', icon: <Globe size={16} /> };
+const V2_IDS = new Set(STEPS_V2.map(s => s.id));
 
-function getSteps(hasResearch: boolean): StepDef[] {
-    return hasResearch ? [STEP_RESEARCH, ...STEPS_BASE] : STEPS_BASE;
+function getSteps(statusType: string): StepDef[] {
+    return V2_IDS.has(statusType) ? STEPS_V2 : STEPS_LEGACY;
 }
 
-function stepIndex(type: string, hasResearch: boolean): number {
-    const steps = getSteps(hasResearch);
+function stepIndex(type: string, steps: StepDef[]): number {
     return steps.findIndex(s => s.id === type);
 }
 
 /* ── Pipeline Stepper ─────────────────────────────────────── */
-function PipelineStepper({ status, hasResearch }: { status: GenerationStatus; hasResearch: boolean }) {
-    const steps = getSteps(hasResearch);
-    const current = stepIndex(status.type, hasResearch);
+function PipelineStepper({ status }: { status: GenerationStatus }) {
+    const steps = getSteps(status.type);
+    const current = stepIndex(status.type, steps);
 
     return (
         <div className="pipeline-stepper" role="status" aria-live="polite">
@@ -123,86 +128,26 @@ function PipelineStepper({ status, hasResearch }: { status: GenerationStatus; ha
                                 {step.label}
                             </span>
 
-                            {state === 'active' && (
+                            {state === 'active' && 'message' in status && (
                                 <motion.div
                                     className="step-detail"
                                     initial={{ opacity: 0, y: -4 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.25 }}
                                 >
-                                    {status.type === 'analyzing' && (
-                                        <p className="step-detail-text">{status.message}</p>
-                                    )}
+                                    <p className="step-detail-text">{status.message}</p>
 
-                                    {status.type === 'mode_selected' && (
-                                        <p className="step-detail-text">
-                                            {status.message} · {status.pipeline_mode === 'reference_mode' ? 'Com referência' : 'Sem referência'}
-                                        </p>
-                                    )}
-
-                                    {status.type === 'triage_done' && (
-                                        <>
-                                            <p className="step-detail-text">{status.message}</p>
-                                            <p className="step-detail-text">
-                                                Modo: <strong>{status.grounding_mode}</strong>
-                                                {typeof status.grounding_score === 'number' ? ` · Score: ${status.grounding_score.toFixed(2)}` : ''}
-                                            </p>
-                                            {typeof status.complexity_score === 'number' && (
-                                                <p className="step-detail-text">Complexidade: {status.complexity_score.toFixed(2)}</p>
-                                            )}
-                                            {typeof status.hint_confidence === 'number' && (
-                                                <p className="step-detail-text">Confiança: {status.hint_confidence.toFixed(2)}</p>
-                                            )}
-                                            {status.trigger_reason && (
-                                                <p className="step-detail-text">Motivo: {status.trigger_reason}</p>
-                                            )}
-                                            {status.classifier_summary?.garment_category && (
-                                                <p className="step-detail-text">
-                                                    Categoria: {status.classifier_summary.garment_category}
-                                                    {status.classifier_summary?.atypical ? ' · Atípica' : ''}
-                                                </p>
-                                            )}
-                                            {Array.isArray(status.reason_codes) && status.reason_codes.length > 0 ? (
-                                                <p className="step-detail-text">
-                                                    Códigos: {status.reason_codes.slice(0, 3).join(', ')}
-                                                </p>
-                                            ) : null}
-                                            {status.garment_hypothesis && (
-                                                <p className="step-detail-text">{status.garment_hypothesis}</p>
-                                            )}
-                                        </>
-                                    )}
-
-                                    {status.type === 'prompt_ready' && (
-                                        <>
-                                            {status.image_analysis && (
-                                                <div className="step-analysis-card">
-                                                    <p className="step-analysis-title">🔍 Análise visual</p>
-                                                    <p className="step-analysis-body">{status.image_analysis}</p>
-                                                </div>
-                                            )}
-                                            <p className="step-detail-prompt">{status.prompt}</p>
-                                        </>
-                                    )}
-
-                                    {status.type === 'generating' && (
-                                        <>
-                                            <p className="step-detail-text">{status.message}</p>
-                                            <div className="step-progress-wrap">
-                                                <motion.div
-                                                    className="step-progress-fill"
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: `${Math.round((status.current / status.total) * 100)}%` }}
-                                                    transition={{ ease: 'easeOut' }}
-                                                />
-                                            </div>
-                                        </>
+                                    {(status.type === 'generating' || status.type === 'creating_listing') && status.current && status.total && (
+                                        <div className="step-progress-wrap">
+                                            <motion.div
+                                                className="step-progress-fill"
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${Math.round((status.current / status.total) * 100)}%` }}
+                                                transition={{ ease: 'easeOut' }}
+                                            />
+                                        </div>
                                     )}
                                 </motion.div>
-                            )}
-
-                            {state === 'done' && status.type === 'prompt_ready' && i === 0 && status.image_analysis && (
-                                <p className="step-done-summary">{status.image_analysis}</p>
                             )}
                         </div>
                     </div>
@@ -228,26 +173,10 @@ function CopyAction({ text }: { text: string }) {
 
     return (
         <button
+            className="copy-action-btn"
             onClick={handleCopy}
-            style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: 6,
-                padding: 6,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--color-text-secondary)',
-                transition: 'all 0.2s'
-            }}
             title="Copiar prompt"
             aria-label="Copiar prompt"
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
         >
             {copied ? <CheckCircle size={14} className="text-success" /> : <Copy size={14} />}
         </button>
@@ -271,24 +200,24 @@ const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse
             className="image-card image-card--history"
             role="listitem"
             draggable
-            onDragStart={(e: unknown) => setDragPayload(e as React.DragEvent<Element>, src, item.filename)}
+            onDragStart={(e: unknown) => setDragPayload(
+                e as React.DragEvent<Element>,
+                src,
+                item.filename,
+                item.edit_instruction || item.prompt || item.optimized_prompt,
+            )}
             onClick={() => onLightboxItem?.(item)}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.92 }}
             transition={{ duration: 0.2, delay: index < 12 ? index * 0.03 : 0 }}
         >
-            <img src={src} alt={item.filename} className="image-card-img" loading="lazy" />
+            <img src={src} alt={`Imagem gerada — ${item.aspect_ratio || '1:1'}`} className="image-card-img" loading="lazy" />
 
-            {/* Overlay com badges compactos */}
+            {/* Overlay — seller-facing only */}
             <div className="image-card-overlay">
                 <div className="image-card-badges">
                     {item.aspect_ratio && <span className="badge badge--sm">{item.aspect_ratio}</span>}
-                    {item.shot_type && item.shot_type !== 'auto' && <span className="badge badge--sm">{item.shot_type}</span>}
-                    {item.thinking_level && <span className="badge badge--sm badge--accent">{item.thinking_level}</span>}
-                    {item.grounding_effective && (
-                        <span className="badge badge--sm badge--success">🌐</span>
-                    )}
                 </div>
                 <span className="image-card-time"><Clock size={9} /> {timeAgo(item.created_at)}</span>
             </div>
@@ -302,7 +231,8 @@ const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse
                     <button
                         className="history-action-btn"
                         onClick={(e) => { e.stopPropagation(); onReuse(); }}
-                        title="Reutilizar (Prompt e Referências)"
+                        title="Usar como base"
+                        aria-label="Usar como base para nova geração"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
                     </button>
@@ -322,12 +252,15 @@ const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse
 });
 
 /* ── Main Gallery (grid unificado) ───────────────────────── */
-export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, onLightbox, onLightboxItem }: Props) {
+export function Gallery({ status, mediaHistory, onDelete, onReuse, onLightbox, onLightboxItem }: Props) {
     const [localLightbox, setLocalLightbox] = useState<string | null>(null);
     const openLightbox = onLightbox ?? ((url: string) => setLocalLightbox(url));
     const openLightboxWithItem = onLightboxItem ?? ((item: MediaHistoryItem) => setLocalLightbox(imageUrl(item.url)));
 
     const isPipeline =
+        status.type === 'preparing_references' ||
+        status.type === 'stabilizing_garment' ||
+        status.type === 'creating_listing' ||
         status.type === 'mode_selected' ||
         status.type === 'analyzing' ||
         status.type === 'triage_done' ||
@@ -343,7 +276,7 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
             <>
                 <div className="gallery-state-wrap">
                     <div className="gallery-loading">
-                        <PipelineStepper status={status} hasResearch={hadResearch || status.type === 'researching'} />
+                        <PipelineStepper status={status} />
                     </div>
                 </div>
                 {/* Grid de histórico visível mesmo durante pipeline */}
@@ -390,20 +323,14 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
     let promptInfo: {
         session_id?: string;
         optimized_prompt: string;
-        thinking_level?: string;
         generation_time?: number;
-        grounding?: GroundingInfo;
-        pipeline_mode?: string;
+        pipeline_version?: string;
         failed_indices?: number[] | null;
-        quality_contract?: QualityContract;
-        fidelity_score?: number;
-        commercial_score?: number;
-        diversity_score?: number;
-        grounding_reliability?: number;
-        reason_codes?: string[];
+        preset?: string;
+        scene_preference?: string;
+        fidelity_mode?: string;
+        pose_flex_mode?: string;
         repair_applied?: boolean;
-        classifier_summary?: ClassifierSummary;
-        reference_pack_stats?: Record<string, number>;
     } | null = null;
 
     if (isDone && status.response) {
@@ -412,20 +339,14 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
         promptInfo = {
             session_id: resp.session_id,
             optimized_prompt: resp.optimized_prompt,
-            thinking_level: resp.thinking_level,
             generation_time: resp.generation_time,
-            grounding: resp.grounding,
-            pipeline_mode: resp.pipeline_mode,
+            pipeline_version: resp.pipeline_version,
             failed_indices: resp.failed_indices,
-            quality_contract: resp.quality_contract,
-            fidelity_score: resp.fidelity_score,
-            commercial_score: resp.commercial_score,
-            diversity_score: resp.diversity_score,
-            grounding_reliability: resp.grounding_reliability,
-            reason_codes: resp.reason_codes,
+            preset: resp.preset,
+            scene_preference: resp.scene_preference,
+            fidelity_mode: resp.fidelity_mode,
+            pose_flex_mode: resp.pose_flex_mode,
             repair_applied: resp.repair_applied,
-            classifier_summary: resp.classifier_summary,
-            reference_pack_stats: resp.reference_pack_stats,
         };
     }
 
@@ -441,9 +362,9 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
             <div className="gallery-state-wrap">
                 <div className="gallery-empty" role="status" aria-live="polite">
                     <div className="empty-icon" aria-hidden="true">✦</div>
-                    <p className="t-h4 text-secondary">Pronto para gerar</p>
+                    <p className="t-h4 text-secondary">Pronto para criar</p>
                     <p className="t-sm text-tertiary" style={{ maxWidth: 320, textAlign: 'center' }}>
-                        Escreva um prompt ou deixe em branco para o agente criar autonomamente.
+                        Envie fotos da peça e escolha o estilo para gerar imagens profissionais.
                     </p>
                 </div>
             </div>
@@ -464,53 +385,13 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
                     <CopyAction text={promptInfo.optimized_prompt} />
                     <div className="flex items-center gap-2" style={{ marginBottom: 6, paddingRight: 32 }}>
                         <CheckCircle size={14} className="text-success" aria-hidden="true" />
-                        <span className="t-label text-success">Prompt otimizado pelo Agente</span>
-                        {promptInfo.session_id && (
-                            <span className="badge" style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7 }} title="Session ID">
-                                #{promptInfo.session_id}
-                            </span>
-                        )}
-                        {promptInfo.pipeline_mode && (
-                            <span className="badge">
-                                {promptInfo.pipeline_mode === 'reference_mode' ? 'Com referência' : 'Sem referência'}
-                            </span>
-                        )}
-                        {promptInfo.thinking_level && <span className="badge">{promptInfo.thinking_level}</span>}
-                        {promptInfo.grounding && (
-                            <span className="badge" title={`engine: ${promptInfo.grounding.source_engine || promptInfo.grounding.engine}`}>
-                                {promptInfo.grounding.effective ? 'Grounding ativo' : 'Grounding inativo'}
-                            </span>
-                        )}
+                        <span className="t-label text-success">Gerado com sucesso</span>
                         {promptInfo.generation_time && (
                             <span className="t-xs text-tertiary" style={{ marginLeft: 'auto' }}>
                                 {promptInfo.generation_time.toFixed(1)}s
                             </span>
                         )}
                     </div>
-                    {promptInfo.grounding?.trigger_reason && (
-                        <p className="t-xs text-tertiary" style={{ marginBottom: 6 }}>
-                            Motivo grounding: {promptInfo.grounding.trigger_reason}
-                        </p>
-                    )}
-                    {promptInfo.quality_contract && (
-                        <p className="t-xs text-tertiary" style={{ marginBottom: 6 }}>
-                            Efetividade: G {Number(promptInfo.quality_contract.global_score || 0).toFixed(2)}
-                            {' · '}F {Number(promptInfo.fidelity_score || 0).toFixed(2)}
-                            {' · '}C {Number(promptInfo.commercial_score || 0).toFixed(2)}
-                            {' · '}D {Number(promptInfo.diversity_score || 0).toFixed(2)}
-                            {' · '}GR {Number(promptInfo.grounding_reliability || 0).toFixed(2)}
-                        </p>
-                    )}
-                    {promptInfo.repair_applied && (
-                        <p className="t-xs text-warning" style={{ marginBottom: 6 }}>
-                            Repair pass aplicado automaticamente.
-                        </p>
-                    )}
-                    {Array.isArray(promptInfo.reason_codes) && promptInfo.reason_codes.length > 0 ? (
-                        <p className="t-xs text-tertiary" style={{ marginBottom: 6 }}>
-                            Códigos: {promptInfo.reason_codes.slice(0, 4).join(', ')}
-                        </p>
-                    ) : null}
                     {status.type === 'done_partial' && promptInfo.failed_indices?.length ? (
                         <div className="step-analysis-card" style={{ marginBottom: 8 }}>
                             <p className="step-analysis-title">
@@ -518,10 +399,19 @@ export function Gallery({ status, hadResearch, mediaHistory, onDelete, onReuse, 
                                 Geração parcial
                             </p>
                             <p className="step-analysis-body">
-                                Falharam os índices: {promptInfo.failed_indices.join(', ')}.
+                                Algumas variações não puderam ser geradas.
                             </p>
                         </div>
                     ) : null}
+                    {(promptInfo.preset || promptInfo.scene_preference || promptInfo.fidelity_mode || promptInfo.pose_flex_mode) && (
+                        <div className="prompt-meta-badges">
+                            {promptInfo.preset && <span className="badge badge--sm">{promptInfo.preset}</span>}
+                            {promptInfo.scene_preference && <span className="badge badge--sm">{promptInfo.scene_preference}</span>}
+                            {promptInfo.fidelity_mode && <span className="badge badge--sm">fidelidade: {promptInfo.fidelity_mode}</span>}
+                            {promptInfo.pose_flex_mode && <span className="badge badge--sm">pose: {promptInfo.pose_flex_mode}</span>}
+                            {promptInfo.repair_applied && <span className="badge badge--sm">recovery: on</span>}
+                        </div>
+                    )}
                     <p className="t-sm text-secondary prompt-text" style={{ paddingRight: 10 }}>{promptInfo.optimized_prompt}</p>
                 </motion.div>
             )}

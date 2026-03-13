@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from agent_runtime.structural import get_set_member_labels, get_set_member_keys
+
 
 _SLEEVE_LOCKS = {
     "set-in": "same set-in sleeve construction",
@@ -44,11 +46,241 @@ _VOLUME_LOCKS = {
     "structured": "same structured silhouette",
 }
 
+_EDGE_CONTOUR_LOCKS = {
+    "clean": "keep the outer garment edge visually clean and even, without added waviness or scalloping",
+    "soft_curve": "keep the outer garment edge smooth with a continuous soft curve, without exaggerated ripples or scalloping",
+    "undulating": "keep the outer garment edge with the same gentle undulation seen in the references",
+    "scalloped": "keep the outer garment edge scalloped as in the references",
+    "angular": "keep the outer garment edge crisp and angular where visible",
+}
+
+_DROP_PROFILE_LOCKS = {
+    "even": "keep the hem fall balanced and even across the visible outline",
+    "side_drop": "keep the longest visible fall on the outer side panels, not on the folded inner front edge",
+    "high_low": "keep the high-low outline distribution unchanged",
+    "cocoon_side_drop": "keep the cocoon-like side drop and outer curved fall unchanged",
+}
+
+_OPENING_CONTINUITY_LOCKS = {
+    "continuous": "keep the neckline-to-front opening as one continuous uninterrupted edge",
+    "broken": "keep the opening edge segmented as seen in the references",
+    "lapel_like": "keep the opening edge reading as a lapel-like break rather than a continuous wrap edge",
+}
+
 _FRONT_LOCKS = {
     "open": "same open-front construction",
     "partial": "same partially open front behavior",
     "closed": "same front closure behavior",
 }
+
+_REFERENCE_USAGE_RULES_BASE = [
+    "Use all references only as GARMENT references for shape, fabric, stitch, and color behavior.",
+    "Never transfer identity from references: do not copy face, skin tone, body type, hairline, hairstyle, or age impression.",
+    "Never copy reference pose or background literally; create a fresh composition that follows this art direction.",
+]
+
+_REFERENCE_USAGE_RULES_STRICT = [
+    "Treat every visible person in references as an anonymous mannequin used only for garment transfer.",
+    "Generate a fully new Brazilian model identity from scratch; any resemblance to reference people is a hard failure.",
+]
+
+_REFERENCE_USAGE_RULES_HIGH_GUARD = [
+    "Use references for garment-only visual evidence; identity transfer from references is strictly forbidden.",
+    "Deliberately separate facial geometry from references by changing jawline, eye spacing, nose bridge, lip shape, and hairline.",
+]
+
+
+def _tag_set(payload: Optional[dict[str, Any]]) -> set[str]:
+    if not isinstance(payload, dict):
+        return set()
+    return {
+        str(tag).strip().lower()
+        for tag in (payload.get("tags", []) or [])
+        if str(tag).strip()
+    }
+
+
+def _scene_creative_brief(
+    scene: Optional[dict[str, Any]],
+    *,
+    preset: Optional[str] = None,
+) -> str:
+    tags = _tag_set(scene)
+    qualities: list[str] = []
+
+    if "indoor" in tags:
+        qualities.append("an authentic Brazilian interior")
+    elif "outdoor" in tags:
+        qualities.append("an authentic Brazilian exterior")
+    else:
+        qualities.append("an authentic Brazilian setting")
+
+    if "premium" in tags:
+        qualities.append("premium but believable atmosphere")
+    if "architecture" in tags:
+        qualities.append("clean architectural rhythm")
+    if "coastal" in tags:
+        qualities.append("breathable coastal openness")
+    if "balcony" in tags or "rooftop" in tags:
+        qualities.append("light airy depth")
+    if "cafe" in tags:
+        qualities.append("casual editorial warmth")
+    if "showroom" in tags:
+        qualities.append("restrained commercial clarity")
+    if "colorful" in tags:
+        qualities.append("controlled Brazilian color presence")
+    if "authentic" in tags or "lifestyle" in tags:
+        qualities.append("lived-in naturalism")
+
+    preset_hint = str(preset or "").strip().lower()
+    if preset_hint == "premium_lifestyle":
+        qualities.append("editorial polish without looking staged")
+    elif preset_hint == "marketplace_lifestyle":
+        qualities.append("commercial readability with natural realism")
+    elif preset_hint == "catalog_clean":
+        qualities.append("low-noise commercial clarity")
+
+    qualities = list(dict.fromkeys([item.strip() for item in qualities if item.strip()]))
+    quality_text = ", ".join(qualities[:4])
+    return (
+        "Invent a fresh Brazilian scene that feels compatible with the garment and the campaign tone. "
+        f"Aim for {quality_text}. "
+        "Keep the environment coherent, premium, and visually quiet enough to let the garment remain the hero."
+    )
+
+
+def _pose_creative_brief(
+    structural_contract: Optional[dict[str, Any]],
+    *,
+    pose: Optional[dict[str, Any]] = None,
+    set_detection: Optional[dict[str, Any]] = None,
+) -> str:
+    contract = structural_contract or {}
+    pose_tags = _tag_set(pose)
+    set_info = set_detection or {}
+    focus_targets: list[str] = []
+
+    front = str(contract.get("front_opening", "") or "").strip().lower()
+    sleeve = str(contract.get("sleeve_type", "") or "").strip().lower()
+    hem = str(contract.get("hem_shape", "") or "").strip().lower().replace("_", " ")
+    volume = str(contract.get("silhouette_volume", "") or "").strip().lower().replace("_", " ")
+    included_labels = get_set_member_labels(
+        set_info,
+        include_policies={"must_include", "optional"},
+        member_classes={"garment", "coordinated_accessory"},
+    )
+    included_keys = get_set_member_keys(
+        set_info,
+        include_policies={"must_include", "optional"},
+        member_classes={"garment", "coordinated_accessory"},
+    )
+
+    if front == "open":
+        focus_targets.append("the open front")
+    if sleeve in {"cape_like", "dolman_batwing"}:
+        focus_targets.append("the lateral drape and arm coverage")
+    if hem:
+        focus_targets.append(f"the {hem} hem")
+    if volume:
+        focus_targets.append(f"the {volume} silhouette")
+    if "scarf" in included_keys:
+        focus_targets.append("the coordinated scarf")
+    elif included_labels:
+        focus_targets.append("the coordinated set members")
+
+    movement_text = (
+        "Allow subtle controlled movement"
+        if "movement" in pose_tags else
+        "Favor calm premium catalog body language"
+    )
+    focus_text = ", ".join(focus_targets[:4]) if focus_targets else "the garment silhouette and details"
+    return (
+        "Invent a fresh pose that is born from the garment instead of forcing the garment to adapt to the pose. "
+        f"{movement_text}, and make sure the pose highlights {focus_text}. "
+        "Avoid occluding key construction lines or compressing the natural fall of the piece."
+    )
+
+
+def _style_creative_brief(*, preset: Optional[str] = None) -> str:
+    preset_hint = str(preset or "").strip().lower()
+    if preset_hint == "premium_lifestyle":
+        return (
+            "Create a Brazilian fashion photograph with authentic local cues, restrained premium-editorial warmth, "
+            "and commercially readable composition. Avoid stock-photo cheerfulness, exaggerated friendliness, or hero props "
+            "that compete with the garment."
+        )
+    if preset_hint == "marketplace_lifestyle":
+        return (
+            "Create a Brazilian fashion photograph with authentic local cues, polished everyday realism, and clean commercial readability. "
+            "Avoid stock-photo energy, forced gestures, or props that pull attention away from the garment."
+        )
+    return (
+        "Create a Brazilian fashion photograph with authentic local cues, calm commercial clarity, and restrained realism. "
+        "Avoid generic template energy or scene props that compete with the garment."
+    )
+
+
+def _closed_neckline_guard(structural_contract: Optional[dict[str, Any]]) -> str:
+    contract = structural_contract or {}
+    front = str(contract.get("front_opening", "") or "").strip().lower()
+    subtype = str(contract.get("garment_subtype", "") or "").strip().lower()
+    if front != "closed":
+        return ""
+    if subtype in {"pullover", "t_shirt", "blouse", "dress", "jacket", "blazer", "standard_cardigan", "other", "unknown"}:
+        return (
+            "Do not introduce any visible undershirt, layered neckline, or contrasting inner collar; "
+            "the garment neckline itself must remain the only visible neckline element."
+        )
+    return ""
+
+
+def _specialized_structure_guards(
+    structural_contract: Optional[dict[str, Any]],
+    set_detection: Optional[dict[str, Any]] = None,
+) -> list[str]:
+    contract = structural_contract or {}
+    set_info = set_detection or {}
+
+    subtype = str(contract.get("garment_subtype", "") or "").strip().lower()
+    sleeve = str(contract.get("sleeve_type", "") or "").strip().lower()
+    front = str(contract.get("front_opening", "") or "").strip().lower()
+    lock_mode = str(set_info.get("set_lock_mode", "off") or "off").strip().lower()
+    must_include_labels = get_set_member_labels(
+        set_info,
+        include_policies={"must_include"},
+        member_classes={"garment", "coordinated_accessory"},
+    )
+    must_include_keys = get_set_member_keys(
+        set_info,
+        include_policies={"must_include"},
+        member_classes={"garment", "coordinated_accessory"},
+    )
+
+    guards: list[str] = []
+    if subtype == "ruana_wrap":
+        guards.append("keep this as an open ruana-style wrap and not a closed poncho, sweater, or pullover body")
+    if front == "open":
+        guards.append("keep the front visibly open with a continuous neckline-to-front edge")
+    if sleeve == "cape_like":
+        guards.append(
+            "do not invent separate sewn sleeves, long vertical sleeve slits, or tailored armholes; arm coverage must come from the continuous draped side panel"
+        )
+    if lock_mode != "off" and must_include_labels:
+        guards.append(
+            "preserve coordinated set members as distinct product pieces with matching textile DNA, not as unrelated styling or fused garment parts"
+        )
+    if "scarf" in must_include_keys:
+        guards.append("preserve the matching scarf as part of the same coordinated knit set with the same stripe order, yarn tones, and stitch texture")
+    return guards
+
+
+def build_structure_guard_clauses(
+    structural_contract: Optional[dict[str, Any]],
+    set_detection: Optional[dict[str, Any]] = None,
+) -> list[str]:
+    clauses = _collect_lock_clauses(structural_contract)
+    clauses.extend(_specialized_structure_guards(structural_contract, set_detection=set_detection))
+    return list(dict.fromkeys([clause.strip() for clause in clauses if clause and clause.strip()]))
 
 
 def _collect_lock_clauses(structural_contract: Optional[dict[str, Any]]) -> list[str]:
@@ -65,6 +297,9 @@ def _collect_lock_clauses(structural_contract: Optional[dict[str, Any]]) -> list
     sleeve = str(contract.get("sleeve_type", "") or "").strip().lower()
     hem = str(contract.get("hem_shape", "") or "").strip().lower()
     length = str(contract.get("garment_length", "") or "").strip().lower()
+    edge_contour = str(contract.get("edge_contour", "") or "").strip().lower()
+    drop_profile = str(contract.get("drop_profile", "") or "").strip().lower()
+    opening_continuity = str(contract.get("opening_continuity", "") or "").strip().lower()
 
     if front in _FRONT_LOCKS:
         locks.append(_FRONT_LOCKS[front])
@@ -76,6 +311,12 @@ def _collect_lock_clauses(structural_contract: Optional[dict[str, Any]]) -> list
         locks.append(_HEM_LOCKS[hem])
     if length in _LENGTH_LOCKS:
         locks.append(_LENGTH_LOCKS[length])
+    if edge_contour in _EDGE_CONTOUR_LOCKS:
+        locks.append(_EDGE_CONTOUR_LOCKS[edge_contour])
+    if drop_profile in _DROP_PROFILE_LOCKS:
+        locks.append(_DROP_PROFILE_LOCKS[drop_profile])
+    if opening_continuity in _OPENING_CONTINUITY_LOCKS:
+        locks.append(_OPENING_CONTINUITY_LOCKS[opening_continuity])
 
     must_keep = [str(item).strip() for item in (contract.get("must_keep", []) or []) if str(item).strip()]
     if must_keep:
@@ -94,6 +335,9 @@ def build_structural_hint(structural_contract: Optional[dict[str, Any]]) -> Opti
     sleeve = str(contract.get("sleeve_type", "") or "").strip().lower()
     hem = str(contract.get("hem_shape", "") or "").strip().lower()
     length = str(contract.get("garment_length", "") or "").strip().lower()
+    edge_contour = str(contract.get("edge_contour", "") or "").strip().lower()
+    drop_profile = str(contract.get("drop_profile", "") or "").strip().lower()
+    opening_continuity = str(contract.get("opening_continuity", "") or "").strip().lower()
 
     if subtype and subtype != "unknown":
         parts.append(subtype)
@@ -105,6 +349,12 @@ def build_structural_hint(structural_contract: Optional[dict[str, Any]]) -> Opti
         parts.append(f"{hem} hem")
     if length in _LENGTH_LOCKS:
         parts.append(length.replace("_", "-") + " length")
+    if edge_contour and edge_contour != "unknown":
+        parts.append(edge_contour.replace("_", " ") + " edge contour")
+    if drop_profile and drop_profile != "unknown":
+        parts.append(drop_profile.replace("_", " ") + " drop profile")
+    if opening_continuity and opening_continuity != "unknown":
+        parts.append(opening_continuity.replace("_", " ") + " opening continuity")
 
     hint = ", ".join(parts).strip()
     return hint or None
@@ -199,11 +449,15 @@ def build_art_direction_two_pass_edit_prompt(
     structural_contract: Optional[dict[str, Any]],
     *,
     art_direction: dict[str, Any],
+    set_detection: Optional[dict[str, Any]] = None,
     garment_material: str = "garment fabric",
     garment_color: str = "the garment colors and yarn tones",
+    reference_guard_strength: str = "standard",
+    reference_usage_rules: Optional[list[str]] = None,
+    pose_flex_guideline: Optional[str] = None,
     user_prompt: Optional[str] = None,
 ) -> str:
-    locks = _collect_lock_clauses(structural_contract)
+    locks = build_structure_guard_clauses(structural_contract, set_detection=set_detection)
 
     casting = art_direction.get("casting_profile", {}) or {}
     scene = art_direction.get("scene", {}) or {}
@@ -221,6 +475,7 @@ def build_art_direction_two_pass_edit_prompt(
             part for part in [
                 "Brazilian woman",
                 str(casting.get("skin", "") or "").strip(),
+                str(casting.get("face_structure", "") or "").strip(),
                 str(casting.get("hair", "") or "").strip(),
                 str(casting.get("makeup", "") or "").strip(),
                 str(casting.get("expression", "") or "").strip(),
@@ -235,48 +490,71 @@ def build_art_direction_two_pass_edit_prompt(
     difference_instruction = str(casting.get("difference_instruction", "") or "").strip()
     age_years = str(art_direction.get("age_years", "") or "30").strip()
     visual_label = str(art_direction.get("model_visual_label", "") or "Brazilian visual profile").strip()
-    angle_description = str(pose.get("angle_description", "") or "eye-level standing framing with full garment visibility").strip()
-    model_pose = str(pose.get("model_hero_pose", "") or "standing pose with full garment visibility").strip()
 
-    style_clause = f"[1. STYLE & ANGLE] Candid lifestyle photography, (amateur/semi-pro capture:1.2), {angle_description}."
-    scene_clause = (
-        "[2. SCENE] "
-        + str(scene.get("description", "") or "Brazilian lifestyle environment")
-        + ", authentic context, (cluttered/lived-in background:0.9)."
+    request_meta = art_direction.get("request", {}) if isinstance(art_direction.get("request"), dict) else {}
+    preset_hint = str(request_meta.get("preset", "") or "").strip().lower()
+    scene_brief = _scene_creative_brief(
+        scene,
+        preset=preset_hint,
     )
+    pose_brief = _pose_creative_brief(
+        structural_contract,
+        pose=pose,
+        set_detection=set_detection,
+    )
+    camera_device = str(camera.get("device", "") or "Canon R6").strip()
+    camera_lens = str(camera.get("lens", "") or "50mm lens").strip()
+    lighting_description = str(lighting.get("description", "") or "soft mixed daylight").strip()
+
+    style_clause = _style_creative_brief(preset=preset_hint)
+    scene_clause = scene_brief
     model_clause = (
-        f"[3. MODEL HERO] {phenotype_sentence}, {visual_label}, {age_years}yo model, {model_pose}, "
-        "(natural skin texture, visible pores, asymmetric features:1.3)."
+        f"The model should read as {phenotype_sentence}, with a {visual_label} presence, around {age_years} years old, "
+        "with a clearly new identity created for this job."
     )
     camera_clause = (
-        f"[4. CAMERA] Shot on {str(camera.get('device', '') or 'Canon R6')}, "
-        f"{str(camera.get('lens', '') or '50mm lens')}, "
-        f"(subtle chromatic aberration, ISO {str(camera.get('grain_level', '') or '800')} noise, slight motion blur:1.2)."
+        f"The photograph should feel like it was captured on {camera_device} with a {camera_lens}, "
+        "with believable depth, natural handheld realism, and subtle real-world camera imperfections."
     )
     lighting_clause = (
-        f"[5. LIGHTING] {str(lighting.get('description', '') or 'soft mixed daylight')}, "
-        "mixed color temperature, (imperfect ambient bounce:1.1)."
+        f"Use {lighting_description}, with believable mixed color temperature and imperfect real-world ambient bounce."
     )
     texture_clause = (
-        f"[6. TEXTURE LOCK] (Macro-accurate {garment_material}:1.5), exact thread count, proper fabric weight, "
-        f"(realistic light absorption on {garment_color}:1.4)."
+        f"Render the garment with macro-accurate {garment_material}, correct fabric weight, consistent stitch definition, "
+        f"and realistic light absorption across {garment_color}."
     )
-    negative_clause = (
-        "[7. NEGATIVE] (studio perfection:1.4), (plastic skin:1.5), (AI mannequin:1.5), "
-        "symmetrical face, altered clothing silhouette, over-smoothed fabric, resemblance to the source woman's identity."
+    dynamic_rules = list(reference_usage_rules or [])
+    base_rules = list(_REFERENCE_USAGE_RULES_BASE)
+    if str(reference_guard_strength).strip().lower() in {"strict", "high"}:
+        base_rules.extend(_REFERENCE_USAGE_RULES_STRICT)
+    if str(reference_guard_strength).strip().lower() == "high":
+        base_rules.extend(_REFERENCE_USAGE_RULES_HIGH_GUARD)
+    combined_reference_rules = list(dict.fromkeys([rule.strip() for rule in (base_rules + dynamic_rules) if rule and rule.strip()]))
+    reference_policy_clause = " ".join(combined_reference_rules)
+    neckline_guard = _closed_neckline_guard(structural_contract)
+    pose_flex_clause = (
+        str(pose_flex_guideline).strip()
+        if str(pose_flex_guideline or "").strip()
+        else "Allow a naturally varied pose while preserving garment silhouette and readability."
     )
 
     sentences = [
         "Keep the garment exactly the same: " + ", ".join(locks) + ".",
         f"Replace the model with {identity_sentence}.",
-        "Perform a full model swap: do not preserve the source woman's facial identity, face shape, eye area, nose, mouth, hairline, skin tone, or age impression.",
+        reference_policy_clause,
+        "Before rendering, internally plan the composition around a locked garment object. Only the model identity, pose, camera, and environment may change.",
+        pose_flex_clause,
+        "Do not follow a fixed pose template or a fixed scene template; invent both around the garment.",
+        pose_brief,
+        "Create a fresh pose and a fresh scene that fit the garment's natural drape instead of reshaping the garment to fit the pose.",
         difference_instruction,
         (
             "This casting should not resemble recent outputs characterized by "
             + ", ".join(recent_avoid)
             + "."
         ) if recent_avoid else "",
-        f"Change the inner top to a {str(styling.get('innerwear', '') or 'clean white crew-neck tee')}.",
+        neckline_guard,
+        f"Change the inner top to a {str(styling.get('innerwear', '') or 'clean white crew-neck tee')}." if not neckline_guard else "",
         f"Change the lower-body styling to {str(styling.get('bottom', '') or 'clean commercial separates')}.",
         style_clause,
         scene_clause,
@@ -284,8 +562,7 @@ def build_art_direction_two_pass_edit_prompt(
         camera_clause,
         lighting_clause,
         texture_clause,
-        negative_clause,
-        "Keep the image highly photorealistic with natural skin texture and realistic body proportions.",
+        "Keep the image highly photorealistic with natural skin texture, visible pores, mild facial asymmetry, and realistic body proportions.",
     ]
 
     extra_direction = (user_prompt or "").strip()

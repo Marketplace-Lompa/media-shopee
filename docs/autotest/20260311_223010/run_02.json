@@ -1,0 +1,38 @@
+{
+  "index": 2,
+  "session_id": "1e69a365",
+  "evaluation": {
+    "garment_fidelity": 0.95,
+    "silhouette_fidelity": 0.9,
+    "texture_fidelity": 0.92,
+    "construction_fidelity": 0.95,
+    "model_change_strength": 1.0,
+    "environment_change_strength": 1.0,
+    "innerwear_change_strength": 1.0,
+    "pose_vitality": 0.4,
+    "creative_impact": 0.7,
+    "brazilian_scene_authenticity": 0.85,
+    "commercial_readiness": 0.9,
+    "photorealism_score": 0.95,
+    "overall_score": 0.88,
+    "issues": [
+      "pose_is_somewhat_stiff_and_mannequin_like"
+    ],
+    "summary": "The pipeline successfully preserved the complex striped crochet texture and the specific cocoon-like construction of the ruana. The model change is complete, featuring a distinct Brazilian aesthetic, and the environment transition from a rural window to a modern apartment is well-executed. While the pose is a bit static, the image is commercially viable for a high-end catalog."
+  },
+  "art_direction_summary": {
+    "casting_family": "br_soft_editorial",
+    "scene_family": "br_pinheiros_living",
+    "pose_family": "standing_full_shift",
+    "camera_profile": "phone_clean",
+    "lighting_profile": "mixed_window_lamp",
+    "styling_profile": "indigo_jeans"
+  },
+  "corrections_applied": [],
+  "stage1_prompt": "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment. Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible. Clean premium indoor composition, soft natural daylight. Preserve exact garment geometry, texture continuity, and construction details. Garment identity: ruana_wrap, draped silhouette, cape_like sleeve architecture, cocoon hem, upper-thigh length. Catalog-ready minimal styling with the garment as the hero piece. Keep accessories subtle and secondary to the garment. Do not add pins, brooches, belts, scarves, jewelry, or decorative garment accessories. Build new styling independent from the reference person's lower-body look, footwear, and props.",
+  "edit_prompt": "Keep the garment exactly the same: same overall garment identity, same knit or crochet texture continuity, same stitch pattern and fiber relief, same pattern placement and stripe scale if present, same open-front construction, same draped fluid silhouette, same cape-like arm coverage, same rounded cocoon hem behavior, keep the garment ending around the upper thigh relative to the model body, preserve these structural cues: continuous neckline-to-front edge, uninterrupted back panel, cocoon side drop, draped arm coverage. Replace the model with a distinctly different adult Brazilian woman in her late 20s with fair neutral skin, a dark wavy shoulder-length cut with soft movement, subtle fresh makeup, soft editorial expression, and soft premium-editorial presence. CRITICAL: Generate a COMPLETELY DIFFERENT person — ZERO facial resemblance to the source image or reference photos. New face bone structure, new eye shape, new nose, new mouth, new jawline, new hairline. The reference photos are ONLY for garment texture and construction — completely ignore the person wearing the garment. If the output face resembles the reference person in ANY way, the result is a failure. This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy. This casting should not resemble recent outputs characterized by friendly polished smile, a sleek jaw-length dark bob. Change the inner top to a clean white crew-neck tee. Change the lower-body styling to dark indigo straight jeans. Create a candid Brazilian lifestyle fashion photograph with a natural, believable, semi-professional capture feel. Frame the scene with eye-level full-body framing with a slight weight shift to one leg. Place her in lived-in Pinheiros apartment living room with books, linen armchair, shelf styling, and soft plant shadows. The environment should feel authentic, lived-in, and naturally integrated with the subject. The model should read as Brazilian woman, fair neutral skin, a dark wavy shoulder-length cut with soft movement, subtle fresh makeup, soft editorial expression, with a soft editorial Brazilian visual profile presence, around 20 years old, and posed in a calm standing pose with a subtle hip shift and arms relaxed. The photograph should feel like it was captured on iPhone 15 Pro with a 48mm equivalent, with believable depth, natural handheld realism, and subtle real-world camera imperfections. Use mixed window daylight and warm floor-lamp spill, with believable mixed color temperature and imperfect real-world ambient bounce. Render the garment with macro-accurate crochet knit, correct fabric weight, consistent stitch definition, and realistic light absorption across the garment colors and yarn tones. Keep the image highly photorealistic with natural skin texture, visible pores, mild facial asymmetry, and realistic body proportions. Additional commercial direction: Dynamic energetic pose with natural movement. Authentic recognizable Brazilian location.",
+  "image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/v2edit_1e69a365_1/edit_v2edit_1e69a365_1_1.png",
+  "base_image_path": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/outputs/v2base_1e69a365/gen_v2base_1e69a365_1.png",
+  "elapsed_seconds": 140.95,
+  "error": null
+}

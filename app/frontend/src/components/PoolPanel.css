@@ -84,11 +84,10 @@
     gap: var(--sp-1);
     padding: var(--sp-3) var(--sp-2);
     border-radius: var(--r-xl);
-    border: 1px dashed var(--surface-overlay);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.01);
     cursor: pointer;
-    transition:
-        border-color var(--dur-fast),
-        background var(--dur-fast);
+    transition: all var(--dur-normal) var(--ease-out);
     text-align: center;
     min-height: 72px;
     justify-content: center;
@@ -97,7 +96,8 @@
 .upload-zone:hover,
 .upload-zone.dragging {
     border-color: var(--brand-primary);
-    background: var(--brand-glow);
+    background: rgba(139, 92, 246, 0.08);
+    transform: translateY(-1px);
 }
 
 .upload-icon {
@@ -132,13 +132,34 @@
     gap: var(--sp-3);
     padding: var(--sp-2) var(--sp-3);
     border-radius: var(--r-xl);
-    background: var(--surface-raised);
-    border: 1px solid var(--surface-border-subtle);
-    transition: border-color var(--dur-fast);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(16px);
+    transition: all var(--dur-normal) var(--ease-out);
+    position: relative;
+    overflow: hidden;
+}
+
+.pool-item::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
 }
 
 .pool-item:hover {
-    border-color: var(--surface-overlay);
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 .pool-item-thumb {

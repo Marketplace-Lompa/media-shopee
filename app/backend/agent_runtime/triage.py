@@ -147,17 +147,11 @@ def _infer_structural_contract_from_images(uploaded_images: List[bytes], user_pr
 
 def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Optional[str]) -> dict:
     """
-    Detecta se a referência sugere conjunto de ROUPAS por padrão visual (cor/textura/motivo).
-    Ignora acessórios como critério de conjunto.
+    Detecta se a referência sugere conjunto coordenado por DNA têxtil/padrão visual.
+    Diferencia peça coordenada real de roupa de baixo e acessório irrelevante.
     """
     if not uploaded_images:
-        return {
-            "is_garment_set": False,
-            "set_pattern_score": 0.0,
-            "detected_garment_roles": [],
-            "set_pattern_cues": [],
-            "set_lock_mode": "off",
-        }
+        return _normalize_set_detection({})
 
     parts: List[types.Part] = []
     for img_bytes in uploaded_images:
@@ -165,12 +159,18 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
 
     user_txt = (user_prompt or "").strip()
     text_instruction = (
-        "Analyze whether the clothing in these references forms a coordinated garment set based on repeated "
-        "visual pattern cues (color palette, texture/stitch family, motif spacing, construction coherence). "
-        "Use ONLY garment pieces as evidence. Ignore accessories (scarves, bags, belts, hats, jewelry, shoes) "
-        "as set-defining elements. For detected_garment_roles, use descriptive multi-word labels "
-        "(e.g., 'ribbed cardigan', 'pleated midi skirt'), NOT generic single-word labels like 'top' or 'bottom'. "
-        "Return strict JSON."
+        "Analyze whether these references contain a coordinated fashion set based on repeated textile DNA: "
+        "same yarn/fabric family, same stitch texture, same motif logic, same stripe order, same finishing, "
+        "and repetition across multiple references. "
+        "Important: a matching scarf or shawl DOES count as part of the set if it clearly shares the same textile DNA "
+        "as the hero garment. Inner tops, basic layering pieces, jewelry, belts, bags, shoes, and unrelated accessories "
+        "must be marked for exclusion unless they repeat the same textile DNA and are consistently shown as part of the product. "
+        "Return strict JSON with: "
+        "is_garment_set, set_pattern_score, set_mode (off|probable|explicit), primary_piece_role, detected_garment_roles, "
+        "set_pattern_cues, and set_members. "
+        "Each set_members item must include role, member_class (garment|coordinated_accessory|styling_layer|unrelated_accessory), "
+        "include_policy (must_include|optional|exclude), render_separately, fusion_forbidden, confidence. "
+        "Use descriptive multi-word role labels such as 'striped knit scarf' or 'textured pullover'."
     )
     if user_txt:
         text_instruction += f" User context: {user_txt[:200]}"
@@ -185,19 +185,7 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
             thinking_budget=0
         )
         parsed = _decode_agent_response(response)
-        is_set = bool(parsed.get("is_garment_set", False))
-        score = float(parsed.get("set_pattern_score", 0.0) or 0.0)
-        roles = [str(x) for x in (parsed.get("detected_garment_roles", []) or []) if str(x)]
-        cues = [str(x) for x in (parsed.get("set_pattern_cues", []) or []) if str(x)]
-        score = max(0.0, min(1.0, score))
-        lock_mode = "explicit" if (is_set and score >= 0.68 and len(roles) >= 2) else ("generic" if is_set else "off")
-        return {
-            "is_garment_set": is_set,
-            "set_pattern_score": round(score, 3),
-            "detected_garment_roles": roles[:5],
-            "set_pattern_cues": cues[:4],
-            "set_lock_mode": lock_mode,
-        }
+        return _normalize_set_detection(parsed if isinstance(parsed, dict) else {})
     except Exception as e:
         err_msg = str(e)
         print(f"[GUIDED] ⚠️ set-pattern inference failed: {err_msg}")
@@ -216,25 +204,8 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
             except Exception:
                 pass
         if repaired is not None:
-            is_set = bool(repaired.get("is_garment_set", False))
-            score = max(0.0, min(1.0, float(repaired.get("set_pattern_score", 0.0) or 0.0)))
-            roles = [str(x) for x in (repaired.get("detected_garment_roles", []) or []) if str(x)]
-            cues = [str(x) for x in (repaired.get("set_pattern_cues", []) or []) if str(x)]
-            lock_mode = "explicit" if (is_set and score >= 0.68 and len(roles) >= 2) else ("generic" if is_set else "off")
-            return {
-                "is_garment_set": is_set,
-                "set_pattern_score": round(score, 3),
-                "detected_garment_roles": roles[:5],
-                "set_pattern_cues": cues[:4],
-                "set_lock_mode": lock_mode,
-            }
-        return {
-            "is_garment_set": False,
-            "set_pattern_score": 0.0,
-            "detected_garment_roles": [],
-            "set_pattern_cues": [],
-            "set_lock_mode": "off",
-        }
+            return _normalize_set_detection(repaired)
+        return _normalize_set_detection({})
 
 
 # ── Triagem visual unificada (1 chamada = hint + contract + set) ─────────────
@@ -279,15 +250,23 @@ def _infer_unified_vision_triage(
         "front_opening: open|partial|closed. hem_shape: straight|rounded|asymmetric|cocoon. "
         "garment_length: cropped|waist|hip|upper_thigh|mid_thigh|knee_plus. "
         "silhouette_volume: fitted|regular|oversized|draped|structured. "
+        "edge_contour: clean|soft_curve|undulating|scalloped|angular, based only on the MACRO outer silhouette line. "
+        "Do not call it undulating or scalloped just because of crochet stitch texture, ribbing, or tiny handmade ripples if the overall outline still reads smooth. "
+        "drop_profile: even|side_drop|high_low|cocoon_side_drop, based on where the longest visible fall sits. "
+        "opening_continuity: continuous|broken|lapel_like, based on whether the neckline/opening reads as one uninterrupted edge. "
         "must_keep: up to 4 brief GEOMETRY cues only, such as continuous neckline-to-front edge, broad uninterrupted back panel, rounded cocoon side drop, or arm coverage formed by the same draped panel. "
+        "Do not use border-texture cues like scalloped crochet trim unless they visibly change the garment outline at silhouette scale. "
         "Do NOT use generic cues like 'open front', 'knit texture', or simple stripe mentions unless they are structurally critical. "
         "confidence: 0.0-1.0. "
         "has_pockets: boolean — true if ANY pocket (patch, welt, side-seam) is clearly visible "
         "on the garment; false if the garment has NO visible pockets whatsoever.\n\n"
-        "4. set_detection: do these references show a COORDINATED GARMENT SET "
-        "(matching color/texture/pattern across separate garment pieces)? Ignore accessories. "
-        "is_garment_set: bool. set_pattern_score: 0.0-1.0. "
-        "detected_garment_roles: list. set_pattern_cues: list.\n\n"
+        "4. set_detection: do these references show a COORDINATED SET with repeated textile DNA across separate product members? "
+        "A matching scarf or shawl counts only if it clearly shares the same yarn/stitch/pattern DNA as the main garment and is shown consistently. "
+        "Inner tops, basic layers, jewelry, bags, belts, hats, and shoes should be excluded unless they repeat that same textile DNA. "
+        "Return: is_garment_set (bool), set_pattern_score (0.0-1.0), set_mode (off|probable|explicit), primary_piece_role, "
+        "detected_garment_roles, set_pattern_cues, and set_members. "
+        "Each set_members item must include role, member_class (garment|coordinated_accessory|styling_layer|unrelated_accessory), "
+        "include_policy (must_include|optional|exclude), render_separately, fusion_forbidden, confidence.\n\n"
         "5. garment_aesthetic: casting/scenario intelligence for the garment. "
         "color_temperature: warm|cool|neutral (dominant color feel). "
         "formality: casual|smart_casual|formal. "

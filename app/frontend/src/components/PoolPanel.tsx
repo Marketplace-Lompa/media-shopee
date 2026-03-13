@@ -69,9 +69,9 @@ export function PoolPanel({ items, loading, onRefresh }: Props) {
         <div className="pool-panel">
             <header className="pool-header">
                 <div>
-                    <h2 className="t-h4">Reference Pool</h2>
+                    <h2 className="t-h4">Biblioteca</h2>
                     <p className="t-sm text-tertiary" style={{ marginTop: 2 }}>
-                        Biblioteca para dataset de treino futuro (não influencia a geração nesta versão)
+                        Referências reutilizáveis para suas gerações
                     </p>
                 </div>
                 <span className="pool-count t-label text-tertiary">{items.length} refs</span>

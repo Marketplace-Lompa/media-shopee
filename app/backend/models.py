@@ -12,8 +12,8 @@ class GenerateRequest(BaseModel):
         description="Descrição em pt-BR (opcional — agente age mesmo sem prompt)"
     )
     aspect_ratio: str = Field(
-        default="1:1",
-        description="Proporção da imagem: 1:1, 3:4, 4:3, 9:16, 16:9"
+        default="4:5",
+        description="Proporção da imagem: 4:5, 1:1, 3:4, 4:3, 9:16, 16:9"
     )
     resolution: str = Field(
         default="1K",
@@ -28,6 +28,22 @@ class GenerateRequest(BaseModel):
     guided_brief: Optional[dict] = Field(
         default=None,
         description="Brief guiado opcional para parametrização determinística do agente"
+    )
+    preset: Optional[str] = Field(
+        default=None,
+        description="Preset v2: catalog_clean | marketplace_lifestyle | premium_lifestyle"
+    )
+    scene_preference: Optional[str] = Field(
+        default=None,
+        description="Preferência de cena v2: auto_br | indoor_br | outdoor_br"
+    )
+    fidelity_mode: Optional[str] = Field(
+        default=None,
+        description="Modo de fidelidade v2: balanceada | estrita"
+    )
+    pose_flex_mode: Optional[str] = Field(
+        default=None,
+        description="Flexibilidade de pose v2: auto | controlled | balanced | dynamic"
     )
 
 
@@ -58,16 +74,16 @@ class GenerateResponse(BaseModel):
     """Resposta do POST /generate"""
     session_id: Optional[str] = Field(default=None, description="ID da sessão de geração")
     optimized_prompt: str = Field(description="Prompt otimizado pelo agente")
-    pipeline_mode: str = Field(default="text_mode", description="Modo aplicado: reference_mode | text_mode")
-    thinking_level: str   = Field(description="Nível de thinking decidido pelo agente")
-    thinking_reason: str  = Field(description="Justificativa do thinking em pt-BR")
+    pipeline_mode: str = Field(default="text_mode", description="Modo aplicado: reference_mode | text_mode | reference_mode_strict")
+    thinking_level: str   = Field(default="MINIMAL", description="Nível de thinking decidido pelo agente")
+    thinking_reason: str  = Field(default="", description="Justificativa do thinking em pt-BR")
     shot_type: str        = Field(default="auto", description="Tipo de shot decidido pelo agente: wide, medium, close-up, auto")
     realism_level: int    = Field(default=2, description="Nível de realismo 1-3 decidido pelo agente")
     aspect_ratio: str
     resolution: str
     images: List[GeneratedImage]
     failed_indices: Optional[List[int]] = Field(default=None, description="Índices que falharam em lote (quando houver)")
-    pool_refs_used: int   = Field(description="Qtd de refs do pool enviadas ao Nano")
+    pool_refs_used: int   = Field(default=0, description="Qtd de refs do pool enviadas ao Nano")
     grounding: Optional[dict] = Field(default=None, description="Metadados de grounding aplicados")
     quality_contract: Optional[dict] = Field(default=None, description="Contrato de qualidade e score global")
     fidelity_score: Optional[float] = Field(default=None, description="Score de fidelidade da peça")
@@ -82,6 +98,17 @@ class GenerateResponse(BaseModel):
     guided_applied: Optional[bool] = Field(default=None, description="Se o modo guiado foi aplicado no job")
     guided_summary: Optional[dict] = Field(default=None, description="Resumo do brief guiado efetivamente aplicado")
     prompt_compiler_debug: Optional[PromptCompilerDebug] = Field(default=None, description="Telemetria do Prompt Compiler V2")
+    # ── Campos V2 ──
+    pipeline_version: Optional[str] = Field(default=None, description="Versão do pipeline: v2 para o novo fluxo")
+    art_direction_summary: Optional[dict] = Field(default=None, description="Resumo de art direction aplicado (casting, scene, pose, camera, lighting, styling)")
+    preset: Optional[str] = Field(default=None, description="Preset usado: catalog_clean | marketplace_lifestyle | premium_lifestyle")
+    scene_preference: Optional[str] = Field(default=None, description="Preferência de cena: auto_br | indoor_br | outdoor_br")
+    fidelity_mode: Optional[str] = Field(default=None, description="Modo de fidelidade: balanceada | estrita")
+    pose_flex_mode: Optional[str] = Field(default=None, description="Flexibilidade de pose: auto | controlled | balanced | dynamic")
+    pose_flex_guideline: Optional[str] = Field(default=None, description="Guia textual efetivo aplicado para flexibilidade de pose")
+    generation_time: Optional[float] = Field(default=None, description="Tempo total de geração em segundos")
+    debug_report_url: Optional[str] = Field(default=None, description="URL do relatório de observabilidade do pipeline v2")
+    debug_report_path: Optional[str] = Field(default=None, description="Caminho local do relatório de observabilidade do pipeline v2")
 
 
 class PoolItem(BaseModel):

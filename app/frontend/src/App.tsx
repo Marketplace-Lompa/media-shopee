@@ -2,65 +2,56 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Copy, Download, Clock, Pencil, ChevronDown } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
+import type { Tab } from './components/Sidebar';
 import { ChatInput } from './components/ChatInput';
 import { Gallery } from './components/Gallery';
 import { PoolPanel } from './components/PoolPanel';
-import { listPool, listHistory, deleteHistoryEntry } from './lib/api';
+import { ReviewPanel } from './components/ReviewPanel';
+import { listPool, listHistory, deleteHistoryEntry, getLatestReview, getReviewBySession } from './lib/api';
 import type {
   GenerationStatus,
   PoolItem,
   AspectRatio,
   Resolution,
-  GroundingStrategy,
-  GuidedBrief,
+  Preset,
+  ScenePreference,
+  FidelityMode,
+  PoseFlexMode,
   MediaHistoryItem,
   EditTarget,
+  JobReviewPayload,
 } from './types';
 import './App.css';
-
-type Tab = 'generate' | 'pool' | 'settings';
 
 /* ── LightboxMeta: metadados técnicos colapsável ─────────── */
 function LightboxMeta({ item }: { item: MediaHistoryItem }) {
   const [open, setOpen] = useState(false);
-  const hasMeta = item.base_prompt || item.camera_and_realism || item.grounding_mode || (item.reason_codes && item.reason_codes.length > 0);
+  const hasMeta = item.base_prompt || item.camera_and_realism || item.camera_profile;
   if (!hasMeta) return null;
   return (
     <div className="lightbox-meta">
       <button className="lightbox-meta-toggle" onClick={() => setOpen(o => !o)}>
-        <span className="t-xs text-tertiary">Metadados técnicos</span>
+        <span className="t-xs text-tertiary">Detalhes técnicos</span>
         <ChevronDown size={12} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
       </button>
       {open && (
         <div className="lightbox-meta-body">
-          {item.grounding_mode && (
-            <div className="lightbox-meta-row">
-              <span className="lightbox-meta-label">grounding_mode</span>
-              <span className="lightbox-meta-value">{item.grounding_mode}</span>
-            </div>
-          )}
           {item.camera_profile && (
             <div className="lightbox-meta-row">
-              <span className="lightbox-meta-label">camera_profile</span>
+              <span className="lightbox-meta-label">Câmera</span>
               <span className="lightbox-meta-value">{item.camera_profile}</span>
             </div>
           )}
           {item.camera_and_realism && (
             <div className="lightbox-meta-row">
-              <span className="lightbox-meta-label">camera_and_realism</span>
+              <span className="lightbox-meta-label">Configuração</span>
               <span className="lightbox-meta-value lightbox-meta-value--mono">{item.camera_and_realism}</span>
             </div>
           )}
           {item.base_prompt && (
             <div className="lightbox-meta-row">
-              <span className="lightbox-meta-label">base_prompt</span>
+              <span className="lightbox-meta-label">Prompt base</span>
               <span className="lightbox-meta-value lightbox-meta-value--mono">{item.base_prompt}</span>
-            </div>
-          )}
-          {item.reason_codes && item.reason_codes.length > 0 && (
-            <div className="lightbox-meta-row">
-              <span className="lightbox-meta-label">reason_codes</span>
-              <span className="lightbox-meta-value">{item.reason_codes.join(', ')}</span>
             </div>
           )}
         </div>
@@ -71,15 +62,17 @@ function LightboxMeta({ item }: { item: MediaHistoryItem }) {
 
 /* ── App ──────────────────────────────────────────────────── */
 export default function App() {
-  const [tab, setTab] = useState<Tab>('generate');
+  const [tab, setTab] = useState<Tab>('criar');
   const [status, setStatus] = useState<GenerationStatus>({ type: 'idle' });
   const [pool, setPool] = useState<PoolItem[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
   const [mediaHistory, setMediaHistory] = useState<MediaHistoryItem[]>([]);
-  const [hadResearch, setHadResearch] = useState(false);
   const [lightbox, setLightbox] = useState<{ url: string; item?: MediaHistoryItem } | null>(null);
   const [reuseData, setReuseData] = useState<{ prompt?: string; references?: string[] } | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [reviewData, setReviewData] = useState<JobReviewPayload | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const activeJobRef = useRef<string | null>(null);
 
@@ -125,7 +118,41 @@ export default function App() {
     }
   }, []);
 
+  const fetchLatestReviewData = useCallback(async (refresh = false) => {
+    setReviewLoading(true);
+    setReviewError(null);
+    try {
+      const data = await getLatestReview(refresh);
+      setReviewData(data as JobReviewPayload);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao carregar revisão';
+      setReviewError(message);
+    } finally {
+      setReviewLoading(false);
+    }
+  }, []);
+
+  const fetchReviewSessionData = useCallback(async (sessionId: string, refresh = false) => {
+    setReviewLoading(true);
+    setReviewError(null);
+    try {
+      const data = await getReviewBySession(sessionId, refresh);
+      setReviewData(data as JobReviewPayload);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao carregar revisão';
+      setReviewError(message);
+    } finally {
+      setReviewLoading(false);
+    }
+  }, []);
+
   useEffect(() => { fetchPool(); fetchHistory(); }, [fetchPool, fetchHistory]);
+
+  useEffect(() => {
+    if (tab === 'revisao' && !reviewData && !reviewLoading) {
+      fetchLatestReviewData();
+    }
+  }, [tab, reviewData, reviewLoading, fetchLatestReviewData]);
 
   useEffect(() => {
     return () => {
@@ -138,16 +165,27 @@ export default function App() {
 
   function applyStageEvent(event: Record<string, any>) {
     switch (event.stage) {
-      case 'mode_selected':
+      // ── V2 pipeline stages ──
+      case 'preparing_references':
+        setStatus({ type: 'preparing_references', message: event.message || 'Preparando referências…' });
+        break;
+      case 'stabilizing_garment':
+        setStatus({ type: 'stabilizing_garment', message: event.message || 'Estabilizando a peça…' });
+        break;
+      case 'creating_listing':
         setStatus({
-          type: 'mode_selected',
-          message: event.message,
-          pipeline_mode: event.pipeline_mode,
+          type: 'creating_listing',
+          message: event.message || 'Criando o anúncio…',
+          current: typeof event.current === 'number' ? event.current : undefined,
+          total: typeof event.total === 'number' ? event.total : undefined,
         });
+        break;
+      // ── Legacy stages ──
+      case 'mode_selected':
+        setStatus({ type: 'mode_selected', message: event.message, pipeline_mode: event.pipeline_mode });
         break;
       case 'researching':
         setStatus({ type: 'researching', message: event.message });
-        setHadResearch(true);
         break;
       case 'analyzing':
         setStatus({ type: 'analyzing', message: event.message });
@@ -167,7 +205,6 @@ export default function App() {
         });
         break;
       case 'prompt_ready':
-        if (event.grounding?.effective) setHadResearch(true);
         setStatus({
           type: 'prompt_ready',
           message: event.message,
@@ -181,13 +218,9 @@ export default function App() {
           guided_summary: event.guided_summary,
         });
         break;
+      // ── Common stages ──
       case 'generating':
-        setStatus({
-          type: 'generating',
-          message: event.message,
-          current: event.current,
-          total: event.total,
-        });
+        setStatus({ type: 'generating', message: event.message, current: event.current, total: event.total });
         break;
     }
   }
@@ -273,32 +306,40 @@ export default function App() {
     document.querySelector('.generate-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  function handleUseReviewInCreate(review: JobReviewPayload) {
+    setReuseData({
+      prompt: review.context.prompt || undefined,
+      references: review.assets.reuse_reference_urls || [],
+    });
+    setTab('criar');
+  }
+
   async function handleGenerate(payload: {
     prompt: string;
     files: File[];
     n_images: number;
     aspect_ratio: AspectRatio;
     resolution: Resolution;
-    grounding_strategy: GroundingStrategy;
-    guided_brief?: GuidedBrief;
+    preset: Preset;
+    scene_preference: ScenePreference;
+    fidelity_mode: FidelityMode;
+    pose_flex_mode: PoseFlexMode;
   }) {
     if (pollTimerRef.current != null) {
       window.clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
     }
-    setStatus({ type: 'analyzing', message: 'Iniciando…' });
-    setHadResearch(false);
+    setStatus({ type: 'preparing_references', message: 'Iniciando…' });
 
     const fd = new FormData();
     if (payload.prompt) fd.append('prompt', payload.prompt);
     fd.append('n_images', String(payload.n_images));
     fd.append('aspect_ratio', payload.aspect_ratio);
     fd.append('resolution', payload.resolution);
-    fd.append('grounding_strategy', payload.grounding_strategy);
-    if (payload.grounding_strategy === 'on') fd.append('use_grounding', 'true');
-    if (payload.guided_brief?.enabled) {
-      fd.append('guided_brief', JSON.stringify(payload.guided_brief));
-    }
+    fd.append('preset', payload.preset);
+    fd.append('scene_preference', payload.scene_preference);
+    fd.append('fidelity_mode', payload.fidelity_mode);
+    fd.append('pose_flex_mode', payload.pose_flex_mode);
     payload.files.forEach(f => fd.append('images', f));
 
     try {
@@ -333,18 +374,20 @@ export default function App() {
           if (stage && !event.stage) event.stage = stage;
 
           if (job?.status === 'queued') {
-            setStatus({ type: 'analyzing', message: 'Job na fila…' });
+            setStatus({ type: 'preparing_references', message: 'Job na fila…' });
           } else if (job?.status === 'running') {
             if (event.stage) applyStageEvent(event);
-            else setStatus({ type: 'analyzing', message: 'Processando job…' });
+            else setStatus({ type: 'preparing_references', message: 'Processando…' });
           } else if (job?.status === 'done') {
             const response = job?.response;
-            if (response?.grounding?.effective) setHadResearch(true);
             setStatus({
               type: Array.isArray(response?.failed_indices) && response.failed_indices.length > 0 ? 'done_partial' : 'done',
               response,
             });
             fetchHistory();
+            if (response?.session_id) {
+              fetchReviewSessionData(String(response.session_id)).catch(() => undefined);
+            }
             if (pollTimerRef.current != null) {
               window.clearInterval(pollTimerRef.current);
               pollTimerRef.current = null;
@@ -382,11 +425,11 @@ export default function App() {
       <div className="app-shell">
         <Sidebar activeTab={tab} onTabChange={setTab} />
 
-        <main id="main-content" className="app-main" role="main">
+        <main id="main-content" className="app-main">
           <AnimatePresence mode="wait">
-            {tab === 'generate' && (
+            {tab === 'criar' && (
               <motion.div
-                key="generate"
+                key="criar"
                 className="generate-layout"
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -394,16 +437,15 @@ export default function App() {
                 transition={{ duration: 0.2 }}
               >
                 <header className="generate-header">
-                  <h1 className="t-h3">Studio</h1>
+                  <h1 className="t-h3">Criar</h1>
                   <p className="t-sm text-tertiary">
-                    Geração de imagens com Nano Banana 2 · Agente de prompt autônomo
+                    Envie fotos da peça e gere imagens profissionais para o seu anúncio
                   </p>
                 </header>
 
                 <div className="generate-content scroll-y" aria-live="polite">
                   <Gallery
                     status={status}
-                    hadResearch={hadResearch}
                     mediaHistory={mediaHistory}
                     onDelete={handleHistoryDelete}
                     onReuse={handleReuse}
@@ -424,9 +466,60 @@ export default function App() {
               </motion.div>
             )}
 
-            {tab === 'pool' && (
+            {tab === 'revisao' && (
               <motion.div
-                key="pool"
+                key="revisao"
+                className="generate-layout"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ReviewPanel
+                  data={reviewData}
+                  loading={reviewLoading}
+                  error={reviewError}
+                  onRefresh={() => {
+                    if (reviewData?.session_id) {
+                      fetchReviewSessionData(reviewData.session_id, true);
+                    } else {
+                      fetchLatestReviewData(true);
+                    }
+                  }}
+                  onUseInCreate={handleUseReviewInCreate}
+                />
+              </motion.div>
+            )}
+
+            {tab === 'historico' && (
+              <motion.div
+                key="historico"
+                className="generate-layout"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.2 }}
+              >
+                <header className="generate-header">
+                  <h1 className="t-h3">Histórico</h1>
+                  <p className="t-sm text-tertiary">Suas gerações anteriores</p>
+                </header>
+                <div className="generate-content scroll-y" aria-live="polite">
+                  <Gallery
+                    status={{ type: 'idle' }}
+                    mediaHistory={mediaHistory}
+                    onDelete={handleHistoryDelete}
+                    onReuse={handleReuse}
+                    onLightbox={(url) => setLightbox({ url })}
+                    onLightboxItem={(item) => setLightbox({ url: item.url.startsWith('http') ? item.url : `${window.location.origin}${item.url}`, item })}
+                  />
+                </div>
+              </motion.div>
+            )}
+
+            {tab === 'biblioteca' && (
+              <motion.div
+                key="biblioteca"
                 className="pool-layout"
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -438,22 +531,6 @@ export default function App() {
                   loading={poolLoading}
                   onRefresh={fetchPool}
                 />
-              </motion.div>
-            )}
-
-            {tab === 'settings' && (
-              <motion.div
-                key="settings"
-                className="settings-layout"
-                initial={{ opacity: 0, x: 12 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -12 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="settings-placeholder">
-                  <span className="t-h4 text-secondary">Configurações</span>
-                  <p className="t-sm text-tertiary">Foco atual: efetividade da geração por job (score no retorno).</p>
-                </div>
               </motion.div>
             )}
           </AnimatePresence>

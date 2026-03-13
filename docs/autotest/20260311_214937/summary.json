@@ -1,0 +1,248 @@
+{
+  "total_runs": 3,
+  "scores": {
+    "garment_fidelity": {
+      "avg": 0.933,
+      "min": 0.9,
+      "max": 0.95,
+      "stdev": 0.029
+    },
+    "silhouette_fidelity": {
+      "avg": 0.89,
+      "min": 0.85,
+      "max": 0.92,
+      "stdev": 0.036
+    },
+    "texture_fidelity": {
+      "avg": 0.95,
+      "min": 0.92,
+      "max": 0.98,
+      "stdev": 0.03
+    },
+    "construction_fidelity": {
+      "avg": 0.933,
+      "min": 0.9,
+      "max": 0.95,
+      "stdev": 0.029
+    },
+    "model_change_strength": {
+      "avg": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "stdev": 0.0
+    },
+    "environment_change_strength": {
+      "avg": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "stdev": 0.0
+    },
+    "innerwear_change_strength": {
+      "avg": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "stdev": 0.0
+    },
+    "pose_vitality": {
+      "avg": 0.617,
+      "min": 0.4,
+      "max": 0.85,
+      "stdev": 0.225
+    },
+    "creative_impact": {
+      "avg": 0.8,
+      "min": 0.7,
+      "max": 0.9,
+      "stdev": 0.1
+    },
+    "brazilian_scene_authenticity": {
+      "avg": 0.817,
+      "min": 0.6,
+      "max": 0.95,
+      "stdev": 0.189
+    },
+    "commercial_readiness": {
+      "avg": 0.883,
+      "min": 0.85,
+      "max": 0.95,
+      "stdev": 0.058
+    },
+    "photorealism_score": {
+      "avg": 0.927,
+      "min": 0.9,
+      "max": 0.98,
+      "stdev": 0.046
+    },
+    "overall_score": {
+      "avg": 0.88,
+      "min": 0.82,
+      "max": 0.94,
+      "stdev": 0.06
+    }
+  },
+  "pass_rates": {
+    "garment_fidelity": 100.0,
+    "model_change_strength": 100.0,
+    "environment_change_strength": 100.0,
+    "pose_vitality": 33.3,
+    "creative_impact": 100.0,
+    "brazilian_scene_authenticity": 66.7
+  },
+  "self_correction_effectiveness": {
+    "garment_fidelity": {
+      "first_half": 0.95,
+      "second_half": 0.925,
+      "delta": -0.025
+    },
+    "silhouette_fidelity": {
+      "first_half": 0.9,
+      "second_half": 0.885,
+      "delta": -0.015
+    },
+    "texture_fidelity": {
+      "first_half": 0.92,
+      "second_half": 0.965,
+      "delta": 0.045
+    },
+    "construction_fidelity": {
+      "first_half": 0.95,
+      "second_half": 0.925,
+      "delta": -0.025
+    },
+    "model_change_strength": {
+      "first_half": 1.0,
+      "second_half": 1.0,
+      "delta": 0.0
+    },
+    "environment_change_strength": {
+      "first_half": 1.0,
+      "second_half": 1.0,
+      "delta": 0.0
+    },
+    "innerwear_change_strength": {
+      "first_half": 1.0,
+      "second_half": 1.0,
+      "delta": 0.0
+    },
+    "pose_vitality": {
+      "first_half": 0.4,
+      "second_half": 0.725,
+      "delta": 0.325
+    },
+    "creative_impact": {
+      "first_half": 0.7,
+      "second_half": 0.85,
+      "delta": 0.15
+    },
+    "brazilian_scene_authenticity": {
+      "first_half": 0.6,
+      "second_half": 0.925,
+      "delta": 0.325
+    },
+    "commercial_readiness": {
+      "first_half": 0.85,
+      "second_half": 0.9,
+      "delta": 0.05
+    },
+    "photorealism_score": {
+      "first_half": 0.9,
+      "second_half": 0.94,
+      "delta": 0.04
+    },
+    "overall_score": {
+      "first_half": 0.82,
+      "second_half": 0.91,
+      "delta": 0.09
+    }
+  },
+  "corrections_count": 3,
+  "corrections": [
+    {
+      "run": 1,
+      "metric": "pose_vitality",
+      "score": 0.4,
+      "action": "boost pose_vitality"
+    },
+    {
+      "run": 1,
+      "metric": "brazilian_scene_authenticity",
+      "score": 0.6,
+      "action": "boost scene_authenticity"
+    },
+    {
+      "run": 2,
+      "metric": "pose_vitality",
+      "score": 0.6,
+      "action": "boost pose_vitality"
+    }
+  ],
+  "diversity": {
+    "casting_family": {
+      "unique": 3,
+      "pool": 5,
+      "coverage_pct": 60.0,
+      "values": [
+        "br_warm_commercial",
+        "br_soft_editorial",
+        "br_mature_elegant"
+      ],
+      "overrepresented": []
+    },
+    "scene_family": {
+      "unique": 3,
+      "pool": 4,
+      "coverage_pct": 75.0,
+      "values": [
+        "br_showroom_sp",
+        "br_pinheiros_living",
+        "br_curitiba_cafe"
+      ],
+      "overrepresented": []
+    },
+    "pose_family": {
+      "unique": 3,
+      "pool": 4,
+      "coverage_pct": 75.0,
+      "values": [
+        "front_relaxed_hold",
+        "standing_full_shift",
+        "paused_mid_step"
+      ],
+      "overrepresented": []
+    },
+    "camera_profile": {
+      "unique": 3,
+      "pool": 3,
+      "coverage_pct": 100.0,
+      "values": [
+        "canon_balanced",
+        "phone_clean",
+        "fujifilm_candid"
+      ],
+      "overrepresented": []
+    },
+    "lighting_profile": {
+      "unique": 3,
+      "pool": 5,
+      "coverage_pct": 60.0,
+      "values": [
+        "clean_showroom",
+        "mixed_window_lamp",
+        "overcast_cafe"
+      ],
+      "overrepresented": []
+    },
+    "styling_profile": {
+      "unique": 2,
+      "pool": 3,
+      "coverage_pct": 66.7,
+      "values": [
+        "soft_blue_trousers",
+        "indigo_jeans",
+        "soft_blue_trousers"
+      ],
+      "overrepresented": []
+    }
+  },
+  "overall_diversity_score": 72.8
+}

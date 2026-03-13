@@ -123,11 +123,7 @@ def run_agent(
         "silhouette_volume": "unknown",
         "must_keep": [],
     }
-    has_pool = bool(
-        pool_context
-        and "No reference" not in pool_context
-        and "POOL_RUNTIME_DISABLED" not in pool_context
-    )
+    has_pool = False
 
     # ── Triagem visual unificada: UMA chamada Gemini por run_agent() ─────────
     # Consolida _infer_garment_hint + _infer_structural_contract + _infer_set_pattern

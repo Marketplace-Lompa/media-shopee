@@ -153,7 +153,7 @@ else:
         result_agent = run_agent(
             user_prompt="",           # sem texto → force_cover_defaults
             uploaded_images=imgs,
-            pool_context="POOL_RUNTIME_DISABLED",
+            pool_context="",
             aspect_ratio="2:3",
             resolution="1024x1536",
             use_grounding=False,

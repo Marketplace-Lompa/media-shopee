@@ -11,7 +11,14 @@ from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 
-from agent import run_agent, normalize_prompt_text
+from agent import run_agent
+from agent_runtime.pipeline_v2 import run_pipeline_v2
+from agent_runtime.pipeline_v2_support import (
+    build_v2_response_payload,
+    normalize_v2_options,
+    persist_v2_history,
+    should_use_v2,
+)
 from guided_mode import guided_force_grounding_floor, guided_summary, normalize_guided_brief
 from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
 from generator import generate_images
@@ -19,7 +26,6 @@ from history import add_entry as history_add, purge_oldest as history_purge
 from pipeline_effectiveness import (
     assess_generated_image,
     build_reference_pack,
-    build_repair_prompt,
     classify_visual_context,
     compute_quality_contract,
     decide_grounding_mode,
@@ -27,7 +33,7 @@ from pipeline_effectiveness import (
     log_effectiveness_event,
     select_diversity_target,
 )
-from config import VALID_ASPECT_RATIOS, VALID_RESOLUTIONS, VALID_N_IMAGES
+from config import DEFAULT_ASPECT_RATIO, DEFAULT_N_IMAGES, DEFAULT_RESOLUTION, VALID_ASPECT_RATIOS, VALID_RESOLUTIONS, VALID_N_IMAGES
 
 router = APIRouter(prefix="/generate", tags=["generate-stream"])
 
@@ -40,18 +46,83 @@ def _sse_event(stage: str, data: dict) -> str:
 @router.post("/stream")
 async def generate_stream(
     prompt: Optional[str] = Form(default=None),
-    aspect_ratio: str = Form(default="1:1"),
-    resolution: str = Form(default="1K"),
-    n_images: int = Form(default=1),
+    aspect_ratio: str = Form(default=DEFAULT_ASPECT_RATIO),
+    resolution: str = Form(default=DEFAULT_RESOLUTION),
+    n_images: int = Form(default=DEFAULT_N_IMAGES),
     grounding_strategy: Optional[str] = Form(default=None),
     use_grounding: bool = Form(default=False),
     guided_brief: Optional[str] = Form(default=None),
+    preset: Optional[str] = Form(default=None),
+    scene_preference: str = Form(default="auto_br"),
+    fidelity_mode: str = Form(default="balanceada"),
+    pose_flex_mode: str = Form(default="auto"),
     images: List[UploadFile] = File(default=[]),
 ):
     # UploadFile precisa ser lido no contexto do request
     uploaded_bytes = []
+    uploaded_filenames = []
     for img in images[:14]:
         uploaded_bytes.append(await img.read())
+        uploaded_filenames.append(str(img.filename or "").strip())
+
+    use_v2 = should_use_v2(preset, uploaded_bytes)
+
+    async def event_generator_v2():
+        """SSE generator para pipeline v2."""
+        collected_events: list[dict] = []
+        normalized_preset, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_v2_options(
+            preset=preset,
+            scene_preference=scene_preference,
+            fidelity_mode=fidelity_mode,
+            pose_flex_mode=pose_flex_mode,
+        )
+
+        def _on_stage(stage: str, data: dict) -> None:
+            collected_events.append({"stage": stage, **data})
+
+        try:
+            raw = await asyncio.to_thread(
+                run_pipeline_v2,
+                uploaded_bytes=uploaded_bytes,
+                uploaded_filenames=uploaded_filenames,
+                prompt=prompt,
+                preset=normalized_preset,
+                scene_preference=normalized_scene_preference,
+                fidelity_mode=normalized_fidelity_mode,
+                pose_flex_mode=normalized_pose_flex_mode,
+                n_images=n_images,
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                on_stage=_on_stage,
+            )
+        except Exception as e:
+            yield _sse_event("error", {"message": str(e)})
+            return
+
+        # Replay stage events
+        for evt in collected_events:
+            stage = evt.pop("stage", "unknown")
+            if stage != "done":
+                yield _sse_event(stage, evt)
+
+        persist_v2_history(raw, aspect_ratio=aspect_ratio, resolution=resolution)
+        response_data = build_v2_response_payload(
+            raw,
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            preset=normalized_preset,
+            scene_preference=normalized_scene_preference,
+            fidelity_mode=normalized_fidelity_mode,
+            pose_flex_mode=normalized_pose_flex_mode,
+        )
+        yield _sse_event("done", {"data": response_data})
+
+    if use_v2:
+        return StreamingResponse(
+            event_generator_v2(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        )
 
     async def event_generator():
         if aspect_ratio not in VALID_ASPECT_RATIOS:
@@ -69,7 +140,7 @@ async def generate_stream(
 
         n_uploads = len(uploaded_bytes)
         pipeline_mode = "reference_mode" if n_uploads > 0 else "text_mode"
-        pool_context = "POOL_RUNTIME_DISABLED"
+        pool_context = ""
         normalized_guided = normalize_guided_brief(guided_brief)
 
         reference_pack = build_reference_pack(uploaded_bytes)
@@ -279,7 +350,6 @@ async def generate_stream(
         generated_images = []
         failed_indices = []
         image_assessments = []
-        repair_applied = False
         reason_codes = set(
             (decision.get("reason_codes", []) or []) + 
             (quality_contract.get("reason_codes", []) or []) +
@@ -335,46 +405,6 @@ async def generate_stream(
             best_batch = selected_batch
             best_assessment = selected_assessment
 
-            if not selected_assessment.get("pass", False):
-                repair_prompt = build_repair_prompt(
-                    optimized_prompt,
-                    classifier_summary,
-                    list(reason_codes.union(set(selected_assessment.get("reason_codes", []) or []))),
-                )
-                repair_prompt = normalize_prompt_text(repair_prompt)
-                img_path = Path(selected_batch[0]["path"])
-                first_bytes = img_path.read_bytes() if img_path.exists() else b""
-                first_score = float(selected_assessment.get("candidate_score", 0.0) or 0.0)
-                try:
-                    repaired_batch = await asyncio.to_thread(
-                        generate_images,
-                        prompt=repair_prompt,
-                        thinking_level=thinking_level,
-                        aspect_ratio=aspect_ratio,
-                        resolution=resolution,
-                        n_images=1,
-                        uploaded_images=curated_images if curated_images else None,
-                        grounded_images=grounded_images if grounded_images else None,
-                        session_id=session_id,
-                        start_index=i + 1,
-                        structural_hint=structural_hint_for_nano,
-                    )
-                    repaired_assessment = assess_generated_image(
-                        repaired_batch[0]["path"], repair_prompt, classifier_summary
-                    )
-                    repaired_score = float(repaired_assessment.get("candidate_score", 0.0) or 0.0)
-                    if repaired_score >= first_score:
-                        best_batch = repaired_batch
-                        best_assessment = repaired_assessment
-                        repair_applied = True
-                    else:
-                        if first_bytes:
-                            img_path.write_bytes(first_bytes)
-                except Exception as repair_err:
-                    print(f"[STREAM] ⚠️ repair attempt failed on image {i+1}: {repair_err}")
-                    if first_bytes:
-                        img_path.write_bytes(first_bytes)
-
             generated_images.extend(best_batch)
             image_assessments.append(best_assessment)
             reason_codes.update(best_assessment.get("reason_codes", []) or [])
@@ -407,7 +437,7 @@ async def generate_stream(
             "diversity_score": quality_contract.get("diversity_score"),
             "grounding_reliability": quality_contract.get("grounding_reliability"),
             "reason_codes": sorted(reason_codes),
-            "repair_applied": repair_applied,
+            "repair_applied": False,
             "reference_pack_stats": reference_pack_stats,
             "classifier_summary": classifier_summary,
             "guided_applied": bool(guided_sum),
@@ -448,7 +478,7 @@ async def generate_stream(
             "category": quality_contract.get("category", "general"),
             "global_score": quality_contract.get("global_score", 0.0),
             "reason_codes": sorted(reason_codes),
-            "repair_applied": repair_applied,
+            "repair_applied": False,
             "pipeline_mode": pipeline_mode,
         })
 

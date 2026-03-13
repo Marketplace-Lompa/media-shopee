@@ -136,14 +136,14 @@ def _score_worn_candidate(item: dict[str, Any]) -> float:
     local_score = float(item.get("local_quality_score", 0.0) or 0.0)
     value = (
         0.24 * item["garment_focus"]
-        + 0.28 * item["silhouette_readability"]
+        + 0.27 * item["silhouette_readability"]
         + 0.20 * item["construction_readability"]
-        + 0.12 * item["texture_readability"]
+        + 0.11 * item["texture_readability"]
         + 0.08 * item["confidence"]
         + 0.08 * local_score
         + angle_bonus
-        - 0.10 * item["styling_leak_risk"]
-        - 0.04 * item["background_noise"]
+        - 0.18 * item["styling_leak_risk"]
+        - 0.06 * item["background_noise"]
     )
     return _clamp(value)
 
@@ -157,6 +157,28 @@ def _score_detail_candidate(item: dict[str, Any]) -> float:
         + 0.08 * item["silhouette_readability"]
         + 0.08 * item["confidence"]
         + 0.06 * local_score
+        - 0.08 * item["styling_leak_risk"]
+        - 0.02 * item["background_noise"]
+    )
+    return _clamp(value)
+
+
+def _score_identity_safe_candidate(item: dict[str, Any]) -> float:
+    role = str(item.get("role", "") or "")
+    role_bonus = (
+        0.14 if role in {"detail_flat", "detail_texture", "detail_construction"}
+        else (0.06 if role == "worn_three_quarter" else (0.03 if role == "worn_front" else 0.0))
+    )
+    value = (
+        0.25 * item["garment_focus"]
+        + 0.23 * item["construction_readability"]
+        + 0.16 * item["texture_readability"]
+        + 0.12 * item["silhouette_readability"]
+        + 0.08 * item["confidence"]
+        + 0.06 * float(item.get("local_quality_score", 0.0) or 0.0)
+        + role_bonus
+        - 0.22 * item["styling_leak_risk"]
+        - 0.08 * item["background_noise"]
     )
     return _clamp(value)
 
@@ -173,13 +195,59 @@ def _pick_top(items: List[dict[str, Any]], limit: int, used_hashes: set[str]) ->
     return selected
 
 
+def _compute_identity_risk_stats(rows: List[dict[str, Any]]) -> dict[str, Any]:
+    if not rows:
+        return {
+            "avg_styling_leak_risk": 0.0,
+            "max_styling_leak_risk": 0.0,
+            "identity_reference_risk": "low",
+            "worn_reference_count": 0,
+            "detail_reference_count": 0,
+        }
+    leak_vals = [float(row.get("styling_leak_risk", 0.0) or 0.0) for row in rows]
+    avg_leak = sum(leak_vals) / len(leak_vals)
+    max_leak = max(leak_vals)
+    worn_count = sum(
+        1 for row in rows
+        if str(row.get("role", "") or "") in {"worn_front", "worn_three_quarter", "worn_side"}
+    )
+    detail_count = sum(
+        1 for row in rows
+        if str(row.get("role", "") or "") in {"detail_flat", "detail_texture", "detail_construction"}
+    )
+    if max_leak >= 0.75 or avg_leak >= 0.58:
+        risk = "high"
+    elif max_leak >= 0.55 or avg_leak >= 0.42:
+        risk = "medium"
+    else:
+        risk = "low"
+    return {
+        "avg_styling_leak_risk": round(avg_leak, 3),
+        "max_styling_leak_risk": round(max_leak, 3),
+        "identity_reference_risk": risk,
+        "worn_reference_count": worn_count,
+        "detail_reference_count": detail_count,
+    }
+
+
 def _build_small_input_result(
     unique_rows: List[dict[str, Any]],
     duplicate_count: int,
     unified_triage: Optional[dict[str, Any]],
 ) -> dict[str, Any]:
-    detail_rows = [row for row in unique_rows if row["role"] in {"detail_flat", "detail_texture", "detail_construction"}]
-    anchor_rows = detail_rows[:2] if detail_rows else unique_rows[: min(2, len(unique_rows))]
+    detail_rows = sorted(
+        [row for row in unique_rows if row["role"] in {"detail_flat", "detail_texture", "detail_construction"}],
+        key=lambda x: (x["identity_safe_score"], x["detail_score"], -x["styling_leak_risk"]),
+        reverse=True,
+    )
+    identity_safe_rows = sorted(
+        unique_rows,
+        key=lambda x: (x["identity_safe_score"], x["detail_score"], x["construction_readability"]),
+        reverse=True,
+    )
+    anchor_rows = detail_rows[:2] if detail_rows else identity_safe_rows[: min(2, len(identity_safe_rows))]
+    identity_safe = identity_safe_rows[: min(3, len(identity_safe_rows))]
+    risk_stats = _compute_identity_risk_stats(unique_rows)
     return {
         "items": [
             {k: v for k, v in row.items() if k != "bytes"}
@@ -191,6 +259,7 @@ def _build_small_input_result(
             "duplicate_count": duplicate_count,
             "complex_garment": _is_complex_garment(unified_triage),
             "small_input_mode": True,
+            **risk_stats,
         },
         "base_generation": [
             {"filename": row["filename"], "role": row["role"], "score": row["worn_score"], "detail_score": row["detail_score"]}
@@ -208,11 +277,13 @@ def _build_small_input_result(
             "base_generation": [row["bytes"] for row in unique_rows],
             "strict_single_pass": [row["bytes"] for row in unique_rows],
             "edit_anchors": [row["bytes"] for row in anchor_rows],
+            "identity_safe": [row["bytes"] for row in identity_safe],
         },
         "selected_names": {
             "base_generation": [row["filename"] for row in unique_rows],
             "strict_single_pass": [row["filename"] for row in unique_rows],
             "edit_anchors": [row["filename"] for row in anchor_rows],
+            "identity_safe": [row["filename"] for row in identity_safe],
         },
         "unified_triage": unified_triage,
     }
@@ -270,6 +341,7 @@ def select_reference_subsets(
         }
         row["worn_score"] = round(_score_worn_candidate(row), 3)
         row["detail_score"] = round(_score_detail_candidate(row), 3)
+        row["identity_safe_score"] = round(_score_identity_safe_candidate(row), 3)
         unique_rows.append(row)
 
     unified_triage = _infer_unified_vision_triage([row["bytes"] for row in unique_rows[:6]], user_prompt)
@@ -291,7 +363,7 @@ def select_reference_subsets(
     ]
     detail_rows = sorted(
         [row for row in unique_rows if row["role"] in {"detail_flat", "detail_texture", "detail_construction"}],
-        key=lambda x: (x["detail_score"], x["construction_readability"], x["texture_readability"]),
+        key=lambda x: (x["detail_score"], x["identity_safe_score"], x["construction_readability"], x["texture_readability"]),
         reverse=True,
     )
 
@@ -333,9 +405,46 @@ def select_reference_subsets(
     edit_anchors: List[dict[str, Any]] = []
     edit_anchors.extend(_pick_top(detail_rows, 2, used_hashes))
     if len(edit_anchors) < 2:
-        worn_fill = [row for row in worn_rows if row["sha1"] not in used_hashes]
+        worn_fill = sorted(
+            [
+                row for row in worn_rows
+                if row["sha1"] not in used_hashes and row["styling_leak_risk"] <= 0.45
+            ],
+            key=lambda x: (x["identity_safe_score"], x["worn_score"]),
+            reverse=True,
+        )
+        if not worn_fill:
+            worn_fill = sorted(
+                [row for row in worn_rows if row["sha1"] not in used_hashes],
+                key=lambda x: (x["identity_safe_score"], x["worn_score"]),
+                reverse=True,
+            )
         edit_anchors.extend(_pick_top(worn_fill, 2 - len(edit_anchors), used_hashes))
 
+    used_hashes = set()
+    identity_safe: List[dict[str, Any]] = []
+    identity_safe.extend(_pick_top(detail_rows, 2, used_hashes))
+    low_leak_worn = sorted(
+        [
+            row for row in worn_rows
+            if row["sha1"] not in used_hashes
+            and row["styling_leak_risk"] <= 0.45
+            and row["background_noise"] <= 0.65
+        ],
+        key=lambda x: (x["identity_safe_score"], x["worn_score"], x["silhouette_readability"]),
+        reverse=True,
+    )
+    if low_leak_worn:
+        identity_safe.extend(_pick_top(low_leak_worn, 2 if complex_garment else 1, used_hashes))
+    if len(identity_safe) < 2:
+        worn_fallback = sorted(
+            [row for row in worn_rows if row["sha1"] not in used_hashes],
+            key=lambda x: (x["identity_safe_score"], x["worn_score"]),
+            reverse=True,
+        )
+        identity_safe.extend(_pick_top(worn_fallback, 2 - len(identity_safe), used_hashes))
+
+    risk_stats = _compute_identity_risk_stats(unique_rows)
     return {
         "items": [
             {
@@ -350,6 +459,7 @@ def select_reference_subsets(
             "duplicate_count": duplicate_count,
             "complex_garment": complex_garment,
             "small_input_mode": False,
+            **risk_stats,
         },
         "base_generation": [
             {"filename": row["filename"], "role": row["role"], "score": row["worn_score"], "detail_score": row["detail_score"]}
@@ -367,11 +477,13 @@ def select_reference_subsets(
             "base_generation": [row["bytes"] for row in base_generation],
             "strict_single_pass": [row["bytes"] for row in strict_single_pass],
             "edit_anchors": [row["bytes"] for row in edit_anchors],
+            "identity_safe": [row["bytes"] for row in identity_safe],
         },
         "selected_names": {
             "base_generation": [row["filename"] for row in base_generation],
             "strict_single_pass": [row["filename"] for row in strict_single_pass],
             "edit_anchors": [row["filename"] for row in edit_anchors],
+            "identity_safe": [row["filename"] for row in identity_safe],
         },
         "unified_triage": unified_triage,
     }

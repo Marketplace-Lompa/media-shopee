@@ -32,6 +32,11 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
         "presence": "refined premium-catalog presence",
         "age_options": ["late 20s to early 30s", "early 30s"],
         "skin_options": ["light olive skin", "light-medium neutral skin"],
+        "face_structure_options": [
+            "defined cheekbones with a softly narrow jawline",
+            "oval face geometry with gentle brow depth",
+            "balanced facial proportions with a slightly elongated chin",
+        ],
         "hair_options": [
             "straight dark brown shoulder-length hair tucked behind the ears",
             "sleek dark chestnut long bob with a center part",
@@ -44,16 +49,21 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
     {
         "id": "br_warm_commercial",
         "label": "BR Warm Commercial",
-        "presence": "friendly commercial presence",
+        "presence": "polished commercial presence",
         "age_options": ["mid-to-late 20s", "late 20s to early 30s"],
         "skin_options": ["golden tan skin", "warm medium skin"],
+        "face_structure_options": [
+            "rounded cheeks with a softly tapered jawline",
+            "heart-shaped face with gentle chin definition",
+            "balanced oval face with subtle smile lines",
+        ],
         "hair_options": [
             "long loose chestnut waves with a natural side part",
             "soft medium-brown waves over the shoulders",
             "dark honey-brown wavy hair with a polished blowout finish",
         ],
         "makeup_options": ["fresh natural makeup", "soft radiant makeup"],
-        "expression_options": ["friendly polished smile", "warm approachable expression"],
+        "expression_options": ["warm composed expression", "subtle approachable expression"],
         "recent_avoid": ["sleek jaw-length bob", "tight natural coils"],
     },
     {
@@ -62,6 +72,11 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
         "presence": "modern premium-catalog presence",
         "age_options": ["late 20s", "late 20s to early 30s"],
         "skin_options": ["deep rich brown skin", "medium-deep warm skin"],
+        "face_structure_options": [
+            "high cheekbones with a strong elegant jawline",
+            "rounded forehead and sculpted lower-face geometry",
+            "defined facial planes with expressive brow architecture",
+        ],
         "hair_options": [
             "short sculpted natural curls with a crisp silhouette",
             "defined shoulder-length natural curls with controlled volume",
@@ -77,6 +92,11 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
         "presence": "elegant high-end catalog presence",
         "age_options": ["early 40s", "mid 40s"],
         "skin_options": ["medium olive skin", "medium warm skin", "light-medium neutral skin"],
+        "face_structure_options": [
+            "refined angular cheekbones with a composed jawline",
+            "elongated oval face with subtle nasolabial definition",
+            "balanced mature facial structure with gentle temple contour",
+        ],
         "hair_options": [
             "a sleek jaw-length dark bob with a clean center part",
             "polished shoulder-length dark hair with a smooth blowout",
@@ -92,6 +112,11 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
         "presence": "soft premium-editorial presence",
         "age_options": ["mid 20s", "late 20s"],
         "skin_options": ["fair neutral skin", "light olive skin", "soft warm beige skin"],
+        "face_structure_options": [
+            "soft oval facial structure with delicate jaw contour",
+            "slightly narrow face with gentle cheek projection",
+            "balanced brow-to-chin proportions with subtle asymmetry",
+        ],
         "hair_options": [
             "a dark wavy shoulder-length cut with soft movement",
             "a collarbone-length dark brunette cut with airy texture",
@@ -102,6 +127,10 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
         "recent_avoid": ["friendly polished smile", "a sleek jaw-length dark bob"],
     },
 ]
+
+
+def get_casting_catalog() -> list[dict[str, Any]]:
+    return [dict(item) for item in _CASTING_FAMILIES]
 
 
 def _load_json(path: Path, default: Any) -> Any:
@@ -136,24 +165,53 @@ def reset_brazilian_casting_state() -> None:
     _save_json(_CASTING_STATE_FILE, dict(_DEFAULT_STATE))
 
 
+def commit_brazilian_casting_profile(profile: dict[str, Any], *, window: int = 8) -> None:
+    state = _safe_state()
+    history = list(state.get("history", []))
+    family_id = str(profile.get("family_id", "") or "")
+    signature = str(profile.get("signature", "") or "")
+    hair = str(profile.get("hair", "") or "")
+    if not family_id or not signature:
+        return
+    history.append(
+        {
+            "family_id": family_id,
+            "signature": signature,
+            "hair": hair,
+            "timestamp": int(time.time()),
+        }
+    )
+    history = history[-max(8, window):]
+    _save_json(
+        _CASTING_STATE_FILE,
+        {
+            "history": history,
+            "last_family_id": family_id,
+            "cursor": int(state.get("cursor", 0) or 0) + 1,
+        },
+    )
+
+
 def _stable_int(seed: str) -> int:
     return int(hashlib.sha1(seed.encode("utf-8")).hexdigest()[:8], 16)
 
 
 def _build_family_variants(family: dict[str, Any]) -> list[dict[str, str]]:
     combos: list[dict[str, str]] = []
-    for age, skin, hair, makeup, expression in itertools.product(
+    for age, skin, face_structure, hair, makeup, expression in itertools.product(
         family["age_options"],
         family["skin_options"],
+        family["face_structure_options"],
         family["hair_options"],
         family["makeup_options"],
         family["expression_options"],
     ):
-        signature = "|".join([family["id"], age, skin, hair, makeup, expression])
+        signature = "|".join([family["id"], age, skin, face_structure, hair, makeup, expression])
         combos.append(
             {
                 "age": age,
                 "skin": skin,
+                "face_structure": face_structure,
                 "hair": hair,
                 "makeup": makeup,
                 "expression": expression,
@@ -169,6 +227,12 @@ def _family_affinity(user_prompt: Optional[str], family: dict[str, Any]) -> int:
         return 0
     score = 0
     family_id = family["id"]
+    if "premium" in text or "catalog" in text or "sofistic" in text or "ensaio" in text:
+        if family_id in {"br_minimal_premium", "br_soft_editorial", "br_afro_modern"}:
+            score += 2
+    if "autentic" in text or "natural" in text:
+        if family_id in {"br_warm_commercial", "br_soft_editorial", "br_afro_modern"}:
+            score += 1
     if "madura" in text or "40" in text or "elegante" in text:
         if family_id == "br_mature_elegant":
             score += 3
@@ -190,7 +254,7 @@ def _family_affinity(user_prompt: Optional[str], family: dict[str, Any]) -> int:
 def _render_identity_sentence(family: dict[str, Any], variant: dict[str, str]) -> str:
     return (
         f"a distinctly different adult Brazilian woman in her {variant['age']} with "
-        f"{variant['skin']}, {variant['hair']}, {variant['makeup']}, "
+        f"{variant['skin']}, {variant['face_structure']}, {variant['hair']}, {variant['makeup']}, "
         f"{variant['expression']}, and {family['presence']}"
     )
 
@@ -236,6 +300,10 @@ def select_brazilian_casting_profile(
         family for family in candidates
         if recent_family_counts.get(family["id"], 0) == least_count
     ] or candidates
+    if len(best_candidates) > 1 and last_family_id:
+        filtered = [family for family in best_candidates if family["id"] != last_family_id]
+        if filtered:
+            best_candidates = filtered
 
     seed = _stable_int(seed_hint or f"{time.time():.0f}")
     cursor = int(state.get("cursor", 0) or 0)
@@ -255,6 +323,7 @@ def select_brazilian_casting_profile(
         "family_label": family["label"],
         "age": variant["age"],
         "skin": variant["skin"],
+        "face_structure": variant["face_structure"],
         "hair": variant["hair"],
         "makeup": variant["makeup"],
         "expression": variant["expression"],
@@ -273,22 +342,6 @@ def select_brazilian_casting_profile(
     }
 
     if commit:
-        history.append(
-            {
-                "family_id": family["id"],
-                "signature": variant["signature"],
-                "hair": variant["hair"],
-                "timestamp": int(time.time()),
-            }
-        )
-        history = history[-max(8, window):]
-        _save_json(
-            _CASTING_STATE_FILE,
-            {
-                "history": history,
-                "last_family_id": family["id"],
-                "cursor": cursor + 1,
-            },
-        )
+        commit_brazilian_casting_profile(result, window=window)
 
     return result

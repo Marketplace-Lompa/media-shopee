@@ -50,18 +50,61 @@ AGENT_RESPONSE_SCHEMA = {
     }
 }
 
+SET_MEMBER_SCHEMA = {
+    "type": "object",
+    "required": [
+        "role",
+        "member_class",
+        "include_policy",
+        "render_separately",
+        "fusion_forbidden",
+        "confidence",
+    ],
+    "properties": {
+        "role": {"type": "string"},
+        "member_class": {
+            "type": "string",
+            "enum": ["garment", "coordinated_accessory", "styling_layer", "unrelated_accessory"],
+        },
+        "include_policy": {
+            "type": "string",
+            "enum": ["must_include", "optional", "exclude"],
+        },
+        "render_separately": {"type": "boolean"},
+        "fusion_forbidden": {"type": "boolean"},
+        "confidence": {"type": "number"},
+    },
+}
+
 SET_DETECTION_SCHEMA = {
     "type": "object",
-    "required": ["is_garment_set", "set_pattern_score", "detected_garment_roles", "set_pattern_cues"],
+    "required": [
+        "is_garment_set",
+        "set_pattern_score",
+        "detected_garment_roles",
+        "set_pattern_cues",
+        "set_mode",
+        "primary_piece_role",
+        "set_members",
+    ],
     "properties": {
         "is_garment_set": {"type": "boolean"},
         "set_pattern_score": {"type": "number"},
+        "set_mode": {
+            "type": "string",
+            "enum": ["off", "probable", "explicit"],
+        },
+        "primary_piece_role": {"type": "string"},
         "detected_garment_roles": {
             "type": "array",
             "items": {"type": "string"},
             "description": "Descriptive role labels, e.g. 'ribbed cardigan', 'pleated skirt'. Avoid generic single-word labels.",
         },
         "set_pattern_cues": {"type": "array", "items": {"type": "string"}},
+        "set_members": {
+            "type": "array",
+            "items": SET_MEMBER_SCHEMA,
+        },
     },
 }
 
@@ -75,6 +118,9 @@ STRUCTURAL_CONTRACT_SCHEMA = {
         "hem_shape",
         "garment_length",
         "silhouette_volume",
+        "edge_contour",
+        "drop_profile",
+        "opening_continuity",
         "must_keep",
         "confidence",
         "has_pockets",
@@ -87,6 +133,9 @@ STRUCTURAL_CONTRACT_SCHEMA = {
         "hem_shape": {"type": "string"},
         "garment_length": {"type": "string"},
         "silhouette_volume": {"type": "string"},
+        "edge_contour": {"type": "string"},
+        "drop_profile": {"type": "string"},
+        "opening_continuity": {"type": "string"},
         "must_keep": {"type": "array", "items": {"type": "string"}},
         "confidence": {"type": "number"},
         # Pocket detection: prevents hallucination when garment has no pockets.
@@ -132,7 +181,9 @@ UNIFIED_VISION_SCHEMA = {
             "type": "object",
             "required": [
                 "garment_subtype", "sleeve_type", "sleeve_length", "front_opening",
-                "hem_shape", "garment_length", "silhouette_volume", "must_keep", "confidence",
+                "hem_shape", "garment_length", "silhouette_volume",
+                "edge_contour", "drop_profile", "opening_continuity",
+                "must_keep", "confidence",
                 "has_pockets",
             ],
             "properties": {
@@ -143,6 +194,9 @@ UNIFIED_VISION_SCHEMA = {
                 "hem_shape":          {"type": "string"},
                 "garment_length":     {"type": "string"},
                 "silhouette_volume":  {"type": "string"},
+                "edge_contour":       {"type": "string"},
+                "drop_profile":       {"type": "string"},
+                "opening_continuity": {"type": "string"},
                 "must_keep": {"type": "array", "items": {"type": "string"}},
                 "confidence": {"type": "number"},
                 "has_pockets": {"type": "boolean"},
@@ -150,12 +204,26 @@ UNIFIED_VISION_SCHEMA = {
         },
         "set_detection": {
             "type": "object",
-            "required": ["is_garment_set", "set_pattern_score", "detected_garment_roles", "set_pattern_cues"],
+            "required": [
+                "is_garment_set",
+                "set_pattern_score",
+                "detected_garment_roles",
+                "set_pattern_cues",
+                "set_mode",
+                "primary_piece_role",
+                "set_members",
+            ],
             "properties": {
                 "is_garment_set":         {"type": "boolean"},
                 "set_pattern_score":      {"type": "number"},
+                "set_mode":               {"type": "string", "enum": ["off", "probable", "explicit"]},
+                "primary_piece_role":     {"type": "string"},
                 "detected_garment_roles": {"type": "array", "items": {"type": "string"}},
                 "set_pattern_cues":       {"type": "array", "items": {"type": "string"}},
+                "set_members": {
+                    "type": "array",
+                    "items": SET_MEMBER_SCHEMA,
+                },
             },
         },
     },
@@ -217,80 +285,37 @@ REFERENCE_KNOWLEDGE = """
 
 ── GARMENT DESCRIPTION (3 dimensions) ──
 
-DIMENSION 1 — MATERIAL:
+MATERIAL:
   Woven: cotton poplin, linen, silk charmeuse, wool crepe, tweed, jacquard, brocade
-  Knit: smooth fine-gauge jersey knit | vertical rib-knit | chunky Aran cable-knit |
-        plush brioche stitch | open-stitch knit panel (NOT "lace knit" → generates floral lace)
+  Knit: fine-gauge jersey | rib-knit | chunky cable-knit | brioche stitch | open-stitch panel
   Synthetic: mesh, tulle, velvet, vinyl/PU leather, suede, sequined
+  Knitwear caution: avoid "crochet loops", "3D texture", "puffy", "bobbles" — they inflate.
 
-  ANTI-INFLATION for knitwear:
-    Crochet — DO: "flat uniform crochet construction", "open-weave crochet airy construction"
-              EXCLUDE: "crochet loops", "3D crochet texture", "puffy", "bobbles"
-    Knit — DO: "heavy flat-knit construction dense gauge", "smooth fine-gauge jersey knit"
-           EXCLUDE: "cable" (only use if truly Aran)
-    Texture tokens: subtle="nearly smooth" | medium="visible rows" | maximum="deep relief"
-
-DIMENSION 2 — CONSTRUCTION:
+CONSTRUCTION:
   Necklines: crew | V-neck | scoop | boat | square | turtleneck | cowl
   Sleeves: set-in | raglan | dolman/batwing | puff | bishop | bell | cap | flutter
 
-DIMENSION 3 — BEHAVIOR:
-  drapes loosely | falls straight | holds structure | clings to body |
-  billows/catches air | skims the body | stands away from body
+BEHAVIOR:
+  drapes loosely | falls straight | holds structure | clings to body | skims the body
 
 ── E-COMMERCE SHOT SYSTEM ──
 
-WIDE (hero): Full body head-to-feet, 60-70% frame. Dynamic mid-stride.
-  Template: "Full-body wide shot, model mid-stride in [scenario], 3/4 angle."
+WIDE (hero): Full body head-to-feet, 60-70% frame, dynamic mid-stride.
 MEDIUM (detail): Waist-up, neckline + sleeve focus, 50mm bokeh.
-  Template: "Medium shot waist up, relaxed expression, soft bokeh."
 CLOSE-UP (texture): 80%+ frame is detail, macro focus.
-  Template: "Extreme close-up of [detail], macro focus, individual fiber visible."
 AUTO: choose what best showcases the garment.
 
-── BRAZILIAN MODEL FRAMEWORK ──
+── MODEL & SCENE ──
 
-DIVERSITY ANCHOR — Name Blending (latent-space casting):
-  Act as a Casting Director, not a biologist. Never list anatomical traits.
-  Formula: "A {vibe} {agency}. Her facial features are a beautiful natural blend reminiscent of '{Name1}' and '{Name2} {Surname}'."
-  Skin realism anchor (mandatory): "Flawless unretouched skin realism, visible natural pores, subtle peach fuzz."
-  The name blend anchors bone structure, skin tone, and eye shape organically from training data clusters.
-  Avoid explicit phenotype lists — they produce AI Face (uncanny symmetry, plastic skin).
+Skin realism: visible natural pores, subtle peach fuzz, unretouched feel.
+Presentation: professionally styled hair, warm confident expression, engaging eye contact.
+Scenarios: urban downtown | rooftop terrace | tropical park | café garden | minimalist apartment | boutique showroom
+Color strategy: White→dark bg | Black→light bg | Pastels→neutral warm | Saturated→clean minimal
 
-Age: early 20s | late 20s | mid 30s | early 40s
-Body: athletic | curvy | slim | plus-size | petite | tall and lean
+── REALISM ──
 
-MODEL PRESENTATION (always apply):
-  Hair: professionally styled | Skin: healthy, glowing | Expression: warm, confident
-  Gaze: engaging eye contact | Posture: poised, shoulders relaxed
-
-SEASONAL COHERENCE:
-  Winter knits → boots, dark jeans, muted light | Mid-season → closed shoes, golden hour
-  Summer → bare legs, sandals, bright midday
-
-SCENARIOS (rotate):
-  Urban: modern downtown | rooftop terrace | shopping district | garden terrace
-  Natural: tropical park | café garden | botanical path | mountain town
-  Interior: minimalist apartment | cozy café | boutique showroom | warm living room
-
-COLOR STRATEGY: White→dark bg | Black→light bg | Pastels→neutral warm | Saturated→clean minimal
-
-── REALISM LEVERS ──
-
-Level 1 (casual): 5-7 levers, high intensity
-Level 2 (e-commerce, DEFAULT): 3-4 levers, moderate
-Level 3 (editorial): 2-3 levers, subtle
-
-Anti-perfection: EXCLUDE "perfect lighting", "flawless skin", "8K masterpiece"
-
-Levers: DEVICE="Sony A7III, 85mm f/1.8" | LIGHTING="golden hour rim light" |
-  SKIN="visible pores, natural tone variation" | GRAIN="natural digital noise" |
-  FABRIC="natural wear creases, fabric responding to movement"
-
-── GROUNDING RESEARCH ──
-
-Garments requiring research: manga morcego/dolman, cardigan assimétrico,
-kaftan, ruana/xale, pelerine, bodychain/harness, any unidentifiable garment.
+EXCLUDE "perfect lighting", "flawless skin", "8K masterpiece".
+Anchor: DEVICE="Sony A7III, 85mm f/1.8" | SKIN="visible pores" | FABRIC="natural wear creases"
 """
 
 _SLEEVE_TYPE_PHRASES: dict[str, str] = {

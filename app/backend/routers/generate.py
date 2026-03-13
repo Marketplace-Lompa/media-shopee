@@ -11,18 +11,32 @@ from typing import Any, Callable, List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from agent import run_agent, normalize_prompt_text
-from history import add_entry as history_add, purge_oldest as history_purge
-from config import VALID_ASPECT_RATIOS, VALID_N_IMAGES, VALID_RESOLUTIONS, OUTPUTS_DIR
+from agent import run_agent
+from agent_runtime.pipeline_v2 import run_pipeline_v2
+from agent_runtime.pipeline_v2_support import (
+    build_v2_generate_response,
+    normalize_v2_options,
+    persist_v2_history,
+    should_use_v2,
+)
+from config import (
+    DEFAULT_ASPECT_RATIO,
+    DEFAULT_N_IMAGES,
+    DEFAULT_RESOLUTION,
+    OUTPUTS_DIR,
+    VALID_ASPECT_RATIOS,
+    VALID_N_IMAGES,
+    VALID_RESOLUTIONS,
+)
 from generator import generate_images
 from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
+from history import add_entry as history_add, purge_oldest as history_purge
 from guided_mode import guided_force_grounding_floor, guided_summary, normalize_guided_brief
 from job_manager import complete_job, create_job, fail_job, get_job, list_jobs, start_job, update_stage
 from models import GenerateResponse, GeneratedImage
 from pipeline_effectiveness import (
     assess_generated_image,
     build_reference_pack,
-    build_repair_prompt,
     classify_visual_context,
     compute_quality_contract,
     decide_grounding_mode,
@@ -135,7 +149,7 @@ def _run_generate_pipeline(
     if n_images not in VALID_N_IMAGES:
         raise ValueError(f"n_images inválido. Use: {VALID_N_IMAGES}")
 
-    pool_context = "POOL_RUNTIME_DISABLED"
+    pool_context = ""
     pipeline_mode = "reference_mode_strict" if strict_reference_mode else ("reference_mode" if uploaded_bytes else "text_mode")
     strategy = "off" if strict_reference_mode else normalize_grounding_strategy(grounding_strategy, use_grounding)
 
@@ -420,7 +434,6 @@ def _run_generate_pipeline(
     raw_images: List[dict] = []
     failed_indices: List[int] = []
     image_assessments: List[dict] = []
-    repair_applied = False
     reason_codes = set(
         (decision.get("reason_codes", []) or []) + 
         (quality_contract.get("reason_codes", []) or []) +
@@ -469,42 +482,6 @@ def _run_generate_pipeline(
 
         best_batch = selected_batch
         best_assessment = selected_assessment
-
-        if not strict_reference_mode and not selected_assessment.get("pass", False):
-            repair_prompt = build_repair_prompt(
-                optimized_prompt,
-                classifier_summary,
-                list(reason_codes.union(set(selected_assessment.get("reason_codes", []) or []))),
-            )
-            repair_prompt = normalize_prompt_text(repair_prompt)
-            img_path = Path(selected_batch[0]["path"])
-            first_bytes = img_path.read_bytes() if img_path.exists() else b""
-            first_score = float(selected_assessment.get("candidate_score", 0.0) or 0.0)
-            try:
-                repaired_batch = generate_images(
-                    prompt=repair_prompt,
-                    thinking_level=thinking_level,
-                    aspect_ratio=aspect_ratio,
-                    resolution=resolution,
-                    n_images=1,
-                    uploaded_images=curated_images if curated_images else None,
-                    grounded_images=grounded_images if grounded_images else None,
-                    session_id=session_id,
-                    start_index=i + 1,
-                    structural_hint=structural_hint_for_nano,
-                )
-                repaired_assessment = assess_generated_image(repaired_batch[0]["path"], repair_prompt, classifier_summary)
-                repaired_score = float(repaired_assessment.get("candidate_score", 0.0) or 0.0)
-                if repaired_score >= first_score:
-                    best_batch = repaired_batch
-                    best_assessment = repaired_assessment
-                    repair_applied = True
-                elif first_bytes:
-                    img_path.write_bytes(first_bytes)
-            except Exception as repair_err:
-                print(f"[GENERATE] ⚠️ repair failed for image {i+1}: {repair_err}")
-                if first_bytes:
-                    img_path.write_bytes(first_bytes)
 
         raw_images.extend(best_batch)
         image_assessments.append(best_assessment)
@@ -556,7 +533,7 @@ def _run_generate_pipeline(
             "category": quality_contract.get("category", "general"),
             "global_score": quality_contract.get("global_score", 0.0),
             "reason_codes": sorted(reason_codes),
-            "repair_applied": repair_applied,
+            "repair_applied": False,
             "pipeline_mode": pipeline_mode,
         }
     )
@@ -582,7 +559,7 @@ def _run_generate_pipeline(
         diversity_score=quality_contract.get("diversity_score"),
         grounding_reliability=quality_contract.get("grounding_reliability"),
         reason_codes=sorted(reason_codes),
-        repair_applied=repair_applied,
+        repair_applied=False,
         reference_pack_stats=reference_pack_stats,
         classifier_summary=classifier_summary,
         guided_applied=bool(guided_sum),
@@ -600,16 +577,44 @@ def _run_generate_pipeline(
 @router.post("", response_model=GenerateResponse)
 async def generate(
     prompt: Optional[str] = Form(default=None),
-    aspect_ratio: str = Form(default="1:1"),
-    resolution: str = Form(default="1K"),
-    n_images: int = Form(default=1),
+    aspect_ratio: str = Form(default=DEFAULT_ASPECT_RATIO),
+    resolution: str = Form(default=DEFAULT_RESOLUTION),
+    n_images: int = Form(default=DEFAULT_N_IMAGES),
     grounding_strategy: Optional[str] = Form(default=None),
     use_grounding: bool = Form(default=False),
     guided_brief: Optional[str] = Form(default=None),
+    preset: Optional[str] = Form(default=None),
+    scene_preference: str = Form(default="auto_br"),
+    fidelity_mode: str = Form(default="balanceada"),
+    pose_flex_mode: str = Form(default="auto"),
     images: List[UploadFile] = File(default=[]),
 ):
-    uploaded_bytes = [await img.read() for img in images[:14]]
+    limited_images = images[:14]
+    uploaded_bytes = [await img.read() for img in limited_images]
+    uploaded_filenames = [str(img.filename or "").strip() for img in limited_images]
+    use_v2 = should_use_v2(preset, uploaded_bytes)
     try:
+        if use_v2:
+            normalized_preset, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_v2_options(
+                preset=preset,
+                scene_preference=scene_preference,
+                fidelity_mode=fidelity_mode,
+                pose_flex_mode=pose_flex_mode,
+            )
+            return await asyncio.to_thread(
+                _run_v2_pipeline_and_persist,
+                uploaded_bytes=uploaded_bytes,
+                uploaded_filenames=uploaded_filenames,
+                prompt=prompt,
+                preset=normalized_preset,
+                scene_preference=normalized_scene_preference,
+                fidelity_mode=normalized_fidelity_mode,
+                pose_flex_mode=normalized_pose_flex_mode,
+                n_images=n_images,
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                on_stage=None,
+            )
         return await asyncio.to_thread(
             _run_generate_pipeline,
             prompt=prompt,
@@ -628,36 +633,111 @@ async def generate(
         raise HTTPException(500, str(e)) from e
 
 
+def _run_v2_pipeline_and_persist(
+    *,
+    uploaded_bytes: List[bytes],
+    uploaded_filenames: Optional[List[str]],
+    prompt: Optional[str],
+    preset: str,
+    scene_preference: str,
+    fidelity_mode: str,
+    pose_flex_mode: str,
+    n_images: int,
+    aspect_ratio: str,
+    resolution: str,
+    on_stage: Optional[Callable[[str, dict], None]] = None,
+) -> GenerateResponse:
+    """Wrapper que roda pipeline_v2, persiste historico, e retorna GenerateResponse."""
+    raw = run_pipeline_v2(
+        uploaded_bytes=uploaded_bytes,
+        uploaded_filenames=uploaded_filenames,
+        prompt=prompt,
+        preset=preset,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+        pose_flex_mode=pose_flex_mode,
+        n_images=n_images,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        on_stage=on_stage,
+    )
+    persist_v2_history(raw, aspect_ratio=aspect_ratio, resolution=resolution)
+    return build_v2_generate_response(
+        raw,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        preset=preset,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+        pose_flex_mode=pose_flex_mode,
+    )
+
+
 @router.post("/async")
 async def generate_async(
     prompt: Optional[str] = Form(default=None),
-    aspect_ratio: str = Form(default="1:1"),
-    resolution: str = Form(default="1K"),
-    n_images: int = Form(default=1),
+    aspect_ratio: str = Form(default=DEFAULT_ASPECT_RATIO),
+    resolution: str = Form(default=DEFAULT_RESOLUTION),
+    n_images: int = Form(default=DEFAULT_N_IMAGES),
     grounding_strategy: Optional[str] = Form(default=None),
     use_grounding: bool = Form(default=False),
     guided_brief: Optional[str] = Form(default=None),
+    preset: Optional[str] = Form(default=None),
+    scene_preference: str = Form(default="auto_br"),
+    fidelity_mode: str = Form(default="balanceada"),
+    pose_flex_mode: str = Form(default="auto"),
     images: List[UploadFile] = File(default=[]),
 ):
-    uploaded_bytes = [await img.read() for img in images[:14]]
-    job_id = create_job(meta={"n_images": n_images, "has_images": bool(uploaded_bytes)})
+    limited_images = images[:14]
+    uploaded_bytes = [await img.read() for img in limited_images]
+    uploaded_filenames = [str(img.filename or "").strip() for img in limited_images]
+    use_v2 = should_use_v2(preset, uploaded_bytes)
+    job_id = create_job(
+        meta={
+            "n_images": n_images,
+            "has_images": bool(uploaded_bytes),
+            "pipeline_version": "v2" if use_v2 else "v1",
+            "pose_flex_mode": pose_flex_mode,
+        }
+    )
 
     def _worker() -> None:
         def _stage_cb(stage: str, data: dict) -> None:
             update_stage(job_id, stage, data)
 
         try:
-            response = _run_generate_pipeline(
-                prompt=prompt,
-                aspect_ratio=aspect_ratio,
-                resolution=resolution,
-                n_images=n_images,
-                grounding_strategy=grounding_strategy,
-                use_grounding=use_grounding,
-                guided_brief=guided_brief,
-                uploaded_bytes=uploaded_bytes,
-                on_stage=_stage_cb,
-            )
+            if use_v2:
+                normalized_preset, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_v2_options(
+                    preset=preset,
+                    scene_preference=scene_preference,
+                    fidelity_mode=fidelity_mode,
+                    pose_flex_mode=pose_flex_mode,
+                )
+                response = _run_v2_pipeline_and_persist(
+                    uploaded_bytes=uploaded_bytes,
+                    uploaded_filenames=uploaded_filenames,
+                    prompt=prompt,
+                    preset=normalized_preset,
+                    scene_preference=normalized_scene_preference,
+                    fidelity_mode=normalized_fidelity_mode,
+                    pose_flex_mode=normalized_pose_flex_mode,
+                    n_images=n_images,
+                    aspect_ratio=aspect_ratio,
+                    resolution=resolution,
+                    on_stage=_stage_cb,
+                )
+            else:
+                response = _run_generate_pipeline(
+                    prompt=prompt,
+                    aspect_ratio=aspect_ratio,
+                    resolution=resolution,
+                    n_images=n_images,
+                    grounding_strategy=grounding_strategy,
+                    use_grounding=use_grounding,
+                    guided_brief=guided_brief,
+                    uploaded_bytes=uploaded_bytes,
+                    on_stage=_stage_cb,
+                )
             stage = "done_partial" if response.failed_indices else "done"
             complete_job(job_id, response.model_dump(), stage=stage)
         except Exception as e:

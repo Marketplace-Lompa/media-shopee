@@ -16,6 +16,7 @@ from typing import List
 from edit_agent import refine_edit_instruction
 from generator import edit_image, OUTPUTS_DIR
 from history import add_entry as history_add
+from config import DEFAULT_ASPECT_RATIO, DEFAULT_RESOLUTION
 
 router = APIRouter(prefix="/edit", tags=["edit-stream"])
 
@@ -113,8 +114,8 @@ async def edit_stream(
             "total": 1,
         })
 
-        used_ar = aspect_ratio or "1:1"
-        used_res = resolution or "1K"
+        used_ar = aspect_ratio or DEFAULT_ASPECT_RATIO
+        used_res = resolution or DEFAULT_RESOLUTION
 
         try:
             batch = await asyncio.to_thread(

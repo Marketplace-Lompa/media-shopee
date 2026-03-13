@@ -13,10 +13,177 @@ from agent_runtime.constants import (
     _SLEEVE_LEN_PHRASES,
 )
 
+_SET_MEMBER_CLASSES = {"garment", "coordinated_accessory", "styling_layer", "unrelated_accessory", "unknown"}
+_SET_INCLUDE_POLICIES = {"must_include", "optional", "exclude", "unknown"}
+_SET_MODES = {"off", "probable", "explicit"}
+_SET_ROLE_KEYWORDS = (
+    "cardigan",
+    "pullover",
+    "sweater",
+    "scarf",
+    "shawl",
+    "ruana",
+    "poncho",
+    "cape",
+    "kimono",
+    "blazer",
+    "jacket",
+    "vest",
+    "blouse",
+    "shirt",
+    "top",
+    "dress",
+    "skirt",
+    "pants",
+    "trousers",
+    "shorts",
+    "jumpsuit",
+    "wrap",
+)
+
 def _enum_or_default(value: Any, allowed: set[str], default: str = "unknown") -> str:
     """Valida string contra set de valores permitidos; retorna default se fora."""
     v = str(value or "").strip().lower()
     return v if v in allowed else default
+
+def _clamp01(value: Any) -> float:
+    try:
+        return max(0.0, min(1.0, float(value or 0.0)))
+    except Exception:
+        return 0.0
+
+def _infer_set_role_key(role_label: str) -> str:
+    role = str(role_label or "").strip().lower()
+    for token in _SET_ROLE_KEYWORDS:
+        if re.search(rf"\b{re.escape(token)}s?\b", role):
+            return token
+    return role.split()[-1] if role else "unknown"
+
+def _normalize_set_member(raw: Any, *, score: float, explicit_mode: bool) -> Optional[dict]:
+    if not isinstance(raw, dict):
+        return None
+
+    role = str(raw.get("role") or raw.get("label") or raw.get("name") or "").strip()
+    if not role:
+        return None
+
+    role_key = _infer_set_role_key(role)
+    member_class = _enum_or_default(raw.get("member_class"), _SET_MEMBER_CLASSES, "unknown")
+    if member_class == "unknown":
+        if role_key in {"scarf", "shawl"} and score >= 0.5:
+            member_class = "coordinated_accessory"
+        elif role_key in {"top", "shirt", "blouse"}:
+            member_class = "styling_layer"
+        else:
+            member_class = "garment"
+
+    include_policy = _enum_or_default(raw.get("include_policy"), _SET_INCLUDE_POLICIES, "unknown")
+    if include_policy == "unknown":
+        if member_class in {"styling_layer", "unrelated_accessory"}:
+            include_policy = "exclude"
+        elif explicit_mode:
+            include_policy = "must_include"
+        elif score >= 0.45 and member_class in {"garment", "coordinated_accessory"}:
+            include_policy = "optional"
+        else:
+            include_policy = "exclude"
+
+    render_separately_raw = raw.get("render_separately")
+    if render_separately_raw is None:
+        render_separately = include_policy != "exclude" and member_class in {"garment", "coordinated_accessory"}
+    else:
+        render_separately = bool(render_separately_raw)
+
+    fusion_forbidden_raw = raw.get("fusion_forbidden")
+    if fusion_forbidden_raw is None:
+        fusion_forbidden = (
+            member_class == "coordinated_accessory"
+            or (include_policy == "must_include" and render_separately)
+        )
+    else:
+        fusion_forbidden = bool(fusion_forbidden_raw)
+
+    confidence = _clamp01(raw.get("confidence", score if include_policy != "exclude" else min(score, 0.5)))
+    return {
+        "role": role[:72],
+        "role_key": role_key[:32],
+        "member_class": member_class,
+        "include_policy": include_policy,
+        "render_separately": render_separately,
+        "fusion_forbidden": fusion_forbidden,
+        "confidence": round(confidence, 3),
+    }
+
+def get_set_members(
+    set_detection: Optional[dict],
+    *,
+    include_policies: Optional[set[str]] = None,
+    member_classes: Optional[set[str]] = None,
+) -> list[dict]:
+    payload = set_detection or {}
+    members = payload.get("set_members") or []
+    rows: list[dict] = []
+    for raw in members:
+        if not isinstance(raw, dict):
+            continue
+        include_policy = str(raw.get("include_policy", "") or "").strip().lower()
+        member_class = str(raw.get("member_class", "") or "").strip().lower()
+        if include_policies and include_policy not in include_policies:
+            continue
+        if member_classes and member_class not in member_classes:
+            continue
+        rows.append(raw)
+    return rows
+
+def get_set_member_labels(
+    set_detection: Optional[dict],
+    *,
+    include_policies: Optional[set[str]] = None,
+    member_classes: Optional[set[str]] = None,
+) -> list[str]:
+    labels: list[str] = []
+    for member in get_set_members(
+        set_detection,
+        include_policies=include_policies,
+        member_classes=member_classes,
+    ):
+        label = str(member.get("role", "") or "").strip()
+        if label and label not in labels:
+            labels.append(label)
+    return labels
+
+def get_set_member_keys(
+    set_detection: Optional[dict],
+    *,
+    include_policies: Optional[set[str]] = None,
+    member_classes: Optional[set[str]] = None,
+) -> list[str]:
+    keys: list[str] = []
+    for member in get_set_members(
+        set_detection,
+        include_policies=include_policies,
+        member_classes=member_classes,
+    ):
+        key = str(member.get("role_key", "") or "").strip().lower()
+        if key and key not in keys:
+            keys.append(key)
+    return keys
+
+def has_set_member(
+    set_detection: Optional[dict],
+    role_key: str,
+    *,
+    include_policies: Optional[set[str]] = None,
+    member_classes: Optional[set[str]] = None,
+) -> bool:
+    target = str(role_key or "").strip().lower()
+    if not target:
+        return False
+    return target in get_set_member_keys(
+        set_detection,
+        include_policies=include_policies,
+        member_classes=member_classes,
+    )
 
 def _normalize_structural_contract(raw: dict) -> dict:
     """Valida e normaliza o sub-objeto structural_contract vindo da triagem unificada."""
@@ -43,6 +210,18 @@ def _normalize_structural_contract(raw: dict) -> dict:
     silhouette_volume = _enum_or_default(
         raw.get("silhouette_volume"),
         {"fitted", "regular", "oversized", "draped", "structured", "unknown"},
+    )
+    edge_contour = _enum_or_default(
+        raw.get("edge_contour"),
+        {"clean", "soft_curve", "undulating", "scalloped", "angular", "unknown"},
+    )
+    drop_profile = _enum_or_default(
+        raw.get("drop_profile"),
+        {"even", "side_drop", "high_low", "cocoon_side_drop", "unknown"},
+    )
+    opening_continuity = _enum_or_default(
+        raw.get("opening_continuity"),
+        {"continuous", "broken", "lapel_like", "unknown"},
     )
     try:
         confidence = float(raw.get("confidence", 0.0) or 0.0)
@@ -85,9 +264,50 @@ def _normalize_structural_contract(raw: dict) -> dict:
             garment_length = "upper_thigh"
         if hem_shape == "straight" and silhouette_volume in {"draped", "oversized"}:
             hem_shape = "rounded"
+        micro_edge_cues = (
+            "scalloped crochet border",
+            "crochet border texture",
+            "ribbed edge finish",
+            "edge texture",
+            "trim texture",
+        )
+        has_macro_edge_cue = any(
+            cue in " ".join(must_keep_lower)
+            for cue in (
+                "scalloped outline",
+                "undulating outline",
+                "wavy outer edge",
+                "curved outer border",
+                "cocoon side drop",
+            )
+        )
+        if edge_contour in {"undulating", "scalloped"} and hem_shape in {"rounded", "cocoon"}:
+            if any(cue in " ".join(must_keep_lower) for cue in micro_edge_cues) and not has_macro_edge_cue:
+                edge_contour = "soft_curve"
+        if edge_contour == "unknown" and hem_shape in {"rounded", "cocoon"}:
+            edge_contour = "soft_curve"
+        if drop_profile == "unknown" and hem_shape == "cocoon":
+            drop_profile = "cocoon_side_drop"
+        elif drop_profile == "unknown" and garment_length in {"upper_thigh", "mid_thigh"}:
+            drop_profile = "side_drop"
+        if opening_continuity == "unknown" and front_opening == "open":
+            opening_continuity = "continuous"
+
+    if must_keep:
+        filtered_must_keep: list[str] = []
+        for cue in must_keep:
+            cue_low = cue.lower()
+            if (
+                ("crochet border" in cue_low or "edge texture" in cue_low or "trim texture" in cue_low)
+                and not any(token in cue_low for token in ("outline", "silhouette", "outer edge", "outer border"))
+            ):
+                continue
+            filtered_must_keep.append(cue)
+        must_keep = filtered_must_keep[:4]
 
     known_fields = [f != "unknown" for f in [
-        sleeve_type, sleeve_length, front_opening, hem_shape, garment_length, silhouette_volume
+        sleeve_type, sleeve_length, front_opening, hem_shape, garment_length, silhouette_volume,
+        edge_contour, drop_profile, opening_continuity,
     ]]
     enabled = confidence >= 0.45 and any(known_fields)
     return {
@@ -96,6 +316,9 @@ def _normalize_structural_contract(raw: dict) -> dict:
         "sleeve_type": sleeve_type, "sleeve_length": sleeve_length,
         "front_opening": front_opening, "hem_shape": hem_shape,
         "garment_length": garment_length, "silhouette_volume": silhouette_volume,
+        "edge_contour": edge_contour,
+        "drop_profile": drop_profile,
+        "opening_continuity": opening_continuity,
         "must_keep": must_keep,
         "has_pockets": has_pockets,
     }
@@ -103,15 +326,90 @@ def _normalize_structural_contract(raw: dict) -> dict:
 def _normalize_set_detection(raw: dict) -> dict:
     """Valida e normaliza o sub-objeto set_detection vindo da triagem unificada."""
     is_set = bool(raw.get("is_garment_set", False))
-    score  = max(0.0, min(1.0, float(raw.get("set_pattern_score", 0.0) or 0.0)))
-    roles  = [str(x) for x in (raw.get("detected_garment_roles", []) or []) if str(x)]
-    cues   = [str(x) for x in (raw.get("set_pattern_cues", []) or []) if str(x)]
-    lock_mode = "explicit" if (is_set and score >= 0.68 and len(roles) >= 2) else ("generic" if is_set else "off")
+    score = _clamp01(raw.get("set_pattern_score", 0.0))
+    roles = [str(x).strip() for x in (raw.get("detected_garment_roles", []) or []) if str(x).strip()]
+    cues = [str(x).strip() for x in (raw.get("set_pattern_cues", []) or []) if str(x).strip()]
+
+    raw_mode = _enum_or_default(raw.get("set_mode"), _SET_MODES, "unknown")
+    explicit_mode = raw_mode == "explicit" or (is_set and score >= 0.68)
+    normalized_members: list[dict] = []
+    seen_member_keys: set[tuple[str, str]] = set()
+    for item in list(raw.get("set_members", []) or []):
+        member = _normalize_set_member(item, score=score, explicit_mode=explicit_mode)
+        if not member:
+            continue
+        member_key = (str(member.get("role", "")).lower(), str(member.get("member_class", "")).lower())
+        if member_key in seen_member_keys:
+            continue
+        seen_member_keys.add(member_key)
+        normalized_members.append(member)
+        if len(normalized_members) >= 6:
+            break
+
+    if not normalized_members:
+        for role in roles[:5]:
+            fallback_member = _normalize_set_member({"role": role}, score=score, explicit_mode=explicit_mode)
+            if not fallback_member:
+                continue
+            member_key = (str(fallback_member.get("role", "")).lower(), str(fallback_member.get("member_class", "")).lower())
+            if member_key in seen_member_keys:
+                continue
+            seen_member_keys.add(member_key)
+            normalized_members.append(fallback_member)
+
+    included_members = get_set_members(
+        {"set_members": normalized_members},
+        include_policies={"must_include", "optional"},
+        member_classes={"garment", "coordinated_accessory"},
+    )
+    must_include_members = get_set_members(
+        {"set_members": normalized_members},
+        include_policies={"must_include"},
+    )
+    has_secondary_piece = any(
+        str(member.get("member_class", "") or "").strip().lower() == "coordinated_accessory"
+        for member in included_members
+    ) or len(included_members) >= 2
+
+    if raw_mode in _SET_MODES:
+        set_mode = raw_mode
+    elif has_secondary_piece and is_set and score >= 0.68:
+        set_mode = "explicit"
+    elif has_secondary_piece and (is_set or score >= 0.48):
+        set_mode = "probable"
+    else:
+        set_mode = "off"
+
+    primary_piece_role = str(raw.get("primary_piece_role") or "").strip()
+    if not primary_piece_role:
+        for member in normalized_members:
+            if str(member.get("member_class", "") or "").strip().lower() == "garment":
+                primary_piece_role = str(member.get("role", "") or "").strip()
+                break
+    if not primary_piece_role and roles:
+        primary_piece_role = roles[0]
+
+    detected_roles = list(dict.fromkeys(
+        roles
+        + get_set_member_labels(
+            {"set_members": normalized_members},
+            include_policies={"must_include", "optional"},
+            member_classes={"garment", "coordinated_accessory"},
+        )
+    ))
+    lock_mode = "explicit" if set_mode == "explicit" else ("generic" if set_mode == "probable" else "off")
+    must_include_roles = get_set_member_labels({"set_members": normalized_members}, include_policies={"must_include"})
+    excluded_roles = get_set_member_labels({"set_members": normalized_members}, include_policies={"exclude"})
     return {
-        "is_garment_set": is_set,
+        "is_garment_set": bool(is_set or set_mode != "off"),
         "set_pattern_score": round(score, 3),
-        "detected_garment_roles": roles[:5],
+        "set_mode": set_mode,
+        "primary_piece_role": primary_piece_role[:72],
+        "detected_garment_roles": detected_roles[:6],
         "set_pattern_cues": cues[:4],
+        "set_members": normalized_members[:6],
+        "must_include_roles": must_include_roles[:4],
+        "excluded_roles": excluded_roles[:4],
         "set_lock_mode": lock_mode,
     }
 

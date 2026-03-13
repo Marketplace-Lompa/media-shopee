@@ -15,6 +15,7 @@ from agent_runtime.structural import (
     _resolve_structural_conflicts,
     _prune_cover_pose_conflicts,
     _compress_structural_facts,
+    get_set_member_labels,
 )
 
 _last_stance_idx: int = -1
@@ -333,7 +334,11 @@ def _compile_prompt_v2(
 
         if set_mode == "conjunto":
             det = guided_set_detection or {}
-            roles = list(det.get("detected_garment_roles", []) or [])
+            roles = get_set_member_labels(
+                det,
+                include_policies={"must_include", "optional"},
+                member_classes={"garment", "coordinated_accessory"},
+            ) or list(det.get("detected_garment_roles", []) or [])
             # Só usa roles se forem descritivos (>1 token cada) — evita injetar
             # rótulos genéricos como "top, bottom, outerwear" que levam o Imagen
             # a inventar peças que não existem na referência.

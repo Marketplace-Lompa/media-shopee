@@ -103,7 +103,7 @@ try:
     result = run_agent(
         user_prompt=None,
         uploaded_images=uploaded,
-        pool_context="POOL_RUNTIME_DISABLED",
+        pool_context="",
         aspect_ratio="9:16",
         resolution="1024x1536",
         use_grounding=use_grounding,

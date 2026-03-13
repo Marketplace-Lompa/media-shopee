@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from routers import generate, pool as pool_router, stream, history as history_router, edit as edit_router
+from routers import generate, pool as pool_router, stream, history as history_router, edit as edit_router, review as review_router
 from config import OUTPUTS_DIR
 
 app = FastAPI(
@@ -30,6 +30,7 @@ app.include_router(stream.router)
 app.include_router(edit_router.router)
 app.include_router(pool_router.router)
 app.include_router(history_router.router)
+app.include_router(review_router.router)
 
 # ── Serve imagens geradas como estático ──────────────────────────────────────
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -50,6 +51,8 @@ async def root():
             "DELETE /pool/{id}": "Remove referência do pool",
             "GET  /history": "Histórico de gerações (paginado)",
             "DELETE /history/{id}": "Remove entry do histórico",
+            "GET  /review/latest": "Revisão do último job v2",
+            "GET  /review/session/{session_id}": "Revisão de um job específico",
         },
     }
 
