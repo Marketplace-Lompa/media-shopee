@@ -38,6 +38,11 @@ VALID_N_IMAGES      = [1, 2, 3, 4]
 # Valores válidos (MEDIUM não existe no modelo de imagem):
 VALID_THINKING_LEVELS = ["MINIMAL", "HIGH"]
 
+# ── Flags experimentais (ativar via .env) ─────────────────────────────────────
+# Quando True, edit_image usa response_modalities=['IMAGE'] em vez de ['TEXT','IMAGE'].
+# Reduz overhead de tokens; verificar se o parser não regride antes de ativar em produção.
+EDIT_IMAGE_ONLY_MODALITY = os.getenv("EDIT_IMAGE_ONLY_MODALITY", "false").strip().lower() == "true"
+
 # ── Grounding ──────────────────────────────────────────────────────────────────
 def _env_float(name: str, default: float) -> float:
     raw = os.getenv(name)

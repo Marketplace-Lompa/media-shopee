@@ -23,7 +23,9 @@ from config import (
     MODEL_IMAGE,
     SAFETY_CONFIG,
     ROOT_DIR,
+    EDIT_IMAGE_ONLY_MODALITY,
 )
+from image_utils import detect_image_mime as _detect_image_mime
 
 client = genai.Client(api_key=GOOGLE_AI_API_KEY)
 
@@ -64,14 +66,6 @@ def _reference_role_instruction(scope: str = "garment") -> str:
     )
 
 
-def _detect_image_mime(image_bytes: bytes) -> str:
-    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if image_bytes.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
-        return "image/webp"
-    return "image/jpeg"
 
 
 def _normalize_thinking_level(level: Optional[str], *, default: str) -> str:
@@ -374,11 +368,12 @@ def edit_image(
         content_parts.append(types.Part(text=edit_prompt))
 
         try:
+            _edit_modalities = ["IMAGE"] if EDIT_IMAGE_ONLY_MODALITY else ["TEXT", "IMAGE"]
             response = client.models.generate_content(
                 model=MODEL_IMAGE,
                 contents=[types.Content(role="user", parts=content_parts)],
                 config=types.GenerateContentConfig(
-                    response_modalities=["TEXT", "IMAGE"],
+                    response_modalities=_edit_modalities,
                     image_config=types.ImageConfig(
                         aspect_ratio=aspect_ratio,
                         image_size=resolution,

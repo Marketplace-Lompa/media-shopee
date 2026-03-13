@@ -16,6 +16,7 @@ from config import (
     SAFETY_CONFIG,
 )
 from agent_runtime.constants import REFERENCE_KNOWLEDGE
+from image_utils import detect_image_mime
 
 client = genai.Client(api_key=GOOGLE_AI_API_KEY)
 
@@ -183,12 +184,25 @@ def refine_edit_instruction(
     """
     Analisa instrução de edição do usuário + imagem e retorna prompt refinado.
     """
+    _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
     parts = [
-        types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=source_image_bytes)),
+        types.Part(
+            inline_data=types.Blob(
+                mime_type=detect_image_mime(source_image_bytes),
+                data=source_image_bytes,
+            ),
+            media_resolution=_hi_res,
+        ),
     ]
     # Incluir imagens de referência se fornecidas
     for ref_bytes in (reference_images_bytes or []):
-        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=ref_bytes)))
+        parts.append(types.Part(
+            inline_data=types.Blob(
+                mime_type=detect_image_mime(ref_bytes),
+                data=ref_bytes,
+            ),
+            media_resolution=_hi_res,
+        ))
 
     context = f'User edit instruction: "{edit_instruction}"'
     if source_prompt:
