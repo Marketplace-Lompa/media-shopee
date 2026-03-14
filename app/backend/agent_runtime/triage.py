@@ -29,6 +29,34 @@ from agent_runtime.constants import (
     UNIFIED_VISION_SCHEMA,
 )
 
+_VALID_LIGHTING_SOURCE_STYLE = {
+    "flat_catalog",
+    "soft_catalog",
+    "natural_diffused",
+    "directional_natural",
+    "mixed_interior",
+}
+_VALID_LIGHTING_HARDNESS = {"soft", "medium", "hard"}
+_VALID_LIGHTING_DIRECTION = {"frontal", "side", "top", "mixed"}
+_VALID_LIGHTING_CONTRAST = {"low", "medium", "high"}
+_VALID_LIGHTING_RISK = {"low", "medium", "high"}
+
+
+def _normalize_lighting_signature(payload: Optional[dict]) -> dict:
+    raw = payload if isinstance(payload, dict) else {}
+    source_style = str(raw.get("source_style", "") or "").strip().lower()
+    light_hardness = str(raw.get("light_hardness", "") or "").strip().lower()
+    light_direction = str(raw.get("light_direction", "") or "").strip().lower()
+    contrast_level = str(raw.get("contrast_level", "") or "").strip().lower()
+    integration_risk = str(raw.get("integration_risk", "") or "").strip().lower()
+    return {
+        "source_style": source_style if source_style in _VALID_LIGHTING_SOURCE_STYLE else "soft_catalog",
+        "light_hardness": light_hardness if light_hardness in _VALID_LIGHTING_HARDNESS else "soft",
+        "light_direction": light_direction if light_direction in _VALID_LIGHTING_DIRECTION else "mixed",
+        "contrast_level": contrast_level if contrast_level in _VALID_LIGHTING_CONTRAST else "medium",
+        "integration_risk": integration_risk if integration_risk in _VALID_LIGHTING_RISK else "medium",
+    }
+
 
 def _infer_text_mode_shot(user_prompt: Optional[str]) -> str:
     text = (user_prompt or "").lower()
@@ -271,7 +299,26 @@ def _infer_unified_vision_triage(
         "color_temperature: warm|cool|neutral (dominant color feel). "
         "formality: casual|smart_casual|formal. "
         "season: summer|mid_season|winter (most natural occasion). "
-        "vibe: boho_artisanal|urban_chic|romantic|bold_edgy|minimalist|beachwear_resort|sport_casual."
+        "vibe: boho_artisanal|urban_chic|romantic|bold_edgy|minimalist|beachwear_resort|sport_casual.\n\n"
+        "6. lighting_signature: infer the lighting behavior seen on the garment references so the next stage can choose a compatible scene. "
+        "source_style: flat_catalog|soft_catalog|natural_diffused|directional_natural|mixed_interior. "
+        "light_hardness: soft|medium|hard. "
+        "light_direction: frontal|side|top|mixed. "
+        "contrast_level: low|medium|high. "
+        "integration_risk: low|medium|high, where high means the garment lighting would look pasted into many unrelated scenes unless the camera/lighting choice is carefully controlled.\n\n"
+        "7. look_contract: fashion styling constraints to ensure the generated outfit is coherent with THIS garment. "
+        "Analyze the garment's weight, structure, texture, formality, and seasonality. Then determine:\n"
+        "- bottom_style: the most cohesive type of bottom garment (e.g. 'calça de alfaiataria', 'jeans wide-leg', 'saia lápis', 'calça de couro', 'bermuda estruturada'). "
+        "Choose based on visual weight balance: heavy/structured top → slim/structured bottom. Flowy top → volume is ok.\n"
+        "- bottom_color: 1-3 best-fitting colors (e.g. 'preto, cinza antracite, caramelo')\n"
+        "- color_family: palette logic (e.g. 'neutros escuros com acento quente', 'monocromático', 'contraste suave')\n"
+        "- season: outono-inverno|primavera-verao|transicional\n"
+        "- occasion: casual-urbano|work-casual|elegante|esportivo|praia\n"
+        "- forbidden_bottoms: list 3-5 SPECIFIC bottom types that would look INCOHERENT with this garment "
+        "(e.g. 'saia plissada chiffon', 'shorts esportivo', 'calça esportiva', 'saia evasê floral'). Be specific, not generic.\n"
+        "- accessories: concise suggestion (e.g. 'cinto fino caramelo, bota cano curto, brincos simples')\n"
+        "- style_keywords: 3-4 words describing the garment's style DNA (e.g. ['estruturado', 'urbano', 'outono'])\n"
+        "- confidence: 0.0-1.0"
     )
     if user_txt:
         instruction += f"\n\nUser context: {user_txt[:200]}"
@@ -314,6 +361,29 @@ def _infer_unified_vision_triage(
             "vibe": raw_aesthetic.get("vibe", "minimalist")
                 if raw_aesthetic.get("vibe") in _VALID_VIBE else "minimalist",
         }
+        lighting_signature = _normalize_lighting_signature(parsed.get("lighting_signature"))
+
+        # look_contract: normalizar com fallback seguro
+        _raw_lc = parsed.get("look_contract") or {}
+        if not isinstance(_raw_lc, dict):
+            _raw_lc = {}
+        look_contract = {
+            "bottom_style":      str(_raw_lc.get("bottom_style") or "").strip()[:120],
+            "bottom_color":      str(_raw_lc.get("bottom_color") or "").strip()[:80],
+            "color_family":      str(_raw_lc.get("color_family") or "").strip()[:80],
+            "season":            str(_raw_lc.get("season") or "transicional").strip()[:40],
+            "occasion":          str(_raw_lc.get("occasion") or "casual-urbano").strip()[:60],
+            "forbidden_bottoms": [
+                str(x).strip() for x in (_raw_lc.get("forbidden_bottoms") or [])
+                if isinstance(x, str) and x.strip()
+            ][:6],
+            "accessories":       str(_raw_lc.get("accessories") or "").strip()[:150],
+            "style_keywords":    [
+                str(x).strip() for x in (_raw_lc.get("style_keywords") or [])
+                if isinstance(x, str) and x.strip()
+            ][:5],
+            "confidence":        float(_raw_lc.get("confidence") or 0.0),
+        }
 
         result = {
             "garment_hint":        garment_hint,
@@ -321,11 +391,19 @@ def _infer_unified_vision_triage(
             "structural_contract": _normalize_structural_contract(parsed.get("structural_contract") or {}),
             "set_detection":       _normalize_set_detection(parsed.get("set_detection") or {}),
             "garment_aesthetic":   garment_aesthetic,
+            "lighting_signature":  lighting_signature,
+            "look_contract":       look_contract,
         }
         print(
             f"[AGENT] ✅ unified_vision_triage: success "
-            f"(hint='{garment_hint[:60]}' aesthetic={garment_aesthetic})"
+            f"(hint='{garment_hint[:60]}' aesthetic={garment_aesthetic} lighting={lighting_signature})"
         )
+        if look_contract.get("confidence", 0) > 0.5:
+            print(
+                f"[STYLE] 👗 look_contract: bottom={look_contract['bottom_style']!r} "
+                f"forbidden={look_contract['forbidden_bottoms']} "
+                f"conf={look_contract['confidence']:.2f}"
+            )
         return result
     except Exception as e:
         print(f"[AGENT] ⚠️  unified_vision_triage: failed ({e}), using fallback")

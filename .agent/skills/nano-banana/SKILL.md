@@ -201,6 +201,11 @@ Keep these facts straight:
 - Google positions `gemini-3.1-flash-image-preview` as the best default balance for many use cases
 - `gemini-2.5-flash-image` works best with fewer input images than the Gemini 3 preview models
 - for text-heavy outputs, iterating in stages often works better than asking for every design and copy constraint at once
+- `gemini-3.1-flash-image-preview` does **not** support using real-world images of people from Google Image Search at this time
+- when generating text inside an image, generate the text content first in a separate step, then request the image with the text — this produces significantly better results than asking for both at once
+- the thinking process generates up to **2 interim "thought images"** used internally to test composition and logic; these are not charged but contribute to latency
+- `imageSize` must use uppercase `K`: `1K`, `2K`, `4K`; the `512` value has no `K` suffix; lowercase values (e.g. `1k`) are rejected by the API
+- available resolutions per model: `gemini-2.5-flash-image` → `1K` only; `gemini-3.1-flash-image-preview` → `512`, `1K`, `2K`, `4K`; `gemini-3-pro-image-preview` → `1K`, `2K`, `4K`
 
 Load `references/google-gemini-image-generation.md` when you need the official capability table, prompt categories, or configuration reminders.
 
@@ -588,6 +593,121 @@ If the user confuses platform features with official features:
 - map it to the closest official Gemini concept if possible
 - say clearly when no Google-native equivalent exists
 
+## Official Limitations (from Google Docs)
+
+Document these limits precisely — they affect which model to choose and how many references to use:
+
+### Reference image limits per model
+
+| Model | High-fidelity object limit | Character consistency limit | Total limit |
+|---|---|---|---|
+| `gemini-2.5-flash-image` | Up to **3 input images** (best results) | — | ~3 |
+| `gemini-3-pro-image-preview` | Up to **5 images** with high fidelity | — | **14** total |
+| `gemini-3.1-flash-image-preview` | Up to **10 objects** with fidelity | Up to **4 characters** with facial consistency | **14** total |
+
+> ⚠️ Never say "up to 14 images" for all models. The fidelity degradation starts much earlier. Respect the per-model limits above for quality-critical work.
+
+### Aspect ratios and resolutions — complete official list
+
+**Aspect ratios available** (all in `image_config.aspect_ratio`):
+```
+"1:1", "1:4", "1:8", "2:3", "3:2", "3:4",
+"4:1", "4:3", "4:5", "5:4", "8:1",
+"9:16", "16:9", "21:9"
+```
+- Extreme ratios `1:4`, `4:1`, `1:8`, `8:1` are **exclusive to `gemini-3.1-flash-image-preview`**.
+- `21:9` (ultrawide) is available in the Gemini 3 previews.
+
+**Resolution (`image_size`) — case-sensitive, uppercase K required:**
+
+| Valor | Equivalente | Disponível em |
+|---|---|---|
+| `512` | 0.5K (sem sufixo K) | `gemini-3.1-flash-image-preview` only |
+| `1K` | ~1024px | Todos os modelos |
+| `2K` | ~2048px | `gemini-3.1-flash-image-preview` e `gemini-3-pro-image-preview` |
+| `4K` | ~4096px | `gemini-3.1-flash-image-preview` e `gemini-3-pro-image-preview` |
+
+> ⚠️ Valores como `1k`, `2k`, `4k` são **rejeitados pela API**. Sempre use maiúsculas.
+
+### Language support
+Best performance in: EN, ar-EG, de-DE, es-MX, fr-FR, hi-IN, id-ID, it-IT, ja-JP, ko-KR, **pt-BR**, ru-RU, ua-UA, vi-VN, zh-CN.
+
+### Other API limitations
+- Audio and video inputs are **not supported**.
+- The model may not respect the exact number of images explicitly requested by the user.
+- `gemini-3.1-flash-image-preview` Grounding with Google Search does **not support real-world images of people** from web search.
+
+---
+
+## Batch API — High-Volume Generation
+
+When the user needs to generate many images (catalog, SKU variations, bulk campaign assets):
+
+- Use the **Batch API** for higher rate limits in exchange for up to **24 hours of turnaround**.
+- Best for: bulk generation, sequential product shots, non-urgent campaigns.
+- Reference: [Batch API docs](https://ai.google.dev/gemini-api/docs/batch-api) and [cookbook](https://colab.research.google.com/github/google-gemini/cookbook/blob/main/quickstarts/Batch_mode.ipynb).
+
+```python
+# Batch API image generation — conceptual pattern
+# Full spec at: https://ai.google.dev/gemini-api/docs/batch-api#image-generation
+```
+
+> Route the user to Batch API if they say "hundreds of images", "all SKU variants", or "non-urgent large volume".
+
+---
+
+## Interleaved Generation Modes
+
+Beyond pure text-to-image and image-to-image, Gemini supports **interleaved output** where images and text appear side by side:
+
+### Mode: Text → Images + Text
+- **Config**: `response_modalities=['TEXT', 'IMAGE']` (default)
+- **Use case**: Illustrated content, step-by-step guides, recipes, infographics with annotations.
+- **Example prompt**: *"Generate an illustrated recipe for a paella."* → returns multiple images + text descriptions interspersed.
+
+### Mode: Images + Text → Images + Text
+- **Config**: same `response_modalities=['TEXT', 'IMAGE']` with image inputs
+- **Use case**: Room redesign, product alternatives, style iterations with explanations.
+- **Example prompt**: *(with image of a room)* *"What other color sofas would work in my space? Can you update the image?"* → returns an updated image plus an explanation.
+
+### Mode: Image Only (no text output)
+- **Config**: `response_modalities=['IMAGE']`
+- **Use case**: Production pipelines where you only want the image file output, no explanatory text.
+
+> 💡 **Tip**: For e-commerce workflows where you want just the image file, always use `response_modalities=['IMAGE']` to avoid parsing the response for the image part.
+
+---
+
+## Image Search Grounding — Attribution Requirements (Legal)
+
+When using **Grounding with Google Image Search** (`imageSearch` within `searchTypes`), the following display requirements are **mandatory** per Google's terms:
+
+1. **Source attribution**: You must provide a visible link to the **webpage containing the source image** (the "containing page", not the image file itself).
+2. **Direct navigation**: If you display the source image, you must provide a **direct, single-click path** from the image to its source webpage.
+3. **No intermediate viewers**: Any multi-click path or intermediate image viewer that delays access to the source page is **explicitly prohibited**.
+
+### Response metadata for attribution
+
+The API returns `groundingMetadata` with:
+- `imageSearchQueries`: the visual queries used
+- `groundingChunks`: source pages, with:
+  - `uri` → landing page URL (use this for attribution link)
+  - `image_uri` → direct image URL
+- `groundingSupports`: maps generated content to sources
+- `searchEntryPoint`: contains the "Google Search" chip HTML/CSS to render Search Suggestions (you must render this)
+
+> ⚠️ **Critical**: `gemini-3.1-flash-image-preview` + Image Search does **not** support images of real identifiable people from web results.
+
+### When to use Image Search vs Web Search
+
+| Use case | Tool |
+|---|---|
+| Current weather, charts, recent events | `google_search` (web only) |
+| Visual reference for rare species, historical buildings, products | `google_search` with `imageSearch` enabled |
+| Pure stylistic generation (no real-world facts) | No grounding needed |
+
+---
+
 ## Guardrails
 
 - Do not invent unsupported API parameters.
@@ -599,6 +719,10 @@ If the user confuses platform features with official features:
 - Keep official facts and platform abstractions in separate sections.
 - Prefer a smaller number of high-signal prompts over long lists of weak prompts.
 - When possible, explain why a prompt is structured a certain way so the user can iterate independently.
+- Never say "up to 14 images" for all models — respect per-model fidelity limits documented in `Official Limitations`.
+- Always use uppercase `K` for image size parameters.
+- For high-volume, non-urgent generation, route to Batch API instead of sequential API calls.
+- When image search grounding is used, include attribution requirements in the implementation guide.
 
 ## References
 

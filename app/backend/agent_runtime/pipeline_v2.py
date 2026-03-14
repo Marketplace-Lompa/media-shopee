@@ -8,6 +8,7 @@ Fluxo fixo:
 """
 from __future__ import annotations
 
+import os
 import time
 import uuid
 from pathlib import Path
@@ -16,9 +17,20 @@ from typing import Any, Callable, Optional
 
 from agent_runtime.pipeline_v2_observability import write_v2_observability_report
 from agent_runtime.art_direction_sampler import commit_art_direction_choice, sample_art_direction
+from agent_runtime.curation_policy import (
+    POSE_FLEX_HINTS as _POSE_FLEX_HINTS,
+    build_affinity_prompt as _policy_build_affinity_prompt,
+    derive_reference_budget as _policy_reference_budget,
+    derive_reference_guard_config as _policy_reference_guard_config,
+    normalize_pose_flex_mode as _policy_normalize_pose_flex_mode,
+    resolve_auto_pose_flex_mode as _policy_resolve_auto_pose_flex_mode,
+    stage1_candidate_count as _policy_stage1_candidate_count,
+)
 from agent_runtime.fidelity_gate import (
+    build_targeted_repair_prompt,
     build_fidelity_repair_patch,
     build_visual_fidelity_gate_policy,
+    classify_stage2_repair_strategy,
     evaluate_visual_fidelity,
     suggest_retry_pose_flex_mode,
 )
@@ -34,25 +46,12 @@ from pipeline_effectiveness import assess_generated_image
 from config import OUTPUTS_DIR
 
 
-# ── Preset → keywords for art direction affinity ──
-_PRESET_AFFINITY: dict[str, str] = {
-    "catalog_clean": "catalog showroom premium indoor stable pose full garment readability",
-    "marketplace_lifestyle": "marketplace lifestyle brazilian authentic environment natural movement pose",
-    "premium_lifestyle": "premium lifestyle brazilian editorial curated interior or architecture",
-}
-
-_SCENE_AFFINITY: dict[str, str] = {
-    "auto_br": "",
-    "indoor_br": "indoor brazilian apartment loft showroom",
-    "outdoor_br": "outdoor brazilian street balcony boardwalk architecture",
-}
-
-_POSE_FLEX_HINTS: dict[str, str] = {
-    "controlled": "stable catalog pose with low occlusion and clear front garment readability",
-    "balanced": "natural varied pose with mild movement while keeping silhouette readability",
-    "dynamic": "dynamic lifestyle pose with stride, half-turn, or gesture while preserving garment geometry",
-}
 _POSE_FLEX_MODES = {"auto", "controlled", "balanced", "dynamic"}
+
+
+def _targeted_stage2_repair_enabled() -> bool:
+    raw = os.getenv("ENABLE_TARGETED_STAGE2_REPAIR", "true").strip().lower()
+    return raw != "false"
 
 
 def _guess_image_extension(image_bytes: bytes) -> str:
@@ -160,19 +159,25 @@ def _build_stage1_prompt(
     structural_hint: Optional[str],
     set_detection: Optional[dict[str, Any]] = None,
     fidelity_mode: str = "balanceada",
+    preset: str = "",
 ) -> str:
     """Prompt curto e reproduzivel para stage 1: base fiel da peca."""
     structure_guards = build_structure_guard_clauses(structural_contract, set_detection=set_detection)
     set_info = set_detection or {}
+    preset_hint = str(preset or "").strip().lower()
     included_labels = get_set_member_labels(
         set_info,
         include_policies={"must_include", "optional"},
         member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
     )
     must_include_keys = get_set_member_keys(
         set_info,
         include_policies={"must_include"},
         member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
     )
     keep_matching_scarf = "scarf" in must_include_keys
     accessory_guard = (
@@ -184,12 +189,20 @@ def _build_stage1_prompt(
         "Do not add pins, brooches, belts, scarves, jewelry, or decorative garment accessories. "
     )
 
-    parts = [
-        "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment.",
-        "Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible.",
-        "Clean premium indoor composition, soft natural daylight.",
-        "Preserve exact garment geometry, texture continuity, and construction details.",
-    ]
+    if preset_hint == "ugc_real_br":
+        parts = [
+            "Ultra-realistic fashion photo of a natural adult woman wearing the garment.",
+            "Realistic skin texture, natural body proportions, relaxed readable stance, full garment clearly visible.",
+            "Neutral believable real-life indoor composition with ordinary soft light and no campaign polish.",
+            "Preserve exact garment geometry, texture continuity, and construction details.",
+        ]
+    else:
+        parts = [
+            "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment.",
+            "Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible.",
+            "Clean premium indoor composition, soft natural daylight.",
+            "Preserve exact garment geometry, texture continuity, and construction details.",
+        ]
     if structural_hint:
         parts.append(f"Garment identity: {structural_hint}.")
     if structure_guards:
@@ -200,11 +213,18 @@ def _build_stage1_prompt(
     )
     if str(fidelity_mode).strip().lower() == "estrita":
         parts.append("Prioritize exact garment fidelity over editorial variation and avoid any reinterpretation of silhouette, length, or stitch logic.")
-    parts.append(
-        (
+    if preset_hint == "ugc_real_br":
+        styling_intro = (
+            "Keep styling simple, believable, and secondary to the garment. "
+            "Avoid showroom polish or campaign props. "
+        )
+    else:
+        styling_intro = (
             "Catalog-ready minimal styling with the garment as the hero piece. "
             "Keep accessories subtle and secondary to the garment. "
         )
+    parts.append(
+        styling_intro
         + accessory_guard
         + "Do not promote inner tops, jewelry, shoes, or unrelated accessories into coordinated product pieces. "
         + "Build new styling independent from the reference person's lower-body look, footwear, and props."
@@ -254,27 +274,11 @@ def _runtime_reference_budget(
     fidelity_mode: str,
     identity_risk: str,
 ) -> dict[str, int]:
-    stats = selector_stats or {}
-    raw_count = int(stats.get("raw_count", 0) or 0)
-    complex_garment = bool(stats.get("complex_garment"))
-    strict_mode = str(fidelity_mode).strip().lower() == "estrita"
-
-    stage1_max = 4
-    stage2_max = 4 if strict_mode else 3
-
-    # Nano Banana responde melhor quando peças complexas usam poucas referências
-    # com papéis claros, em vez de um pacote grande de fotos vestidas redundantes.
-    if complex_garment and raw_count >= 6:
-        stage1_max = 3
-        stage2_max = 4 if strict_mode else 3
-    elif identity_risk in {"medium", "high"}:
-        stage2_max = min(stage2_max, 3)
-
-    return {
-        "stage1_max_refs": stage1_max,
-        "stage2_max_refs": stage2_max,
-        "judge_max_refs": 4,
-    }
+    return _policy_reference_budget(
+        selector_stats=selector_stats,
+        fidelity_mode=fidelity_mode,
+        identity_risk=identity_risk,
+    )
 
 
 def _build_affinity_prompt(
@@ -282,17 +286,7 @@ def _build_affinity_prompt(
     preset: str,
     scene_preference: str,
 ) -> Optional[str]:
-    """Combina prompt do usuario com keywords de preset/scene para affinity do sampler."""
-    parts = []
-    if user_prompt and user_prompt.strip():
-        parts.append(user_prompt.strip())
-    preset_kw = _PRESET_AFFINITY.get(preset, "")
-    if preset_kw:
-        parts.append(preset_kw)
-    scene_kw = _SCENE_AFFINITY.get(scene_preference, "")
-    if scene_kw:
-        parts.append(scene_kw)
-    return " ".join(parts) if parts else None
+    return _policy_build_affinity_prompt(user_prompt, preset, scene_preference)
 
 
 def _reference_guard_config(
@@ -300,25 +294,10 @@ def _reference_guard_config(
     selector_stats: Optional[dict[str, Any]],
     fidelity_mode: str,
 ) -> tuple[str, list[str]]:
-    stats = selector_stats or {}
-    risk = str(stats.get("identity_reference_risk", "low") or "low").strip().lower()
-    if str(fidelity_mode).strip().lower() == "estrita":
-        guard = "strict"
-    elif risk == "high":
-        guard = "high"
-    elif risk == "medium":
-        guard = "strict"
-    else:
-        guard = "standard"
-    rules = [
-        "References are visual evidence for garment fidelity only.",
-        "Do not copy any human identity traits from references.",
-    ]
-    if risk in {"medium", "high"}:
-        rules.append("Prioritize detail anchors and identity-safe references over worn references when conflicts appear.")
-    if risk == "high":
-        rules.append("If a reference has a visible face, treat that face as forbidden content for transfer.")
-    return guard, rules
+    return _policy_reference_guard_config(
+        selector_stats=selector_stats,
+        fidelity_mode=fidelity_mode,
+    )
 
 
 def _pose_flex_strategy(
@@ -327,28 +306,19 @@ def _pose_flex_strategy(
     structural_contract: Optional[dict[str, Any]],
     selector_stats: Optional[dict[str, Any]],
     fidelity_mode: str,
+    preset: str,
 ) -> str:
-    text = str(user_prompt or "").strip().lower()
-    subtype = str((structural_contract or {}).get("garment_subtype", "") or "").strip().lower()
-    complex_garment = bool((selector_stats or {}).get("complex_garment"))
-
-    if any(token in text for token in ("tradicional", "catalog", "catálogo", "estavel", "estável", "parada", "static", "still")):
-        return "controlled"
-    if any(token in text for token in ("movimento", "dinam", "walking", "stride", "editorial", "lookbook", "fashion pose", "criativa", "creative")):
-        return "dynamic"
-
-    if str(fidelity_mode).strip().lower() == "estrita":
-        return "controlled"
-    if subtype in {"ruana_wrap", "poncho", "cape", "kimono"} or complex_garment:
-        return "balanced"
-    return "dynamic"
+    return _policy_resolve_auto_pose_flex_mode(
+        user_prompt=user_prompt,
+        structural_contract=structural_contract,
+        selector_stats=selector_stats,
+        fidelity_mode=fidelity_mode,
+        preset=preset,
+    )
 
 
 def _normalize_pose_flex_mode(raw_mode: Optional[str]) -> str:
-    mode = str(raw_mode or "auto").strip().lower()
-    if mode in _POSE_FLEX_MODES:
-        return mode
-    return "auto"
+    return _policy_normalize_pose_flex_mode(raw_mode)
 
 
 def _stage1_candidate_count(
@@ -356,11 +326,10 @@ def _stage1_candidate_count(
     fidelity_mode: str,
     selector_stats: Optional[dict[str, Any]],
 ) -> int:
-    if str(fidelity_mode).strip().lower() == "estrita":
-        return 2
-    if bool((selector_stats or {}).get("complex_garment")):
-        return 2
-    return 1
+    return _policy_stage1_candidate_count(
+        fidelity_mode=fidelity_mode,
+        selector_stats=selector_stats,
+    )
 
 
 def _stage1_selection_key(assessment: dict[str, Any], gate_result: Optional[dict[str, Any]]) -> tuple[float, float, float, float]:
@@ -487,6 +456,11 @@ def run_pipeline_v2(
         else {}
     )
     image_analysis = str((unified_triage.get("image_analysis") or "") if isinstance(unified_triage, dict) else "").strip()
+    lighting_signature = (
+        (unified_triage.get("lighting_signature") or {})
+        if isinstance(unified_triage, dict)
+        else {}
+    )
     if structural_contract:
         structural_contract["enabled"] = True
 
@@ -522,6 +496,7 @@ def run_pipeline_v2(
             structural_contract=structural_contract,
             selector_stats=selector_stats,
             fidelity_mode=fidelity_mode,
+            preset=preset,
         )
     else:
         resolved_pose_flex_mode = requested_pose_flex_mode
@@ -608,7 +583,13 @@ def run_pipeline_v2(
     effective_art_direction_request = dict(art_direction_request or {})
     effective_art_direction_request.setdefault("scene_preference", scene_preference)
     effective_art_direction_request.setdefault("preset", preset)
+    effective_art_direction_request.setdefault("fidelity_mode", fidelity_mode)
     effective_art_direction_request.setdefault("pose_flex_mode", resolved_pose_flex_mode)
+    effective_art_direction_request.setdefault("selector_stats", selector_stats)
+    effective_art_direction_request.setdefault("structural_contract", structural_contract)
+    effective_art_direction_request.setdefault("set_detection", set_detection)
+    if lighting_signature:
+        effective_art_direction_request.setdefault("lighting_signature", lighting_signature)
     if image_analysis:
         effective_art_direction_request.setdefault("image_analysis_hint", image_analysis[:220])
     if structural_hint:
@@ -636,6 +617,7 @@ def run_pipeline_v2(
         structural_hint,
         set_detection=set_detection,
         fidelity_mode=fidelity_mode,
+        preset=preset,
     )
 
     stage1_candidate_count = _stage1_candidate_count(
@@ -843,7 +825,116 @@ def run_pipeline_v2(
                 if gate_policy.get("enabled") and judge_reference_bytes else None
             )
 
-            recovery_info: dict[str, Any] = {"applied": False}
+            targeted_reference_bytes = _merge_reference_bytes(
+                edit_reference_bytes[: int(reference_budget.get("stage2_max_refs", 4) or 4)],
+                judge_reference_bytes[: int(reference_budget.get("judge_max_refs", 4) or 4)],
+                uploaded_bytes[:2],
+            )[: int(reference_budget.get("judge_max_refs", 4) or 4)]
+            localized_repair_enabled = _targeted_stage2_repair_enabled()
+            localized_repair_plan = (
+                classify_stage2_repair_strategy(final_gate)
+                if localized_repair_enabled and final_gate
+                else {
+                    "mode": "none",
+                    "issue_codes": list((final_gate or {}).get("issue_codes") or []),
+                    "reason": "feature_disabled_or_gate_missing",
+                }
+            )
+            recovery_info: dict[str, Any] = {
+                "applied": False,
+                "selected": "initial",
+                "localized_repair": {
+                    "enabled": localized_repair_enabled,
+                    "eligible": localized_repair_plan.get("mode") == "targeted_repair",
+                    "strategy": localized_repair_plan.get("mode"),
+                    "reason": localized_repair_plan.get("reason"),
+                    "issue_codes": localized_repair_plan.get("issue_codes", []),
+                    "applied": False,
+                },
+                "full_retry": {
+                    "eligible": False,
+                    "applied": False,
+                },
+            }
+            if localized_repair_plan.get("mode") == "targeted_repair" and final_gate and final_gate.get("available"):
+                initial_localized_gate = dict(final_gate or {}) if isinstance(final_gate, dict) else final_gate
+                localized_gate_input = dict(final_gate or {}) if isinstance(final_gate, dict) else {}
+                localized_gate_input["issue_codes"] = list(localized_repair_plan.get("issue_codes", []))
+                localized_prompt = build_targeted_repair_prompt(
+                    gate_result=localized_gate_input,
+                    structural_contract=structural_contract,
+                    set_detection=set_detection,
+                )
+                localized_thinking_level = "MINIMAL"
+                try:
+                    localized_source_bytes = Path(str(result.get("path", ""))).read_bytes()
+                    localized_results = edit_image(
+                        source_image_bytes=localized_source_bytes,
+                        edit_prompt=localized_prompt,
+                        aspect_ratio=aspect_ratio,
+                        resolution=resolution,
+                        thinking_level=localized_thinking_level,
+                        session_id=f"{edit_session_id}_microrepair",
+                        reference_images_bytes=targeted_reference_bytes,
+                    )
+                    localized_result = localized_results[0] if localized_results else None
+                    localized_assessment = (
+                        assess_generated_image(str(localized_result.get("path", "")), localized_prompt, classifier_summary)
+                        if localized_result else None
+                    )
+                    localized_gate = (
+                        evaluate_visual_fidelity(
+                            stage="stage2",
+                            reference_images=judge_reference_bytes,
+                            base_image_path=str(base_image_path),
+                            candidate_image_path=str(localized_result.get("path", "")),
+                            structural_contract=structural_contract,
+                            set_detection=set_detection,
+                            prompt=localized_prompt,
+                        )
+                        if localized_result and gate_policy.get("enabled") and judge_reference_bytes else None
+                    )
+                    localized_key = _stage1_selection_key(localized_assessment or {}, localized_gate)
+                    initial_key = _stage1_selection_key(final_assessment, final_gate)
+                    use_localized = bool(localized_result and localized_key > initial_key)
+                    if use_localized and localized_result is not None:
+                        result = localized_result
+                        result["index"] = img_idx + 1
+                        result["art_direction_summary"] = art_direction.get("summary", {})
+                        final_assessment = localized_assessment or final_assessment
+                        final_gate = localized_gate or final_gate
+                        last_edit_prompt = localized_prompt
+                        any_repair_applied = True
+                        reason_codes.add("stage2_targeted_repair")
+                        recovery_info["applied"] = True
+                        recovery_info["selected"] = "localized_repair"
+                    recovery_info["localized_repair"] = {
+                        "enabled": localized_repair_enabled,
+                        "eligible": True,
+                        "strategy": localized_repair_plan.get("mode"),
+                        "reason": localized_repair_plan.get("reason"),
+                        "issue_codes": localized_repair_plan.get("issue_codes", []),
+                        "applied": use_localized,
+                        "trigger_verdict": initial_localized_gate.get("verdict") if isinstance(initial_localized_gate, dict) else None,
+                        "repair_prompt": localized_prompt,
+                        "thinking_level": localized_thinking_level,
+                        "repair_assessment": localized_assessment,
+                        "repair_fidelity_gate": localized_gate,
+                    }
+                except Exception as localized_exc:
+                    recovery_info["localized_repair"] = {
+                        "enabled": localized_repair_enabled,
+                        "eligible": True,
+                        "strategy": localized_repair_plan.get("mode"),
+                        "reason": localized_repair_plan.get("reason"),
+                        "issue_codes": localized_repair_plan.get("issue_codes", []),
+                        "applied": False,
+                        "trigger_verdict": initial_localized_gate.get("verdict") if isinstance(initial_localized_gate, dict) else None,
+                        "repair_prompt": localized_prompt,
+                        "thinking_level": localized_thinking_level,
+                        "error": str(localized_exc),
+                    }
+
             stage2_needs_retry = bool(
                 gate_policy.get("stage2_retry_enabled")
                 and final_gate
@@ -858,6 +949,7 @@ def run_pipeline_v2(
             )
             if stage2_needs_retry:
                 initial_final_gate = dict(final_gate or {}) if isinstance(final_gate, dict) else final_gate
+                recovery_info["full_retry"]["eligible"] = True
                 retry_pose_mode = suggest_retry_pose_flex_mode(
                     current_pose_flex_mode=resolved_pose_flex_mode,
                     issue_codes=list(final_gate.get("issue_codes") or []),
@@ -912,7 +1004,8 @@ def run_pipeline_v2(
                         last_edit_prompt = retry_prompt
                         any_repair_applied = True
                         reason_codes.add("stage2_fidelity_retry")
-                    recovery_info = {
+                    recovery_info["full_retry"] = {
+                        "eligible": True,
                         "applied": use_retry,
                         "selected": "retry" if use_retry else "initial",
                         "trigger_verdict": initial_final_gate.get("verdict") if isinstance(initial_final_gate, dict) else None,
@@ -924,8 +1017,12 @@ def run_pipeline_v2(
                         "retry_assessment": retry_assessment,
                         "retry_fidelity_gate": retry_gate,
                     }
+                    if use_retry:
+                        recovery_info["applied"] = True
+                        recovery_info["selected"] = "full_retry"
                 except Exception as retry_exc:
-                    recovery_info = {
+                    recovery_info["full_retry"] = {
+                        "eligible": True,
                         "applied": False,
                         "selected": "initial",
                         "trigger_verdict": initial_final_gate.get("verdict") if isinstance(initial_final_gate, dict) else None,
@@ -1004,7 +1101,9 @@ def run_pipeline_v2(
         "thinking_level": "MINIMAL",
         "stage2_thinking_level": stage2_thinking_level,
         "art_direction_summary": last_art_direction.get("summary", {}),
+        "action_context": last_art_direction.get("action_context"),
         "structural_hint": structural_hint,
+        "lighting_signature": lighting_signature,
         "selector_stats": selector_stats,
         "review_reference_urls": review_input_assets.get("original_references", []),
         "review_input_assets": review_input_assets,
@@ -1025,12 +1124,16 @@ def run_pipeline_v2(
         },
     }
 
+    from agent_runtime.normalize_user_intent import normalize_user_intent
+    user_intent_payload = normalize_user_intent(prompt or "")
+
     observability_meta = write_v2_observability_report(
         session_id,
         {
             "fidelity_gate": gate_policy,
             "request": {
                 "prompt": prompt,
+                "user_intent": user_intent_payload,
                 "preset": preset,
                 "scene_preference": scene_preference,
                 "fidelity_mode": fidelity_mode,
@@ -1044,14 +1147,17 @@ def run_pipeline_v2(
                 "reference_guard_strength": reference_guard_strength,
                 "reference_guard_rules": reference_usage_rules,
                 "identity_reference_risk": identity_risk,
+                "lighting_signature": lighting_signature,
                 "pose_flex_mode": resolved_pose_flex_mode,
                 "pose_flex_requested": requested_pose_flex_mode,
                 "pose_flex_guideline": pose_flex_hint,
+                "action_context": last_art_direction.get("action_context"),
             },
             "selector": {
                 "stats": selector_stats,
                 "selected_names": selected_names,
                 "runtime_budget": reference_budget,
+                "lighting_signature": lighting_signature,
                 "runtime_reference_names": {
                     "stage1": base_gen_names,
                     "stage2": edit_reference_names,

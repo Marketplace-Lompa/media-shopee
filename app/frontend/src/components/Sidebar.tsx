@@ -20,7 +20,7 @@ export function Sidebar({ activeTab, onTabChange }: Props) {
         <div className="sidebar">
             <div className="sidebar-brand">
                 <div className="brand-logo" aria-hidden="true">
-                    <img src="/studio-logo.png" alt="Studio Logo" />
+                    <img src="/studio-logo.png" alt="" />
                 </div>
                 <span className="brand-name">Studio</span>
             </div>

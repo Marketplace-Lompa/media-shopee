@@ -113,9 +113,11 @@ def _build_strict_reference_prompt(
             "Build new styling independent from the reference person's lower-body look, footwear, and props unless explicitly requested."
         )
 
+    from agent_runtime.normalize_user_intent import normalize_user_intent
     raw_user_prompt = (user_prompt or "").strip()
     if raw_user_prompt:
-        clauses.append(f"Additional commercial direction: {raw_user_prompt}")
+        intent = normalize_user_intent(raw_user_prompt)
+        clauses.append(f"Additional commercial direction: {intent['normalized']}")
 
     return " ".join(part.strip() for part in clauses if part and part.strip())
 
@@ -319,6 +321,12 @@ def _run_generate_pipeline(
                     "grounded_images_count": 0,
                     "reason_codes": ["strict_reference_mode"],
                 },
+                "user_intent": {
+                    "raw": prompt or "",
+                    "normalized": "",
+                    "intent_tags": ["strict_reference"],
+                    "normalizer_source": "skipped",
+                },
                 "prompt_compiler_debug": {
                     "mode": "strict_reference_mode",
                     "source": "direct_template",
@@ -405,6 +413,7 @@ def _run_generate_pipeline(
         {
             "message": "Prompt criado pelo agente",
             "prompt": optimized_prompt,
+            "user_intent": agent_result.get("user_intent"),
             "image_analysis": agent_result.get("image_analysis", ""),
             "thinking_level": thinking_level,
             "shot_type": shot_type,
@@ -692,12 +701,31 @@ async def generate_async(
     uploaded_bytes = [await img.read() for img in limited_images]
     uploaded_filenames = [str(img.filename or "").strip() for img in limited_images]
     use_v2 = should_use_v2(preset, uploaded_bytes)
+    _prompt_short = (prompt or "")[:120].strip() or None
     job_id = create_job(
         meta={
-            "n_images": n_images,
-            "has_images": bool(uploaded_bytes),
+            # ── Identificação do pipeline ──
             "pipeline_version": "v2" if use_v2 else "v1",
+            # ── Parâmetros de geração ──
+            "prompt": _prompt_short,
+            "prompt_full": (prompt or "").strip() or None,
+            "n_images": n_images,
+            "aspect_ratio": aspect_ratio,
+            "resolution": resolution,
+            # ── Preset & modos (v2) ──
+            "preset": preset,
+            "scene_preference": scene_preference,
+            "fidelity_mode": fidelity_mode,
             "pose_flex_mode": pose_flex_mode,
+            # ── Grounding ──
+            "grounding_strategy": grounding_strategy,
+            "use_grounding": use_grounding,
+            # ── Referências visuais ──
+            "has_images": bool(uploaded_bytes),
+            "image_count": len(uploaded_bytes),
+            "image_filenames": uploaded_filenames[:10] if uploaded_filenames else [],
+            # ── Guided brief ──
+            "has_guided_brief": bool(guided_brief),
         }
     )
 

@@ -1,6 +1,6 @@
 """
-Router: POST /edit/stream
-SSE para edição pontual de imagens existentes via Nano Banana 2.
+Router: POST /edit/stream  |  POST /edit/async  |  GET /edit/jobs/{job_id}
+SSE e async para edição pontual de imagens existentes via Nano Banana 2.
 Pipeline simplificado (sem grounding/triage/quality contract).
 """
 import asyncio
@@ -17,8 +17,17 @@ from edit_agent import refine_edit_instruction
 from generator import edit_image, OUTPUTS_DIR
 from history import add_entry as history_add
 from config import DEFAULT_ASPECT_RATIO, DEFAULT_RESOLUTION
+from job_manager import create_job, start_job, update_stage, complete_job, fail_job, get_job
 
 router = APIRouter(prefix="/edit", tags=["edit-stream"])
+
+
+def _resolve_source_path(source_url: str) -> Path:
+    """Resolve source_url para caminho absoluto no disco."""
+    relative_path = source_url.lstrip("/")
+    if relative_path.startswith("outputs/"):
+        return OUTPUTS_DIR.parent / relative_path
+    return Path(relative_path)
 
 
 def _sse_event(stage: str, data: dict) -> str:
@@ -177,3 +186,116 @@ async def edit_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ── Async (polling) ───────────────────────────────────────────────────────────
+
+@router.post("/async")
+async def edit_async(
+    source_url: str = Form(...),
+    edit_instruction: str = Form(...),
+    source_prompt: Optional[str] = Form(default=None),
+    source_session_id: Optional[str] = Form(default=None),
+    aspect_ratio: Optional[str] = Form(default=None),
+    resolution: Optional[str] = Form(default=None),
+    images: List[UploadFile] = File(default=[]),
+):
+    """Submete edição de imagem como job assíncrono. Retorna job_id para polling."""
+    # Ler bytes das referências na thread do FastAPI (await obrigatório antes do worker)
+    ref_images_bytes: List[bytes] = []
+    for img_file in images:
+        try:
+            data = await img_file.read()
+            if data:
+                ref_images_bytes.append(data)
+        except Exception:
+            pass
+
+    # Resolver caminho da imagem fonte antes do worker (pode lançar erro cedo)
+    file_path = _resolve_source_path(source_url)
+    if not file_path.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Imagem original não encontrada: {source_url}")
+
+    source_bytes = file_path.read_bytes()
+
+    used_ar = aspect_ratio or DEFAULT_ASPECT_RATIO
+    used_res = resolution or DEFAULT_RESOLUTION
+
+    job_id = create_job(meta={
+        "type": "edit",
+        "edit_instruction": edit_instruction[:80],
+        "source_url": source_url,
+        "aspect_ratio": used_ar,
+        "resolution": used_res,
+        "ref_count": len(ref_images_bytes),
+    })
+
+    def _worker() -> None:
+        session_id = str(uuid.uuid4())[:8]
+        try:
+            update_stage(job_id, "editing", {"message": "Agente analisando instrução de edição…"})
+            agent_result = refine_edit_instruction(
+                edit_instruction=edit_instruction,
+                source_image_bytes=source_bytes,
+                source_prompt=source_prompt,
+                reference_images_bytes=ref_images_bytes if ref_images_bytes else None,
+            )
+
+            final_prompt = agent_result.get("final_prompt", edit_instruction)
+            edit_type = agent_result.get("edit_type", "general")
+            change_summary = agent_result.get("change_summary_ptbr", edit_instruction)
+
+            update_stage(job_id, "generating", {"message": "Gerando imagem editada via Nano…", "current": 1, "total": 1})
+            batch = edit_image(
+                source_image_bytes=source_bytes,
+                edit_prompt=final_prompt,
+                aspect_ratio=used_ar,
+                resolution=used_res,
+                session_id=session_id,
+                reference_images_bytes=ref_images_bytes if ref_images_bytes else None,
+            )
+
+            images_out = []
+            for img_info in batch:
+                history_add(
+                    session_id=session_id,
+                    filename=img_info["filename"],
+                    url=img_info["url"],
+                    prompt=final_prompt,
+                    shot_type="edit",
+                    aspect_ratio=used_ar,
+                    resolution=used_res,
+                    source_session_id=source_session_id,
+                    edit_instruction=edit_instruction,
+                )
+                images_out.append({
+                    "url": img_info["url"],
+                    "filename": img_info["filename"],
+                    "size_kb": img_info.get("size_kb", 0),
+                    "mime_type": img_info.get("mime_type", "image/png"),
+                })
+
+            complete_job(job_id, {
+                "session_id": session_id,
+                "images": images_out,
+                "edit_instruction": edit_instruction,
+                "edit_type": edit_type,
+                "change_summary": change_summary,
+                "optimized_prompt": final_prompt,
+                "aspect_ratio": used_ar,
+                "resolution": used_res,
+                "source_session_id": source_session_id,
+            })
+
+        except Exception as exc:
+            fail_job(job_id, str(exc))
+
+    start_job(job_id, _worker)
+    return {"job_id": job_id, "status": "queued"}
+
+
+@router.get("/jobs/{job_id}")
+async def get_edit_job(job_id: str):
+    """Polling de status para jobs de edição assíncronos."""
+    return get_job(job_id)

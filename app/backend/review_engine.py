@@ -173,6 +173,8 @@ def _fallback_review(report: dict[str, Any]) -> dict[str, Any]:
         "scarf",
         include_policies={"must_include"},
         member_classes={"coordinated_accessory", "garment"},
+        active_only=True,
+        exclude_primary_piece=True,
     ) and "scarves" in stage1_prompt.lower():
         findings.append(
             {

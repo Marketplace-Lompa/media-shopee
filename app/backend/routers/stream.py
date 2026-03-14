@@ -334,6 +334,7 @@ async def generate_stream(
         yield _sse_event("prompt_ready", {
             "message": "Prompt criado pelo agente",
             "prompt": optimized_prompt,
+            "user_intent": agent_result.get("user_intent"),
             "image_analysis": image_analysis,
             "thinking_level": thinking_level,
             "shot_type": shot_type,

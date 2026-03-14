@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Copy, Download, Clock, Pencil, ChevronDown } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
@@ -8,15 +8,9 @@ import { Gallery } from './components/Gallery';
 import { PoolPanel } from './components/PoolPanel';
 import { ReviewPanel } from './components/ReviewPanel';
 import { listPool, listHistory, deleteHistoryEntry, getLatestReview, getReviewBySession } from './lib/api';
+import { useJobQueue } from './hooks/useJobQueue';
 import type {
-  GenerationStatus,
   PoolItem,
-  AspectRatio,
-  Resolution,
-  Preset,
-  ScenePreference,
-  FidelityMode,
-  PoseFlexMode,
   MediaHistoryItem,
   EditTarget,
   JobReviewPayload,
@@ -63,7 +57,6 @@ function LightboxMeta({ item }: { item: MediaHistoryItem }) {
 /* ── App ──────────────────────────────────────────────────── */
 export default function App() {
   const [tab, setTab] = useState<Tab>('criar');
-  const [status, setStatus] = useState<GenerationStatus>({ type: 'idle' });
   const [pool, setPool] = useState<PoolItem[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
   const [mediaHistory, setMediaHistory] = useState<MediaHistoryItem[]>([]);
@@ -73,8 +66,6 @@ export default function App() {
   const [reviewData, setReviewData] = useState<JobReviewPayload | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
-  const pollTimerRef = useRef<number | null>(null);
-  const activeJobRef = useRef<string | null>(null);
 
   const fetchPool = useCallback(async () => {
     setPoolLoading(true);
@@ -154,138 +145,15 @@ export default function App() {
     }
   }, [tab, reviewData, reviewLoading, fetchLatestReviewData]);
 
-  useEffect(() => {
-    return () => {
-      if (pollTimerRef.current != null) {
-        window.clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-  }, []);
+  // ── Job Queue ─────────────────────────────────────────────
+  const { jobs, submitGenerateJob, submitEditJob, dismissJob } = useJobQueue({
+    onJobComplete: fetchHistory,
+  });
 
-  function applyStageEvent(event: Record<string, any>) {
-    switch (event.stage) {
-      // ── V2 pipeline stages ──
-      case 'preparing_references':
-        setStatus({ type: 'preparing_references', message: event.message || 'Preparando referências…' });
-        break;
-      case 'stabilizing_garment':
-        setStatus({ type: 'stabilizing_garment', message: event.message || 'Estabilizando a peça…' });
-        break;
-      case 'creating_listing':
-        setStatus({
-          type: 'creating_listing',
-          message: event.message || 'Criando o anúncio…',
-          current: typeof event.current === 'number' ? event.current : undefined,
-          total: typeof event.total === 'number' ? event.total : undefined,
-        });
-        break;
-      // ── Legacy stages ──
-      case 'mode_selected':
-        setStatus({ type: 'mode_selected', message: event.message, pipeline_mode: event.pipeline_mode });
-        break;
-      case 'researching':
-        setStatus({ type: 'researching', message: event.message });
-        break;
-      case 'analyzing':
-        setStatus({ type: 'analyzing', message: event.message });
-        break;
-      case 'triage_done':
-        setStatus({
-          type: 'triage_done',
-          message: event.message,
-          grounding_mode: event.grounding_mode,
-          grounding_score: event.grounding_score,
-          garment_hypothesis: event.garment_hypothesis,
-          complexity_score: event.complexity_score,
-          hint_confidence: event.hint_confidence,
-          trigger_reason: event.trigger_reason,
-          classifier_summary: event.classifier_summary,
-          reason_codes: event.reason_codes || [],
-        });
-        break;
-      case 'prompt_ready':
-        setStatus({
-          type: 'prompt_ready',
-          message: event.message,
-          prompt: event.prompt,
-          image_analysis: event.image_analysis,
-          grounding: event.grounding,
-          quality_contract: event.quality_contract,
-          classifier_summary: event.classifier_summary,
-          reference_pack_stats: event.reference_pack_stats,
-          guided_applied: event.guided_applied,
-          guided_summary: event.guided_summary,
-        });
-        break;
-      // ── Common stages ──
-      case 'generating':
-        setStatus({ type: 'generating', message: event.message, current: event.current, total: event.total });
-        break;
-    }
-  }
-
-  /* ── Handle Edit (edição pontual) ───────────────── */
-  async function handleEdit(editInstruction: string, target: EditTarget, files?: File[]) {
-    setStatus({ type: 'editing', message: 'Preparando edição…' });
-    setEditTarget(null); // Remove banner
-
-    const fd = new FormData();
-    fd.append('source_url', target.url);
-    fd.append('edit_instruction', editInstruction);
-    if (target.prompt) fd.append('source_prompt', target.prompt);
-    if (target.session_id) fd.append('source_session_id', target.session_id);
-    if (target.aspect_ratio) fd.append('aspect_ratio', target.aspect_ratio);
-    if (target.resolution) fd.append('resolution', target.resolution);
-    // Anexar imagens de referência
-    if (files?.length) {
-      for (const f of files) fd.append('images', f);
-    }
-
-    try {
-      const res = await fetch('/edit/stream', { method: 'POST', body: fd });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
-        throw new Error(err.detail ?? `HTTP ${res.status}`);
-      }
-
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      if (!reader) throw new Error('Stream indisponível');
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const event = JSON.parse(line.slice(6));
-            if (event.stage === 'editing') {
-              setStatus({ type: 'editing', message: event.message || 'Editando…' });
-            } else if (event.stage === 'prompt_ready') {
-              setStatus({ type: 'editing', message: event.change_summary || 'Prompt de edição pronto…' });
-            } else if (event.stage === 'generating') {
-              setStatus({ type: 'generating', message: event.message || 'Gerando…', current: 1, total: 1 });
-            } else if (event.stage === 'done') {
-              setStatus({ type: 'done', response: event });
-              fetchHistory();
-            } else if (event.stage === 'error') {
-              setStatus({ type: 'error', message: event.message || 'Erro na edição' });
-            }
-          } catch { /* ignore parse errors */ }
-        }
-      }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Erro inesperado na edição';
-      setStatus({ type: 'error', message: msg });
-    }
+  /* ── Handle Edit — agora assíncrono via job queue ────────── */
+  function handleEdit(editInstruction: string, target: EditTarget, files?: File[]) {
+    setEditTarget(null);
+    submitEditJob({ editInstruction, target, files });
   }
 
   async function handleHistoryDelete(id: string) {
@@ -299,7 +167,8 @@ export default function App() {
 
   function handleReuse(item: MediaHistoryItem) {
     setReuseData({
-      prompt: item.edit_instruction || item.prompt || item.optimized_prompt,
+      // edit_instruction describe a past edit, not a generation prompt — skip it
+      prompt: item.prompt || item.optimized_prompt,
       references: item.references || [],
     });
     // Rola para o topo onde está o input
@@ -314,108 +183,8 @@ export default function App() {
     setTab('criar');
   }
 
-  async function handleGenerate(payload: {
-    prompt: string;
-    files: File[];
-    n_images: number;
-    aspect_ratio: AspectRatio;
-    resolution: Resolution;
-    preset: Preset;
-    scene_preference: ScenePreference;
-    fidelity_mode: FidelityMode;
-    pose_flex_mode: PoseFlexMode;
-  }) {
-    if (pollTimerRef.current != null) {
-      window.clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    setStatus({ type: 'preparing_references', message: 'Iniciando…' });
-
-    const fd = new FormData();
-    if (payload.prompt) fd.append('prompt', payload.prompt);
-    fd.append('n_images', String(payload.n_images));
-    fd.append('aspect_ratio', payload.aspect_ratio);
-    fd.append('resolution', payload.resolution);
-    fd.append('preset', payload.preset);
-    fd.append('scene_preference', payload.scene_preference);
-    fd.append('fidelity_mode', payload.fidelity_mode);
-    fd.append('pose_flex_mode', payload.pose_flex_mode);
-    payload.files.forEach(f => fd.append('images', f));
-
-    try {
-      const res = await fetch('/generate/async', {
-        method: 'POST',
-        body: fd,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
-        throw new Error(err.detail ?? `HTTP ${res.status}`);
-      }
-
-      const submit = await res.json();
-      const jobId = String(submit?.job_id || '').trim();
-      if (!jobId) throw new Error('Job assíncrono inválido');
-      activeJobRef.current = jobId;
-      setStatus({ type: 'analyzing', message: `Job enfileirado (${jobId})…` });
-
-      let polling = false;
-      pollTimerRef.current = window.setInterval(async () => {
-        if (polling) return;
-        polling = true;
-        try {
-          const statusRes = await fetch(`/generate/jobs/${jobId}`);
-          if (!statusRes.ok) {
-            throw new Error(`Falha ao consultar job (${statusRes.status})`);
-          }
-          const job = await statusRes.json();
-          const stage = job?.stage as string | undefined;
-          const event = (job?.event || {}) as Record<string, any>;
-          if (stage && !event.stage) event.stage = stage;
-
-          if (job?.status === 'queued') {
-            setStatus({ type: 'preparing_references', message: 'Job na fila…' });
-          } else if (job?.status === 'running') {
-            if (event.stage) applyStageEvent(event);
-            else setStatus({ type: 'preparing_references', message: 'Processando…' });
-          } else if (job?.status === 'done') {
-            const response = job?.response;
-            setStatus({
-              type: Array.isArray(response?.failed_indices) && response.failed_indices.length > 0 ? 'done_partial' : 'done',
-              response,
-            });
-            fetchHistory();
-            if (response?.session_id) {
-              fetchReviewSessionData(String(response.session_id)).catch(() => undefined);
-            }
-            if (pollTimerRef.current != null) {
-              window.clearInterval(pollTimerRef.current);
-              pollTimerRef.current = null;
-            }
-          } else if (job?.status === 'error') {
-            const message = String(job?.error || 'Erro no job assíncrono');
-            setStatus({ type: 'error', message });
-            if (pollTimerRef.current != null) {
-              window.clearInterval(pollTimerRef.current);
-              pollTimerRef.current = null;
-            }
-          }
-        } catch (pollErr: unknown) {
-          const msg = pollErr instanceof Error ? pollErr.message : 'Falha ao consultar job';
-          setStatus({ type: 'error', message: msg });
-          if (pollTimerRef.current != null) {
-            window.clearInterval(pollTimerRef.current);
-            pollTimerRef.current = null;
-          }
-        } finally {
-          polling = false;
-        }
-      }, 1200);
-
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Erro inesperado';
-      setStatus({ type: 'error', message: msg });
-    }
+  function handleGenerate(payload: Parameters<typeof submitGenerateJob>[0]) {
+    submitGenerateJob(payload);
   }
 
   return (
@@ -445,17 +214,17 @@ export default function App() {
 
                 <div className="generate-content scroll-y" aria-live="polite">
                   <Gallery
-                    status={status}
                     mediaHistory={mediaHistory}
                     onDelete={handleHistoryDelete}
                     onReuse={handleReuse}
                     onLightbox={(url) => setLightbox({ url })}
                     onLightboxItem={(item) => setLightbox({ url: item.url.startsWith('http') ? item.url : `${window.location.origin}${item.url}`, item })}
+                    activeJobs={jobs}
+                    onDismissJob={dismissJob}
                   />
                 </div>
 
                 <ChatInput
-                  status={status}
                   onSubmit={handleGenerate}
                   externalData={reuseData}
                   onClearExternalData={() => setReuseData(null)}
@@ -506,7 +275,6 @@ export default function App() {
                 </header>
                 <div className="generate-content scroll-y" aria-live="polite">
                   <Gallery
-                    status={{ type: 'idle' }}
                     mediaHistory={mediaHistory}
                     onDelete={handleHistoryDelete}
                     onReuse={handleReuse}

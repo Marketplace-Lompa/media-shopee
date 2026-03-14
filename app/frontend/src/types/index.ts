@@ -4,7 +4,7 @@ export type PoolType = 'modelo' | 'roupa' | 'cenario';
 export type PipelineMode = 'reference_mode' | 'reference_mode_strict' | 'text_mode';
 
 // ── V2 types ──
-export type Preset = 'catalog_clean' | 'marketplace_lifestyle' | 'premium_lifestyle';
+export type Preset = 'catalog_clean' | 'marketplace_lifestyle' | 'premium_lifestyle' | 'ugc_real_br';
 export type ScenePreference = 'auto_br' | 'indoor_br' | 'outdoor_br';
 export type FidelityMode = 'balanceada' | 'estrita';
 export type PoseFlexMode = 'auto' | 'controlled' | 'balanced' | 'dynamic';
@@ -258,6 +258,37 @@ export interface PoolItem {
     path: string;
     url: string;
     added_at: string;
+}
+
+// ── Job Queue Types ──────────────────────────────────────────────────────────
+export type JobType = 'generate' | 'edit';
+export type JobStatus = 'queued' | 'running' | 'done' | 'error';
+
+export interface EditJobResult {
+    session_id: string;
+    images: Array<{ url: string; filename: string; size_kb?: number; mime_type?: string }>;
+    edit_instruction: string;
+    edit_type?: string;
+    change_summary?: string;
+    optimized_prompt?: string;
+    aspect_ratio?: string;
+    resolution?: string;
+    source_session_id?: string;
+}
+
+export interface JobEntry {
+    id: string;
+    type: JobType;
+    status: JobStatus;
+    stage: string | null;
+    message: string | null;
+    progress: { current: number; total: number } | null;
+    result: GenerateResponse | null;      // jobs de geração
+    editResult: EditJobResult | null;     // jobs de edição
+    error: string | null;
+    createdAt: number;
+    inputThumbnails: string[];            // object URLs para preview (revogados no dismiss)
+    prompt: string | null;               // texto resumido para exibir no card
 }
 
 export type GenerationStatus =

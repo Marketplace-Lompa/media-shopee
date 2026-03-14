@@ -2,13 +2,12 @@ import { useRef, useState, useEffect } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Send, ImagePlus, X, Loader2,
+    Send, ImagePlus, X,
     SlidersHorizontal, ChevronDown, ChevronUp, Pencil
 } from 'lucide-react';
 import type {
     AspectRatio,
     Resolution,
-    GenerationStatus,
     EditTarget,
     Preset,
     ScenePreference,
@@ -18,7 +17,6 @@ import type {
 import './ChatInput.css';
 
 interface Props {
-    status: GenerationStatus;
     onSubmit: (payload: {
         prompt: string;
         files: File[];
@@ -47,6 +45,7 @@ const PRESET_OPTIONS: Array<{ value: Preset; label: string }> = [
     { value: 'catalog_clean', label: 'Catálogo clean' },
     { value: 'marketplace_lifestyle', label: 'Marketplace' },
     { value: 'premium_lifestyle', label: 'Premium' },
+    { value: 'ugc_real_br', label: 'UGC real BR' },
 ];
 const SCENE_PREF_OPTIONS: Array<{ value: ScenePreference; label: string }> = [
     { value: 'auto_br', label: 'Auto BR' },
@@ -69,7 +68,7 @@ interface HistoryDragPayload {
     prompt?: string;
 }
 
-export function ChatInput({ status, onSubmit, externalData, onClearExternalData, editTarget, onEditSubmit, onEditCancel }: Props) {
+export function ChatInput({ onSubmit, externalData, onClearExternalData, editTarget, onEditSubmit, onEditCancel }: Props) {
     const [prompt, setPrompt] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     const [showParams, setShowParams] = useState(false);
@@ -84,18 +83,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
     const [dropMessage, setDropMessage] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const busy =
-        status.type === 'preparing_references' ||
-        status.type === 'stabilizing_garment' ||
-        status.type === 'creating_listing' ||
-        status.type === 'mode_selected' ||
-        status.type === 'researching' ||
-        status.type === 'analyzing' ||
-        status.type === 'triage_done' ||
-        status.type === 'prompt_ready' ||
-        status.type === 'editing' ||
-        status.type === 'generating';
-
     // Hook para carregar dados externos (botão Reuse do histórico)
     useEffect(() => {
         if (externalData) {
@@ -145,7 +132,7 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
     }
 
     function handleSubmit() {
-        if (busy) return;
+        if (!editTarget && !prompt.trim() && files.length === 0) return;
         onSubmit({
             prompt,
             files,
@@ -231,7 +218,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
     }
 
     function handleDragOver(event: DragEvent<HTMLDivElement>) {
-        if (busy) return;
         const hasPayload =
             event.dataTransfer.types.includes('application/x-media-history') ||
             event.dataTransfer.types.includes('text/plain');
@@ -248,7 +234,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
     async function handleDrop(event: DragEvent<HTMLDivElement>) {
         event.preventDefault();
         setDragOver(false);
-        if (busy) return;
 
         const payload = readHistoryPayload(event);
         if (!payload) return;
@@ -321,7 +306,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                                     onClick={() => setPreset(option.value)}
                                     type="button"
                                     aria-pressed={preset === option.value}
-                                    disabled={busy}
                                 >{option.label}</button>
                             ))}
                         </div>
@@ -337,7 +321,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                                     onClick={() => setScenePreference(option.value)}
                                     type="button"
                                     aria-pressed={scenePreference === option.value}
-                                    disabled={busy}
                                 >{option.label}</button>
                             ))}
                         </div>
@@ -366,6 +349,7 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                                             onClick={() => setFidelityMode(option.value)}
                                             type="button"
                                             aria-pressed={fidelityMode === option.value}
+                                            disabled={busy}
                                         >{option.label}</button>
                                     ))}
                                 </div>
@@ -451,7 +435,7 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                         {files.map((f, i) => {
                             const previewUrl = URL.createObjectURL(f);
                             return (
-                            <div key={i} className="file-thumb">
+                            <div key={`${f.name}-${f.size}-${i}`} className="file-thumb">
                                 <img
                                     src={previewUrl}
                                     alt={f.name}
@@ -476,7 +460,6 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                 <button
                     className="input-action-btn"
                     onClick={() => fileRef.current?.click()}
-                    disabled={busy}
                     type="button"
                     aria-label="Anexar imagem"
                     title="Anexar imagem"
@@ -500,12 +483,12 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    disabled={busy}
                     rows={1}
                     aria-label={editTarget ? 'Instrução de edição' : 'Prompt de geração'}
                     aria-describedby="chat-hint"
                 />
 
+{!editTarget && (
                 <button
                     className="input-action-btn"
                     onClick={() => setShowParams(v => !v)}
@@ -517,6 +500,7 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                     <SlidersHorizontal size={18} />
                     {showParams ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>
+)}
 
                 <button
                     className={`send-btn ${editTarget ? 'send-btn--edit' : ''}`}
@@ -528,31 +512,23 @@ export function ChatInput({ status, onSubmit, externalData, onClearExternalData,
                             handleSubmit();
                         }
                     }}
-                    disabled={busy || (!!editTarget && !prompt.trim())}
+                    disabled={(!!editTarget && !prompt.trim()) || (!editTarget && !prompt.trim() && files.length === 0)}
                     type="button"
-                    aria-label={busy ? 'Processando…' : editTarget ? 'Aplicar edição' : 'Gerar imagem'}
+                    aria-label={editTarget ? 'Aplicar edição' : 'Gerar imagem'}
                 >
-                    {busy
-                        ? <Loader2 size={18} className="spin" aria-hidden="true" />
-                        : editTarget
-                            ? <Pencil size={18} aria-hidden="true" />
-                            : <Send size={18} aria-hidden="true" />
+                    {editTarget
+                        ? <Pencil size={18} aria-hidden="true" />
+                        : <Send size={18} aria-hidden="true" />
                     }
                 </button>
             </div>
 
             <p id="chat-hint" className="t-xs text-tertiary" style={{ paddingLeft: 4 }}>
-                {busy
-                    ? status.type === 'editing'
-                        ? 'Editando imagem…'
-                        : status.type === 'generating'
-                            ? `Gerando ${n > 1 ? n + ' imagens' : 'imagem'}…`
-                            : 'Processando…'
-                    : dragOver
-                        ? 'Solte aqui para reutilizar a mídia como referência'
-                        : editTarget
-                            ? 'Enter para aplicar edição · Esc para cancelar'
-                            : 'Enter para gerar · Shift+Enter para nova linha'
+                {dragOver
+                    ? 'Solte aqui para reutilizar a mídia como referência'
+                    : editTarget
+                        ? 'Enter para aplicar edição · Esc para cancelar'
+                        : 'Enter para gerar · Shift+Enter para nova linha'
                 }
             </p>
 

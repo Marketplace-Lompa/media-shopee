@@ -28,6 +28,21 @@ _SOFT_ISSUES = {
     "pose_over_occlusion",
     "identity_similarity",
 }
+_LOCALIZED_REPAIR_ISSUES = {
+    "texture_pattern_drift",
+    "stripe_order_drift",
+    "color_tone_drift",
+    "low_garment_readability",
+}
+_LOCALIZED_POLISH_TEXTURE_THRESHOLD = 0.93
+_LOCALIZED_POLISH_READABILITY_THRESHOLD = 0.94
+_LOCALIZED_REPAIR_BLOCKERS = _HARD_ISSUES | {
+    "silhouette_drift",
+    "hem_shape_drift",
+    "pose_over_occlusion",
+    "identity_similarity",
+    "wrong_opening_logic",
+}
 _KNOWN_ISSUE_CODES = _HARD_ISSUES | _SOFT_ISSUES | {
     "wrong_opening_logic",
     "stripe_order_drift",
@@ -291,9 +306,13 @@ def _reconcile_issue_codes(
     summary_text: str,
     set_fidelity: float,
     structure_fidelity: float,
+    active_set_expected: bool = True,
 ) -> list[str]:
     codes = list(dict.fromkeys(str(code).strip().lower() for code in issue_codes if str(code).strip()))
     text = str(summary_text or "").strip().lower()
+
+    if not active_set_expected and "set_piece_lost" in codes:
+        codes = [code for code in codes if code != "set_piece_lost"]
 
     if (
         "set_piece_lost" in codes
@@ -332,6 +351,8 @@ def build_visual_fidelity_gate_policy(
         set_info,
         include_policies={"must_include"},
         member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
     )
     reasons: list[str] = []
 
@@ -465,6 +486,52 @@ def suggest_retry_pose_flex_mode(
     return pose_mode
 
 
+def classify_stage2_repair_strategy(
+    gate_result: Optional[dict[str, Any]],
+) -> dict[str, Any]:
+    gate = gate_result or {}
+    if not gate.get("available"):
+        return {"mode": "none", "issue_codes": [], "reason": "gate_unavailable"}
+
+    verdict = str(gate.get("verdict", "") or "").strip().lower()
+    issue_codes = [str(item).strip().lower() for item in (gate.get("issue_codes") or []) if str(item).strip()]
+    issue_set = set(issue_codes)
+    texture_fidelity = _clamp_score(gate.get("texture_fidelity"))
+    readability_score = _clamp_score(gate.get("readability_score"))
+
+    if verdict == "pass":
+        polish_codes: list[str] = []
+        if texture_fidelity and texture_fidelity < _LOCALIZED_POLISH_TEXTURE_THRESHOLD:
+            polish_codes.append("texture_pattern_drift")
+        if readability_score and readability_score < _LOCALIZED_POLISH_READABILITY_THRESHOLD:
+            polish_codes.append("low_garment_readability")
+        if polish_codes:
+            return {
+                "mode": "targeted_repair",
+                "issue_codes": polish_codes,
+                "reason": "pass_but_polishable",
+            }
+        return {"mode": "none", "issue_codes": issue_codes, "reason": "gate_pass"}
+    if not issue_codes:
+        return {"mode": "full_retry", "issue_codes": issue_codes, "reason": "missing_issue_codes"}
+    if issue_set & _LOCALIZED_REPAIR_BLOCKERS:
+        return {
+            "mode": "full_retry",
+            "issue_codes": issue_codes,
+            "reason": "structural_or_occlusion_issue",
+        }
+
+    localized_codes = [code for code in issue_codes if code in _LOCALIZED_REPAIR_ISSUES]
+    if verdict == "soft_fail" and localized_codes and set(issue_codes).issubset(_LOCALIZED_REPAIR_ISSUES):
+        return {
+            "mode": "targeted_repair",
+            "issue_codes": localized_codes,
+            "reason": "localized_surface_or_readability_drift",
+        }
+
+    return {"mode": "full_retry", "issue_codes": issue_codes, "reason": "mixed_or_nonlocal_failure"}
+
+
 def build_fidelity_repair_patch(
     *,
     stage: str,
@@ -487,11 +554,15 @@ def build_fidelity_repair_patch(
         set_info,
         include_policies={"must_include"},
         member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
     )
     must_include_keys = get_set_member_keys(
         set_info,
         include_policies={"must_include"},
         member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
     )
     patches: list[str] = []
 
@@ -544,6 +615,81 @@ def build_fidelity_repair_patch(
     else:
         patches.append("Keep the art direction fresh, but treat model identity, pose, camera, and environment as the only flexible layers around a locked garment object.")
 
+    return " ".join(dict.fromkeys([item.strip() for item in patches if item and item.strip()]))
+
+
+def build_targeted_repair_prompt(
+    *,
+    gate_result: Optional[dict[str, Any]],
+    structural_contract: Optional[dict[str, Any]],
+    set_detection: Optional[dict[str, Any]],
+) -> str:
+    contract = structural_contract or {}
+    set_info = set_detection or {}
+    issue_codes = set(str(item).strip().lower() for item in (gate_result or {}).get("issue_codes", []) or [])
+    front = str(contract.get("front_opening", "") or "").strip().lower()
+    sleeve = str(contract.get("sleeve_type", "") or "").strip().lower()
+    must_include_labels = get_set_member_labels(
+        set_info,
+        include_policies={"must_include"},
+        member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
+    )
+    must_include_keys = get_set_member_keys(
+        set_info,
+        include_policies={"must_include"},
+        member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
+    )
+
+    patches: list[str] = [
+        "This is a localized garment fidelity correction on an already successful fashion image.",
+        "Keep the same model identity, facial features, hair, expression, pose, body proportions, framing, camera feel, background, styling, and lighting mood unchanged.",
+        "Do not recompose the scene, move the subject, or redesign the garment.",
+        "Refine only the visible garment regions that drifted from the references.",
+        "Preserve the exact garment geometry, silhouette, drape, hem behavior, and edge contour already present in the image.",
+    ]
+
+    if "texture_pattern_drift" in issue_codes:
+        patches.append(
+            "Restore the original knit or textile surface relief, stitch definition, and material micro-texture on the garment only."
+        )
+    if "stripe_order_drift" in issue_codes:
+        patches.append(
+            "Correct stripe order, stripe spacing, and stripe width on the garment only to match the references exactly."
+        )
+    if "color_tone_drift" in issue_codes:
+        patches.append(
+            "Correct garment yarn tones and local color balance only on the garment so they match the references exactly."
+        )
+    if "low_garment_readability" in issue_codes:
+        patches.append(
+            "Improve local garment readability through edge clarity, textile separation, and front-panel legibility only on the garment, without changing pose, crop, or scene lighting."
+        )
+
+    if front == "open":
+        patches.append("Keep the front opening visible and unchanged.")
+    elif front == "closed":
+        patches.append("Keep the front closed and uninterrupted with no extra inner layer appearing.")
+
+    if sleeve == "cape_like":
+        patches.append("Keep the cape-like panel architecture unchanged and do not create separate sleeves.")
+    elif sleeve == "dolman_batwing":
+        patches.append("Keep the dolman or batwing sleeve geometry unchanged.")
+
+    if must_include_labels:
+        label_text = ", ".join(must_include_labels[:3])
+        patches.append(f"If visible, keep these coordinated set members intact and separate: {label_text}.")
+    if "scarf" in must_include_keys:
+        patches.append("If the matching scarf is visible, keep it present as a separate coordinated knit piece with the same textile DNA.")
+
+    model_patch = str((gate_result or {}).get("recommended_prompt_patch", "") or "").strip()
+    if model_patch:
+        patches.append(model_patch[:220])
+
+    patches.append("Do not change the scene composition, lens perspective, body pose, or overall editorial mood.")
     return " ".join(dict.fromkeys([item.strip() for item in patches if item and item.strip()]))
 
 
@@ -633,6 +779,17 @@ def evaluate_visual_fidelity(
     texture_fidelity = _clamp_score(raw.get("texture_fidelity"))
     set_fidelity = _clamp_score(raw.get("set_fidelity", 1.0))
     readability_score = _clamp_score(raw.get("readability_score"))
+    active_set_expected = bool(
+        get_set_member_labels(
+            set_detection,
+            include_policies={"must_include"},
+            member_classes={"garment", "coordinated_accessory"},
+            active_only=True,
+            exclude_primary_piece=True,
+        )
+    )
+    if not active_set_expected:
+        set_fidelity = 1.0
     raw_issue_sources = list(raw.get("issue_codes") or [])
     summary_text = str(raw.get("summary", "") or "").strip()
     issue_codes = _normalize_issue_codes(raw_issue_sources)
@@ -644,6 +801,7 @@ def evaluate_visual_fidelity(
         summary_text=summary_text,
         set_fidelity=set_fidelity,
         structure_fidelity=structure_fidelity,
+        active_set_expected=active_set_expected,
     )
     verdict = _derive_verdict(
         stage=stage,

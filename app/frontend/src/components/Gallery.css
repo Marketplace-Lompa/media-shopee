@@ -726,3 +726,174 @@
 .img-action-btn--danger:hover {
     background: rgba(239, 68, 68, 0.7) !important;
 }
+
+/* ============================================================
+   EDITING INDICATOR (H3)
+   ============================================================ */
+.editing-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    background: rgba(139, 92, 246, 0.08);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: var(--r-xl);
+    padding: var(--sp-4) var(--sp-5);
+    max-width: 380px;
+    width: 100%;
+}
+
+.editing-spinner {
+    flex-shrink: 0;
+    color: var(--c-violet-400);
+    animation: spin 1s linear infinite;
+}
+
+.editing-indicator-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.editing-indicator-msg {
+    line-height: 1.4;
+    opacity: 0.7;
+}
+
+/* ============================================================
+   PREFERS-REDUCED-MOTION (L4)
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    .step-icon--active {
+        animation: none;
+        box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+    }
+
+    .step-connector-fill {
+        /* Connector fill instant, sem transição demorada */
+        transition: none;
+    }
+
+    .editing-spinner {
+        animation: none;
+        opacity: 0.7;
+    }
+
+    .image-card-img,
+    .image-card {
+        transition: none;
+    }
+}
+
+/* ── Active Jobs Feed ──────────────────────────────────────── */
+.active-jobs-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.job-card {
+    border-radius: var(--radius-lg, 12px);
+    padding: 12px 14px;
+    border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+    position: relative;
+    overflow: hidden;
+}
+
+.job-card--loading { background: var(--surface-2, #1a1a1a); }
+.job-card--done    { background: var(--surface-1, #141414); border-color: rgba(74,222,128,0.2); }
+.job-card--error   { background: var(--surface-1, #141414); border-color: rgba(239,68,68,0.3); }
+
+.job-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.job-card-msg {
+    margin-left: auto;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.6;
+}
+
+.job-card-dismiss {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-tertiary, rgba(255,255,255,0.35));
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    transition: color 0.15s;
+}
+.job-card-dismiss:hover { color: var(--text-secondary, rgba(255,255,255,0.6)); }
+
+.job-card-thumbs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.job-card-thumb {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 6px;
+    opacity: 0.7;
+}
+
+.job-card-thumb-more { opacity: 0.5; }
+
+.job-card-skeleton {
+    height: 56px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--surface-3,#222) 25%, var(--surface-4,#2a2a2a) 50%, var(--surface-3,#222) 75%);
+    background-size: 200% 100%;
+    animation: job-shimmer 1.6s infinite;
+}
+
+@keyframes job-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.job-card-progress {
+    height: 2px;
+    background: var(--surface-3, #222);
+    border-radius: 99px;
+    overflow: hidden;
+    margin: 6px 0 8px;
+}
+
+.job-card-progress-fill {
+    height: 100%;
+    background: var(--color-accent, #8b5cf6);
+    border-radius: 99px;
+}
+
+.job-card-spinner {
+    animation: spin 1s linear infinite;
+    color: var(--text-tertiary, rgba(255,255,255,0.4));
+}
+
+.job-card-error-msg { margin-top: 2px; padding-left: 2px; }
+
+.job-card-images { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.job-card-result-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .job-card-skeleton { animation: none; }
+    .job-card-spinner  { animation: none; }
+}

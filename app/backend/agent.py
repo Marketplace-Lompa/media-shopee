@@ -131,6 +131,7 @@ def run_agent(
     _unified: Optional[dict] = None
     _unified_garment_hint: str = ""
     _unified_image_analysis: str = ""
+    _unified_look_contract: dict = {}
     if has_images:
         if isinstance(structural_contract_hint, dict) and structural_contract_hint:
             # structural_contract já fornecido externamente — ainda roda unificada para hint/set
@@ -147,6 +148,7 @@ def run_agent(
             structural_contract   = _unified["structural_contract"]
             _unified_garment_hint = _unified["garment_hint"]
             _unified_image_analysis = _unified.get("image_analysis", "")
+            _unified_look_contract = _unified.get("look_contract", {})
             # set_detection: aplica override de lock_mode se necessário
             _sd = _unified["set_detection"]
             if guided_enabled and guided_set_mode == "conjunto":
@@ -185,13 +187,18 @@ def run_agent(
         )
     elif has_prompt:
         mode_info = (
-            f'MODE 1 — Refine this user prompt for e-commerce conversion: "{user_prompt}". '
-            "Prioritize coherent scenario, polished model presentation, and clear garment visibility."
+            f'MODE 1 — TRANSLATE this user intent into a technically precise photographic prompt: "{user_prompt}". '
+            "The user may write in Portuguese or use casual terms. Map every term to technical English "
+            "using REFERENCE KNOWLEDGE (especially the BRAZILIAN TERM MAPPING section). "
+            "Apply 3D garment description, select appropriate realism levers, and choose a scenario "
+            "that complements the garment aesthetic. Output a complete photographic direction."
         )
     else:
         mode_info = (
-            "MODE 3 — No prompt or images. Generate a clean, commercially attractive catalog prompt. "
-            "Prefer coherent composition and direct visual focus on the garment."
+            "MODE 3 — No prompt or images. Generate a creative, commercially attractive catalog prompt "
+            "for Brazilian e-commerce. Use REFERENCE KNOWLEDGE for 3D garment vocabulary, "
+            "Brazilian model diversity, scenario selection, and appropriate realism levers. "
+            "Compose a complete photographic direction with coherent styling and garment-first framing."
         )
 
     # ── Construção da Mensagem em Blocos (Mitiga "lost in the middle") ──
@@ -289,6 +296,28 @@ def run_agent(
             "</STRUCTURAL_CONTRACT>"
         )
         blocks.append(sc_str)
+
+    # ── LOOK CONTRACT — styling coerência (campo 7 do unified_vision_triage) ──
+    _lc = _unified_look_contract
+    if _lc and float(_lc.get("confidence", 0) or 0) > 0.5:
+        _forbidden_str = ", ".join(_lc.get("forbidden_bottoms") or []) or "none"
+        _kw_str = ", ".join(_lc.get("style_keywords") or []) or ""
+        lc_block = (
+            "<LOOK_CONTRACT>\n"
+            "[Styling constraints — outfit must be coherent with the target garment]\n"
+            f"- bottom_style: {_lc.get('bottom_style', '')}\n"
+            f"- bottom_color: {_lc.get('bottom_color', '')}\n"
+            f"- color_family: {_lc.get('color_family', '')}\n"
+            f"- season: {_lc.get('season', '')}\n"
+            f"- occasion: {_lc.get('occasion', '')}\n"
+            f"- forbidden_bottoms: {_forbidden_str}\n"
+            f"- accessories: {_lc.get('accessories', '')}\n"
+            f"- style_keywords: {_kw_str}\n"
+            "Use bottom_style and bottom_color as the primary guide for the "
+            "model's lower garment. NEVER suggest a forbidden_bottom type.\n"
+            "</LOOK_CONTRACT>"
+        )
+        blocks.append(lc_block)
 
     # Grounding: chamada separada de pesquisa antes do agente
     grounding_research = ""
@@ -579,5 +608,8 @@ def run_agent(
         )
     print(f"[AGENT] Prompt ({len(prompt_text)} chars): {prompt_text[:300]}{'…' if len(prompt_text) > 300 else ''}")
     print(f"{'='*60}\n")
+
+    from agent_runtime.normalize_user_intent import normalize_user_intent
+    result["user_intent"] = normalize_user_intent(user_prompt or "")
 
     return result

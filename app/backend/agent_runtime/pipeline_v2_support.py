@@ -5,7 +5,7 @@ from typing import Any, Optional
 from history import add_entry as history_add, purge_oldest as history_purge
 from models import GenerateResponse, GeneratedImage
 
-VALID_PRESETS = {"catalog_clean", "marketplace_lifestyle", "premium_lifestyle"}
+VALID_PRESETS = {"catalog_clean", "marketplace_lifestyle", "premium_lifestyle", "ugc_real_br"}
 VALID_SCENE_PREFS = {"auto_br", "indoor_br", "outdoor_br"}
 VALID_FIDELITY_MODES = {"balanceada", "estrita"}
 VALID_POSE_FLEX_MODES = {"auto", "controlled", "balanced", "dynamic"}
@@ -84,6 +84,8 @@ def build_v2_response_payload(
         "failed_indices": raw.get("failed_indices"),
         "pool_refs_used": 0,
         "art_direction_summary": raw.get("art_direction_summary"),
+        "lighting_signature": raw.get("lighting_signature"),
+        "action_context": raw.get("action_context"),
         "preset": preset,
         "scene_preference": scene_preference,
         "fidelity_mode": fidelity_mode,
@@ -129,6 +131,8 @@ def build_v2_generate_response(
         failed_indices=payload.get("failed_indices") or None,
         pipeline_version="v2",
         art_direction_summary=payload.get("art_direction_summary"),
+        lighting_signature=payload.get("lighting_signature"),
+        action_context=payload.get("action_context"),
         preset=preset,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,

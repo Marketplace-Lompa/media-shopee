@@ -45,6 +45,36 @@ export async function deleteHistoryEntry(id: string) {
     return r.json();
 }
 
+export async function submitGenerateAsync(formData: FormData): Promise<{ job_id: string }> {
+    const r = await fetch(`${BASE}/generate/async`, { method: 'POST', body: formData });
+    if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error((err as { detail?: string }).detail ?? `HTTP ${r.status}`);
+    }
+    return r.json();
+}
+
+export async function pollGenerateJob(jobId: string) {
+    const r = await fetch(`${BASE}/generate/jobs/${jobId}`);
+    if (!r.ok) throw new Error(`Falha ao consultar job (${r.status})`);
+    return r.json();
+}
+
+export async function submitEditAsync(formData: FormData): Promise<{ job_id: string }> {
+    const r = await fetch(`${BASE}/edit/async`, { method: 'POST', body: formData });
+    if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error((err as { detail?: string }).detail ?? `HTTP ${r.status}`);
+    }
+    return r.json();
+}
+
+export async function pollEditJob(jobId: string) {
+    const r = await fetch(`${BASE}/edit/jobs/${jobId}`);
+    if (!r.ok) throw new Error(`Falha ao consultar job de edição (${r.status})`);
+    return r.json();
+}
+
 export function imageUrl(url: string) {
     // URLs absolutas passam direto; relativas usam o origin atual
     if (url.startsWith('http')) return url;

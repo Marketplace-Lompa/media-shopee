@@ -602,7 +602,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--refs", required=True, help="Diretorio com imagens de referencia")
     p.add_argument("--runs", type=int, default=8, help="Numero de iteracoes (default: 8)")
     p.add_argument("--preset", default="marketplace_lifestyle",
-                   choices=["catalog_clean", "marketplace_lifestyle", "premium_lifestyle"])
+                   choices=["catalog_clean", "marketplace_lifestyle", "premium_lifestyle", "ugc_real_br"])
     p.add_argument("--scene", default="auto_br", choices=["auto_br", "indoor_br", "outdoor_br"])
     p.add_argument("--fidelity", default="balanceada", choices=["balanceada", "estrita"])
     p.add_argument("--n-images", type=int, default=1, help="Imagens por run (default: 1)")

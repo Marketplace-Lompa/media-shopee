@@ -1,21 +1,24 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, ZoomIn, X, CheckCircle, Search, Sparkles, Image, Layers, AlertTriangle, Clock, Trash2, Copy } from 'lucide-react';
+import { Download, ZoomIn, X, CheckCircle, Search, Sparkles, Image, Layers, AlertTriangle, Clock, Trash2, Copy, Loader2 } from 'lucide-react';
 import type {
     GenerationStatus,
     MediaHistoryItem,
+    JobEntry,
 } from '../types';
 import { imageUrl } from '../lib/api';
 import './Gallery.css';
 import React from 'react'; // Added React import for React.memo
 
 interface Props {
-    status: GenerationStatus;
+    status?: GenerationStatus;
     mediaHistory: MediaHistoryItem[];
     onDelete: (id: string) => void;
     onReuse?: (item: MediaHistoryItem) => void;
     onLightbox: (url: string) => void;
     onLightboxItem: (item: MediaHistoryItem) => void;
+    activeJobs?: JobEntry[];
+    onDismissJob?: (id: string) => void;
 }
 
 /* ── Helpers ───────────────────────────────────────────────── */
@@ -157,6 +160,124 @@ function PipelineStepper({ status }: { status: GenerationStatus }) {
     );
 }
 
+/* ── Stage label map ─────────────────────────────────────── */
+const STAGE_LABELS: Record<string, string> = {
+    queued: 'Na fila…',
+    preparing_references: 'Preparando referências',
+    stabilizing_garment: 'Estabilizando a peça',
+    creating_listing: 'Criando o anúncio',
+    editing: 'Analisando instrução',
+    generating: 'Gerando…',
+};
+function resolveStageLabel(stage: string | null, type: JobEntry['type']): string {
+    if (!stage) return type === 'edit' ? 'Preparando edição…' : 'Na fila…';
+    return STAGE_LABELS[stage] ?? stage;
+}
+
+/* ── Job Card ─────────────────────────────────────────────── */
+function JobCard({ job, onDismiss }: { job: JobEntry; onDismiss?: () => void }) {
+    if (job.status === 'done') {
+        const images = job.type === 'generate'
+            ? (job.result?.images ?? [])
+            : (job.editResult?.images ?? []);
+        return (
+            <motion.div
+                className="job-card job-card--done"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                layout
+            >
+                <div className="job-card-header">
+                    <CheckCircle size={13} className="text-success" />
+                    <span className="t-xs text-success">{job.type === 'edit' ? 'Edição concluída' : 'Geração concluída'}</span>
+                    {onDismiss && (
+                        <button className="job-card-dismiss" onClick={onDismiss} aria-label="Fechar" title="Fechar">
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+                {images.length > 0 && (
+                    <div className="job-card-images">
+                        {images.slice(0, 4).map(img => (
+                            <img key={img.filename} src={imageUrl(img.url)} alt="Resultado" className="job-card-result-thumb" />
+                        ))}
+                    </div>
+                )}
+            </motion.div>
+        );
+    }
+
+    if (job.status === 'error') {
+        return (
+            <motion.div
+                className="job-card job-card--error"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                layout
+            >
+                <div className="job-card-header">
+                    <AlertTriangle size={13} className="text-error" />
+                    <span className="t-xs text-error">Erro</span>
+                    {onDismiss && (
+                        <button className="job-card-dismiss" onClick={onDismiss} aria-label="Fechar">
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+                <p className="t-xs text-tertiary job-card-error-msg">{job.error}</p>
+            </motion.div>
+        );
+    }
+
+    // queued | running → loading card
+    return (
+        <motion.div
+            className="job-card job-card--loading"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            layout
+        >
+            <div className="job-card-header">
+                <Loader2 size={13} className="job-card-spinner" />
+                <span className="t-xs text-secondary">{resolveStageLabel(job.stage, job.type)}</span>
+                {job.message && job.message !== resolveStageLabel(job.stage, job.type) && (
+                    <span className="t-xs text-tertiary job-card-msg" title={job.message}>{job.message}</span>
+                )}
+            </div>
+
+            {/* Thumbnails das imagens enviadas */}
+            {job.inputThumbnails.length > 0 && (
+                <div className="job-card-thumbs">
+                    {job.inputThumbnails.slice(0, 3).map((url, i) => (
+                        <img key={i} src={url} alt="" className="job-card-thumb" />
+                    ))}
+                    {job.inputThumbnails.length > 3 && (
+                        <span className="job-card-thumb-more t-xs text-tertiary">+{job.inputThumbnails.length - 3}</span>
+                    )}
+                </div>
+            )}
+
+            {/* Mini progress bar */}
+            {job.progress && (
+                <div className="job-card-progress">
+                    <motion.div
+                        className="job-card-progress-fill"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.round((job.progress.current / job.progress.total) * 100)}%` }}
+                        transition={{ ease: 'easeOut' }}
+                    />
+                </div>
+            )}
+
+            {/* Skeleton */}
+            <div className="job-card-skeleton" />
+        </motion.div>
+    );
+}
+
 /* ── Copy Action ─────────────────────────────────────────── */
 function CopyAction({ text }: { text: string }) {
     const [copied, setCopied] = useState(false);
@@ -252,7 +373,7 @@ const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse
 });
 
 /* ── Main Gallery (grid unificado) ───────────────────────── */
-export function Gallery({ status, mediaHistory, onDelete, onReuse, onLightbox, onLightboxItem }: Props) {
+export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onReuse, onLightbox, onLightboxItem, activeJobs = [], onDismissJob }: Props) {
     const [localLightbox, setLocalLightbox] = useState<string | null>(null);
     const openLightbox = onLightbox ?? ((url: string) => setLocalLightbox(url));
     const openLightboxWithItem = onLightboxItem ?? ((item: MediaHistoryItem) => setLocalLightbox(imageUrl(item.url)));
@@ -269,17 +390,59 @@ export function Gallery({ status, mediaHistory, onDelete, onReuse, onLightbox, o
         status.type === 'researching';
 
     const isDone = status.type === 'done' || status.type === 'done_partial';
+    const isEditing = status.type === 'editing';
 
-    /* ── Pipeline ativo ────────────────────────────────────── */
+    /* ── Feed de jobs ativos (sempre renderizado acima do resto) ── */
+    const jobFeed = activeJobs.length > 0 ? (
+        <div className="active-jobs-feed">
+            <AnimatePresence>
+                {activeJobs.map(job => (
+                    <JobCard key={job.id} job={job} onDismiss={() => onDismissJob?.(job.id)} />
+                ))}
+            </AnimatePresence>
+        </div>
+    ) : null;
+
+    /* ── Edição pontual ativa (SSE legado) ──────────────────── */
+    if (isEditing) {
+        const editingMsg = 'message' in status && status.message ? status.message : 'Editando imagem…';
+        return (
+            <>
+                {jobFeed}
+                <div className="gallery-state-wrap">
+                    <div className="gallery-loading">
+                        <div className="editing-indicator" role="status" aria-live="polite">
+                            <Loader2 size={22} className="editing-spinner" aria-hidden="true" />
+                            <div>
+                                <p className="t-sm text-secondary editing-indicator-title">Modificando imagem</p>
+                                <p className="t-xs text-tertiary editing-indicator-msg">{editingMsg}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {mediaHistory.length > 0 && (
+                    <div className="unified-grid" role="list" aria-label="Histórico de gerações">
+                        <AnimatePresence initial={false}>
+                            {mediaHistory.map((item, i) => (
+                                <HistoryCard key={item.id} item={item} index={i} onLightboxItem={openLightboxWithItem} onDelete={() => onDelete(item.id)} onReuse={() => onReuse?.(item)} />
+                            ))}
+                        </AnimatePresence>
+                    </div>
+                )}
+            </>
+        );
+    }
+
+    /* ── Pipeline ativo (SSE legado) ───────────────────────── */
     if (isPipeline) {
         return (
             <>
+                {jobFeed}
                 <div className="gallery-state-wrap">
                     <div className="gallery-loading">
                         <PipelineStepper status={status} />
                     </div>
                 </div>
-                {/* Grid de histórico visível mesmo durante pipeline */}
                 {mediaHistory.length > 0 && (
                     <div className="unified-grid" role="list" aria-label="Histórico de gerações">
                         <AnimatePresence initial={false}>
@@ -294,10 +457,11 @@ export function Gallery({ status, mediaHistory, onDelete, onReuse, onLightbox, o
         );
     }
 
-    /* ── Erro ───────────────────────────────────────────────── */
+    /* ── Erro (SSE legado) ──────────────────────────────────── */
     if (status.type === 'error') {
         return (
             <>
+                {jobFeed}
                 <div className="gallery-state-wrap">
                     <div className="gallery-empty" role="alert">
                         <p className="t-h4 text-error">Erro na geração</p>
@@ -359,20 +523,24 @@ export function Gallery({ status, mediaHistory, onDelete, onReuse, onLightbox, o
 
     if (!hasAnything) {
         return (
-            <div className="gallery-state-wrap">
-                <div className="gallery-empty" role="status" aria-live="polite">
-                    <div className="empty-icon" aria-hidden="true">✦</div>
-                    <p className="t-h4 text-secondary">Pronto para criar</p>
-                    <p className="t-sm text-tertiary" style={{ maxWidth: 320, textAlign: 'center' }}>
-                        Envie fotos da peça e escolha o estilo para gerar imagens profissionais.
-                    </p>
+            <>
+                {jobFeed}
+                <div className="gallery-state-wrap">
+                    <div className="gallery-empty" role="status" aria-live="polite">
+                        <div className="empty-icon" aria-hidden="true">✦</div>
+                        <p className="t-h4 text-secondary">Pronto para criar</p>
+                        <p className="t-sm text-tertiary" style={{ maxWidth: 320, textAlign: 'center' }}>
+                            Envie fotos da peça e escolha o estilo para gerar imagens profissionais.
+                        </p>
+                    </div>
                 </div>
-            </div>
+            </>
         );
     }
 
     return (
         <>
+            {jobFeed}
             {/* Prompt result card */}
             {promptInfo && (
                 <motion.div

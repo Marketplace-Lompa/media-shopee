@@ -147,10 +147,30 @@ STRUCTURAL_CONTRACT_SCHEMA = {
 # Schema unificado: UMA chamada visual por run_agent() em vez de 3 separadas.
 UNIFIED_VISION_SCHEMA = {
     "type": "object",
-    "required": ["garment_hint", "image_analysis", "structural_contract", "set_detection", "garment_aesthetic"],
+    "required": ["garment_hint", "image_analysis", "structural_contract", "set_detection", "garment_aesthetic", "lighting_signature"],
     "properties": {
         "garment_hint":   {"type": "string"},
         "image_analysis": {"type": "string"},
+        # ── LOOK CONTRACT (campo 7 — styling coerência) ─────────────────────
+        "look_contract": {
+            "type": "object",
+            "required": [
+                "bottom_style", "bottom_color", "color_family",
+                "season", "occasion", "forbidden_bottoms",
+                "accessories", "style_keywords", "confidence",
+            ],
+            "properties": {
+                "bottom_style":      {"type": "string"},
+                "bottom_color":      {"type": "string"},
+                "color_family":      {"type": "string"},
+                "season":            {"type": "string"},
+                "occasion":          {"type": "string"},
+                "forbidden_bottoms": {"type": "array", "items": {"type": "string"}},
+                "accessories":       {"type": "string"},
+                "style_keywords":    {"type": "array", "items": {"type": "string"}},
+                "confidence":        {"type": "number"},
+            },
+        },
         "garment_aesthetic": {
             "type": "object",
             "required": ["color_temperature", "formality", "season", "vibe"],
@@ -174,6 +194,38 @@ UNIFIED_VISION_SCHEMA = {
                         "bold_edgy", "minimalist", "beachwear_resort",
                         "sport_casual",
                     ],
+                },
+            },
+        },
+        "lighting_signature": {
+            "type": "object",
+            "required": ["source_style", "light_hardness", "light_direction", "contrast_level", "integration_risk"],
+            "properties": {
+                "source_style": {
+                    "type": "string",
+                    "enum": [
+                        "flat_catalog",
+                        "soft_catalog",
+                        "natural_diffused",
+                        "directional_natural",
+                        "mixed_interior",
+                    ],
+                },
+                "light_hardness": {
+                    "type": "string",
+                    "enum": ["soft", "medium", "hard"],
+                },
+                "light_direction": {
+                    "type": "string",
+                    "enum": ["frontal", "side", "top", "mixed"],
+                },
+                "contrast_level": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                },
+                "integration_risk": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
                 },
             },
         },
@@ -240,41 +292,66 @@ Your output MUST match the provided JSON schema exactly.
 CORE RULES:
 1. Always write prompts in English, narrative paragraph, max 200 words.
 2. Always start base_prompt with "RAW photo," to trigger photorealism.
-3. Structure: shot_type framing → model description → garment (3D) → pose → scenario → camera → realism levers.
-4. Exclude quality tags: 8K, ultra HD, masterpiece, best quality.
-5. Garment is ALWAYS the visual protagonist.
+3. Structure: shot_type framing → model description → garment (3D: Material + Construction + Behavior) → pose → scenario → lighting → realism levers.
+4. Garment is ALWAYS the visual protagonist. Describe it with physical precision: fiber type, weave/knit structure, drape behavior under gravity, light interaction.
+5. Write like a photographer directing a real shoot — continuous narrative, not keyword lists.
+
+ANTI-PATTERNS (hard forbidden):
+- NO keyword lists or comma-separated tags. Write flowing narrative paragraphs.
+- NO quality tags: 8K, ultra HD, masterpiece, best quality, high quality, award-winning, professional photo.
+- NO quality-tag negative prompts ("no ugly, no blurry, no bad anatomy").
+- Structural guardrails ("Never transfer identity", "do not clone pose") are ALLOWED — they are semantic rules, not keyword soup. Describe what IS whenever possible.
+- NO anatomical perfection: "perfect face", "symmetrical features", "flawless skin", "perfect body".
+- NO generic beauty: "stunning", "gorgeous", "beautiful". Use physics: "golden-hour rim light catching fabric texture".
+- NO vague materials: "nice fabric", "quality material". Use specific: "brushed-back fleece cotton" or "fine-gauge rib-knit".
 
 OUTPUT JSON CONTRACT:
-- base_prompt: shot framing + model persona (from DIVERSITY_TARGET) + garment narrative + scene. INCLUDE the model profile from DIVERSITY_TARGET here.
-- garment_narrative: GARMENT-ONLY description (max 30 words). Color, pattern, texture, construction, drape. Do NOT include model/person description or scenario. This field is used by the compiler to preserve garment details when assembling the final prompt.
+- base_prompt: shot framing + model persona (from DIVERSITY_TARGET) + garment narrative (3D) + pose + scene + lighting. INCLUDE the model profile from DIVERSITY_TARGET here.
+- garment_narrative: GARMENT-ONLY description (max 30 words). Color, pattern, texture, construction, drape behavior. Do NOT include model/person description or scenario. Used by compiler to preserve garment details.
 - camera_and_realism: ONLY camera body/lens/lighting/DOF/texture realism. NEVER put model persona or beauty descriptions here — those belong in base_prompt.
 - prompt: optional legacy field; include only if needed.
 
 OPERATING MODES:
 
 MODE 1 — User gave a text prompt:
-  Enhance and expand using the REFERENCE KNOWLEDGE provided.
-  When blending user instructions with reference image reality, prioritize the visual truth.
-  Ensure a highly accurate descriptive flow focusing on garment features.
+  You are TRANSLATING user intent into a technically precise photographic prompt.
+  STEP 1: Identify the garment type, model request, and scene intent (even if vague or in Portuguese).
+  STEP 2: Map casual/Portuguese terms to technical English using REFERENCE KNOWLEDGE.
+    Examples: "tricot" → "flat-knit cotton pullover", "moletom" → "brushed-back fleece sweatshirt",
+    "rua bonita" → specific Brazilian urban scene with time-of-day lighting,
+    "foto profissional" → specific camera body + lens + realism level.
+  STEP 3: Apply 3D garment description: Material (fiber + weave/knit) + Construction (seams, closures, silhouette) + Behavior (how it drapes, moves, catches light).
+  STEP 4: Add appropriate realism levers and camera settings for the shot type.
+  STEP 5: If user didn't specify shot_type, infer from context (full outfit = wide, garment detail = medium, texture = close-up).
+  Output MUST be a complete photographic direction, never a paraphrase of the user's words.
+
 MODE 2 — User sent reference images (with or without text):
+  FIDELITY LOCK: The reference image is the ABSOLUTE AUTHORITY for the garment.
   STEP 1: Analyze images. Fill "image_analysis" with HIGH-LEVEL observations IN PORTUGUESE:
     category, color(s), material family, silhouette/fit.
     Describe geometric structure only, ignoring literal texture pattern names (like zigzag, diamond).
-  STEP 2: Write a continuous photographic description focusing ONLY on the garment design, fiber texture, pattern, and color.
+  STEP 2: Write a continuous photographic description focusing ONLY on the garment: fiber texture, construction details, color, drape behavior. Max 2 sentences of text reinforcement. NEVER contradict what the image shows. NEVER add construction details not visible in the reference.
     CRITICAL: DO NOT describe the person/model in the reference (do not mention her age, ethnicity, skin color, hair, face, or body). DO NOT describe the background or pose from the reference. Focus 100% on the clothes.
   STEP 3: In base_prompt, ALWAYS open with the DIVERSITY_TARGET new model profile BEFORE the garment.
     The reference person MUST NOT appear in base_prompt in any form — she is replaced entirely.
     Pattern: "RAW photo, [DIVERSITY_TARGET model profile]. Wearing [garment from reference]..."
+  When user adds text (e.g., "mude o cenário para café"), change ONLY what they requested. Everything else comes from the image.
 
 MODE 3 — No prompt or images:
-  Generate a creative catalog prompt using pool context and REFERENCE KNOWLEDGE.
+  Generate a creative, commercially attractive catalog prompt using pool context and REFERENCE KNOWLEDGE.
+  Apply full 3D garment description, Brazilian model diversity, and e-commerce composition rules.
+
+REALISM CALIBRATION (maps to realism_level):
+  1 (Clean catalog): Controlled studio-like lighting, minimal imperfections, commercial clean. Use for flat catalog, Mercado Livre compliance.
+  2 (Natural professional): Subtle natural light variation, visible skin texture, natural fabric wear creases. Default for e-commerce.
+  3 (Organic/UGC): Phone-like capture feel, ambient imperfections, moment-between-poses energy, environmental grain. Use for UGC presets.
 
 THINKING LEVEL:
-  HIGH: complex knitwear, crochet, multi-layer, macro texture, 3+ people, sequins/metallic.
+  HIGH: complex knitwear, crochet, multi-layer, macro texture, 3+ pieces, sequins/metallic, lace over lining.
   MINIMAL: solid fabrics, simple garments, clean lifestyle shots.
 
-Consult the [REFERENCE KNOWLEDGE] block in user content for garment vocabulary, model profiles,
-scenarios, realism levers, and shot type templates.
+Consult the [REFERENCE KNOWLEDGE] block in user content for garment vocabulary, Brazilian term mapping,
+scenario library, realism levers, and shot composition templates.
 """
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -283,39 +360,90 @@ scenarios, realism levers, and shot type templates.
 REFERENCE_KNOWLEDGE = """
 [REFERENCE KNOWLEDGE — consult when building prompt]
 
-── GARMENT DESCRIPTION (3 dimensions) ──
+── BRAZILIAN TERM MAPPING (pt-BR → technical EN) ──
+
+Tricot/tricô → flat-knit cotton pullover | Moletom → brushed-back fleece cotton sweatshirt
+Camiseta → crew-neck cotton jersey tee | Regata → tank top / racerback
+Blusa de frio → lightweight knit pullover | Cropped → cropped hem at natural waist
+Saia godê → circle skirt (full flare) | Saia lápis → pencil skirt (fitted, knee-length)
+Calça pantalona → wide-leg high-rise trousers | Legging → stretch jersey legging
+Vestido tubinho → bodycon sheath dress | Macacão → jumpsuit (long) / romper (short)
+Jaqueta → jacket | Blazer → structured blazer | Colete → vest / waistcoat
+Renda → lace (Chantilly = delicate / guipure = heavier motif) | Crochê → crochet (hand-hook / machine)
+Alcinha → spaghetti strap | Tomara que caia → strapless | Gola alta → turtleneck
+Manga bufante → puff sleeve | Manga sino → bell sleeve | Manga raglan → raglan sleeve
+Foto profissional → Sony A7III + 85mm f/1.8 + natural light | Foto casual → phone-like capture, ambient light
+
+── GARMENT DESCRIPTION (3 dimensions: Material + Construction + Behavior) ──
 
 MATERIAL:
-  Woven: cotton poplin, linen, silk charmeuse, wool crepe, tweed, jacquard, brocade
-  Knit: fine-gauge jersey | rib-knit | chunky cable-knit | brioche stitch | open-stitch panel
-  Synthetic: mesh, tulle, velvet, vinyl/PU leather, suede, sequined
-  Knitwear caution: avoid "crochet loops", "3D texture", "puffy", "bobbles" — they inflate.
+  WOVEN: cotton poplin (crisp, structured) | linen (natural slub, relaxed drape) |
+    silk charmeuse (liquid drape, high sheen) | wool crepe (matte, fluid weight) |
+    chambray (soft denim hand-feel) | twill (diagonal weave, mid-weight) |
+    jacquard (woven pattern, structured) | brocade (raised motif, formal) |
+    denim (indigo-dyed twill, raw or washed) | chiffon (sheer, floating layers)
+  KNIT: fine-gauge jersey (smooth, body-skimming) | rib-knit (vertical ridges, elastic stretch) |
+    chunky cable-knit (dimensional texture, heavy weight) | brioche stitch (puffy, reversible, spongy) |
+    pointelle (decorative eyelets, feminine) | waffle-knit (textured grid surface, cozy) |
+    flat-knit (even surface, structured edges) | open-stitch panel (semi-sheer, delicate)
+  SPECIAL: tulle (sheer, multi-layer volume) | velvet (pile depth, directional sheen) |
+    sequined (reflective scatter, movement sparkle) | mesh (transparent, structural grid) |
+    PU leather (smooth or pebbled grain, matte/shiny) | suede (napped surface, matte) |
+    satin (high luster, smooth drape) | organza (crisp sheer, holds shape)
+  Knitwear caution: avoid "crochet loops", "3D texture", "puffy", "bobbles" — they inflate in generation.
 
 CONSTRUCTION:
-  Necklines: crew | V-neck | scoop | boat | square | turtleneck | cowl
-  Sleeves: set-in | raglan | dolman/batwing | puff | bishop | bell | cap | flutter
+  Necklines: crew | V-neck | scoop | boat/bateau | square | turtleneck | cowl | mock-neck | halter
+  Sleeves: set-in | raglan | dolman/batwing | puff | bishop | bell | cap | flutter | drop-shoulder
+  Closures: button-through placket | concealed zipper | drawstring | wrap-and-tie | snap buttons
+  Seams: French seam (enclosed) | flat-felled (topstitched) | overlocked edge | raw edge
+  Details: patch pockets | welt pockets | front pleats | pintucks | smocking | ruching | ruffled hem
 
-BEHAVIOR:
-  drapes loosely | falls straight | holds structure | clings to body | skims the body
+BEHAVIOR (how fabric moves under gravity and body motion):
+  drapes loosely (gravity pools at sides) | falls straight (column silhouette) |
+  holds structured shape (tailored) | clings to body curves (stretch-to-fit) |
+  skims without tension (easy fit) | puddles at hem (excess length pools) |
+  flares from waist (A-line swing) | bells at cuff (widening sleeve) |
+  gathers at yoke (volume from top) | floats with movement (chiffon/silk behavior) |
+  rests on shoulders (weight distribution point) | wraps and drapes across torso
 
-── E-COMMERCE SHOT SYSTEM ──
+── SHOT COMPOSITION RULES ──
 
-WIDE (hero): Full body head-to-feet, 60-70% frame, dynamic mid-stride.
-MEDIUM (detail): Waist-up, neckline + sleeve focus, 50mm bokeh.
-CLOSE-UP (texture): 80%+ frame is detail, macro focus.
-AUTO: choose what best showcases the garment.
+WIDE (hero): Full body head-to-feet, garment fills 60-70% frame.
+  Model in dynamic mid-stride or confident standing stance. Full scenario visible.
+  Camera: 50mm lens, f/2.8, eye-level or slightly below for presence. Include ambient environment.
+MEDIUM (detail): Waist-up or hip-up framing, focus on neckline + sleeve + texture detail.
+  Model with engaged expression, natural hand placement. Soft background separation.
+  Camera: 85mm lens, f/1.8, chest-level, shallow DOF isolates garment detail.
+CLOSE-UP (texture): 80%+ of frame is garment surface. Macro-level detail.
+  Show weave/knit structure, button craftsmanship, stitch pattern, fabric grain, color depth.
+  Camera: 100mm macro lens, f/2.8, tight crop, fiber-level sharpness.
+AUTO: Select the shot that best showcases the garment's primary selling point.
 
 ── MODEL & SCENE ──
 
-Skin realism: visible natural pores, subtle peach fuzz, unretouched feel.
-Presentation: professionally styled hair, warm confident expression, engaging eye contact.
-Scenarios: urban downtown | rooftop terrace | tropical park | café garden | minimalist apartment | boutique showroom
-Color strategy: White→dark bg | Black→light bg | Pastels→neutral warm | Saturated→clean minimal
+Skin realism: visible natural pores on nose bridge and cheeks, subtle peach fuzz on jawline, unretouched skin texture.
+Presentation: professionally styled hair appropriate to garment vibe, warm confident expression, natural eye contact.
+Scenarios (Brazilian-specific):
+  URBAN: cobblestone street in historic center | modern downtown with glass facades | colorful colonial building wall |
+    rooftop terrace with city skyline | tree-lined boulevard with dappled light
+  NATURE: tropical park with palm trees | botanical garden path | beach boardwalk at golden hour |
+    lush green hillside | waterfront promenade
+  INDOOR: minimalist apartment with natural window light | café with warm ambient glow |
+    boutique showroom with neutral walls | bright loft with exposed brick
+Color strategy: White garment → dark or saturated background | Black garment → light neutral background |
+  Pastels → warm neutral tones | Saturated colors → clean, minimal background
 
-── REALISM ──
+── REALISM LEVERS ──
 
-EXCLUDE "perfect lighting", "flawless skin", "8K masterpiece".
-Anchor: DEVICE="Sony A7III, 85mm f/1.8" | SKIN="visible pores" | FABRIC="natural wear creases"
+1. DEVICE+LENS: Specify real camera body and lens. "Sony A7III, 85mm f/1.8" — never "professional camera".
+2. NATURAL LIGHT: "afternoon side-light filtering through sheer curtain" — never "perfect studio lighting".
+3. ORGANIC COMPOSITION: Slight asymmetry, model offset to rule-of-thirds. Not dead center.
+4. SURFACE TEXTURE: "visible pores on nose bridge", "natural fabric wear creases at elbow fold".
+5. MOMENT NOT POSE: "caught adjusting collar" or "mid-laugh with eyes crinkling" — never "perfect pose".
+6. IMPERFECT DEPTH: "foreground plant leaf slightly soft" adds photographic dimension.
+7. CAPTURE ARTIFACTS: "subtle natural lens vignette", "barely perceptible chromatic fringe at high-contrast edges".
+Anchor phrase: DEVICE="Sony A7III, 85mm f/1.8" | SKIN="visible pores, peach fuzz" | FABRIC="natural wear creases, thread texture"
 """
 
 _SLEEVE_TYPE_PHRASES: dict[str, str] = {

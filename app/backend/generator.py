@@ -66,8 +66,6 @@ def _reference_role_instruction(scope: str = "garment") -> str:
     )
 
 
-
-
 def _normalize_thinking_level(level: Optional[str], *, default: str) -> str:
     token = str(level or "").strip().lower()
     if token in {"minimal", "high"}:

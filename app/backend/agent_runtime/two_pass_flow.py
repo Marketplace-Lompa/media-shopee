@@ -139,9 +139,28 @@ def _scene_creative_brief(
         qualities.append("commercial readability with natural realism")
     elif preset_hint == "catalog_clean":
         qualities.append("low-noise commercial clarity")
+    elif preset_hint == "ugc_real_br":
+        qualities.append("creator-led Brazilian social-commerce realism")
+        qualities.append("honest creator-context atmosphere")
 
     qualities = list(dict.fromkeys([item.strip() for item in qualities if item.strip()]))
     quality_text = ", ".join(qualities[:4])
+    if preset_hint == "ugc_real_br":
+        environment_cues: list[str] = []
+        if "mirror" in tags:
+            environment_cues.append("mirror try-on energy")
+        if "boutique" in tags or "store" in tags:
+            environment_cues.append("boutique or store context")
+        if "apartment" in tags:
+            environment_cues.append("creator-at-home capture plausibility")
+        if "cafe" in tags:
+            environment_cues.append("social everyday hangout context")
+        cue_text = ", ".join(environment_cues[:3]) if environment_cues else "a believable creator-content environment"
+        return (
+            "Invent a fresh Brazilian creator-content scene that feels genuinely compatible with the garment and socially believable for an influencer-style capture. "
+            f"Aim for {quality_text} and {cue_text}. "
+            "Let the environment include one or two authentic contextual cues, such as racks, mirrors, curtain edges, counters, hallway details, or lived-in interior depth, while keeping the garment readable and clearly in focus."
+        )
     return (
         "Invent a fresh Brazilian scene that feels compatible with the garment and the campaign tone. "
         f"Aim for {quality_text}. "
@@ -154,6 +173,7 @@ def _pose_creative_brief(
     *,
     pose: Optional[dict[str, Any]] = None,
     set_detection: Optional[dict[str, Any]] = None,
+    preset: Optional[str] = None,
 ) -> str:
     contract = structural_contract or {}
     pose_tags = _tag_set(pose)
@@ -168,11 +188,15 @@ def _pose_creative_brief(
         set_info,
         include_policies={"must_include", "optional"},
         member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
     )
     included_keys = get_set_member_keys(
         set_info,
         include_policies={"must_include", "optional"},
         member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
     )
 
     if front == "open":
@@ -188,17 +212,50 @@ def _pose_creative_brief(
     elif included_labels:
         focus_targets.append("the coordinated set members")
 
-    movement_text = (
-        "Allow subtle controlled movement"
-        if "movement" in pose_tags else
-        "Favor calm premium catalog body language"
-    )
+    preset_hint = str(preset or "").strip().lower()
+    if preset_hint == "ugc_real_br":
+        movement_text = (
+            "Allow expressive, socially engaging movement and creator-style asymmetry"
+            if "movement" in pose_tags else
+            "Favor cativating creator body language with attitude, micro-gesture, and believable social charisma"
+        )
+    else:
+        movement_text = (
+            "Allow subtle controlled movement"
+            if "movement" in pose_tags else
+            "Favor calm premium catalog body language"
+        )
     focus_text = ", ".join(focus_targets[:4]) if focus_targets else "the garment silhouette and details"
     return (
         "Invent a fresh pose that is born from the garment instead of forcing the garment to adapt to the pose. "
         f"{movement_text}, and make sure the pose highlights {focus_text}. "
         "Avoid occluding key construction lines or compressing the natural fall of the piece."
     )
+
+
+def _action_context_brief(action_context: Optional[str]) -> str:
+    context = str(action_context or "").strip()
+    if not context:
+        return ""
+    return (
+        "Use this only as a natural action intention, not as a rigid pose to copy: "
+        f"{context}. "
+        "Let it create believable hand placement, posture, and micro-asymmetry while preserving garment readability."
+    )
+
+
+def _ugc_entropy_clauses(ugc_entropy_profile: Optional[dict[str, Any]]) -> list[str]:
+    profile = ugc_entropy_profile if isinstance(ugc_entropy_profile, dict) else {}
+    if not profile.get("enabled"):
+        return []
+    clauses = [str(item).strip() for item in (profile.get("clauses", []) or []) if str(item).strip()]
+    if not clauses:
+        return []
+    return [
+        "For this UGC result, make the image read as a genuine Brazilian creator or influencer phone capture for social-commerce, not as a polished editorial recreation of UGC.",
+        *clauses,
+        "Avoid a luxury campaign finish, perfect studio symmetry, professional model energy, or over-retouched polish; keep the result commercially usable but recognizably human and informal.",
+    ]
 
 
 def _style_creative_brief(*, preset: Optional[str] = None) -> str:
@@ -208,6 +265,13 @@ def _style_creative_brief(*, preset: Optional[str] = None) -> str:
             "Create a Brazilian fashion photograph with authentic local cues, restrained premium-editorial warmth, "
             "and commercially readable composition. Avoid stock-photo cheerfulness, exaggerated friendliness, or hero props "
             "that compete with the garment."
+        )
+    if preset_hint == "ugc_real_br":
+        return (
+            "Create a Brazilian fashion photograph that feels like believable creator-led social-commerce content in a genuine local setting, "
+            "with expressive but believable body language, honest skin texture, ordinary phone-camera imperfection, and strong garment readability. "
+            "Allow boutique, store, mirror, hallway, apartment, or everyday creator-context cues when they fit the garment. "
+            "Avoid showroom perfection, beauty-filter smoothness, sterile campaign emptiness, artificial glamour lighting, or clutter that competes with the garment."
         )
     if preset_hint == "marketplace_lifestyle":
         return (
@@ -249,11 +313,15 @@ def _specialized_structure_guards(
         set_info,
         include_policies={"must_include"},
         member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
     )
     must_include_keys = get_set_member_keys(
         set_info,
         include_policies={"must_include"},
         member_classes={"garment", "coordinated_accessory"},
+        active_only=True,
+        exclude_primary_piece=True,
     )
 
     guards: list[str] = []
@@ -390,9 +458,11 @@ def build_two_pass_edit_prompt(
         "Keep the image highly photorealistic, premium fashion catalog quality, with natural skin texture and realistic body proportions.",
     ]
 
+    from agent_runtime.normalize_user_intent import normalize_user_intent
     extra_direction = (user_prompt or "").strip()
     if extra_direction:
-        sentences.append(f"Additional commercial direction: {extra_direction[:220]}.")
+        intent = normalize_user_intent(extra_direction)
+        sentences.append(f"Additional commercial direction: {intent['normalized']}.")
 
     return " ".join(sentence.strip() for sentence in sentences if sentence.strip())
 
@@ -438,9 +508,11 @@ def build_parameterized_two_pass_edit_prompt(
         "Keep the image highly photorealistic, premium fashion catalog quality, with natural skin texture and realistic body proportions.",
     ]
 
+    from agent_runtime.normalize_user_intent import normalize_user_intent
     extra_direction = (user_prompt or "").strip()
     if extra_direction:
-        sentences.append(f"Additional commercial direction: {extra_direction[:220]}.")
+        intent = normalize_user_intent(extra_direction)
+        sentences.append(f"Additional commercial direction: {intent['normalized']}.")
 
     return " ".join(sentence.strip() for sentence in sentences if sentence.strip())
 
@@ -465,6 +537,8 @@ def build_art_direction_two_pass_edit_prompt(
     camera = art_direction.get("camera", {}) or {}
     lighting = art_direction.get("lighting", {}) or {}
     styling = art_direction.get("styling", {}) or {}
+    action_context = str(art_direction.get("action_context", "") or "").strip()
+    ugc_entropy_profile = art_direction.get("ugc_entropy_profile") if isinstance(art_direction.get("ugc_entropy_profile"), dict) else {}
 
     identity_sentence = str(casting.get("identity_sentence", "") or "").strip()
     if not identity_sentence:
@@ -501,6 +575,7 @@ def build_art_direction_two_pass_edit_prompt(
         structural_contract,
         pose=pose,
         set_detection=set_detection,
+        preset=preset_hint,
     )
     camera_device = str(camera.get("device", "") or "Canon R6").strip()
     camera_lens = str(camera.get("lens", "") or "50mm lens").strip()
@@ -508,14 +583,27 @@ def build_art_direction_two_pass_edit_prompt(
 
     style_clause = _style_creative_brief(preset=preset_hint)
     scene_clause = scene_brief
+    ugc_capture_mode = str(ugc_entropy_profile.get("capture_mode", "") or "").strip().lower()
     model_clause = (
         f"The model should read as {phenotype_sentence}, with a {visual_label} presence, around {age_years} years old, "
         "with a clearly new identity created for this job."
     )
+    if preset_hint == "ugc_real_br":
+        model_clause += " She should feel like a real Brazilian woman in a creator or influencer moment, not like professional fashion talent on a campaign set."
     camera_clause = (
         f"The photograph should feel like it was captured on {camera_device} with a {camera_lens}, "
         "with believable depth, natural handheld realism, and subtle real-world camera imperfections."
     )
+    if preset_hint == "ugc_real_br":
+        camera_clause += " Prefer ordinary phone-camera optics, flatter everyday perspective, and imperfect casual capture timing over luxury photo aesthetics."
+        if ugc_capture_mode == "mirror_tryon_selfie":
+            camera_clause += " Let the phone and mirror relationship feel believable, with selfie-style perspective and slightly imperfect alignment."
+        elif ugc_capture_mode == "creator_boutique_story":
+            camera_clause += " Favor the sense of a boutique story or reel frame, with chest-height phone framing and quick creator timing."
+        elif ugc_capture_mode == "review_flash_story":
+            camera_clause += " Favor quick review-photo timing with believable on-phone flash flatness instead of professional flash shaping."
+        elif ugc_capture_mode == "walkby_phone_story":
+            camera_clause += " Favor a quick moving phone capture with small timing imperfections instead of a leveled fashion-walk frame."
     lighting_clause = (
         f"Use {lighting_description}, with believable mixed color temperature and imperfect real-world ambient bounce."
     )
@@ -537,6 +625,8 @@ def build_art_direction_two_pass_edit_prompt(
         if str(pose_flex_guideline or "").strip()
         else "Allow a naturally varied pose while preserving garment silhouette and readability."
     )
+    action_context_clause = _action_context_brief(action_context)
+    ugc_entropy_clauses = _ugc_entropy_clauses(ugc_entropy_profile)
 
     sentences = [
         "Keep the garment exactly the same: " + ", ".join(locks) + ".",
@@ -544,6 +634,7 @@ def build_art_direction_two_pass_edit_prompt(
         reference_policy_clause,
         "Before rendering, internally plan the composition around a locked garment object. Only the model identity, pose, camera, and environment may change.",
         pose_flex_clause,
+        action_context_clause,
         "Do not follow a fixed pose template or a fixed scene template; invent both around the garment.",
         pose_brief,
         "Create a fresh pose and a fresh scene that fit the garment's natural drape instead of reshaping the garment to fit the pose.",
@@ -561,12 +652,15 @@ def build_art_direction_two_pass_edit_prompt(
         model_clause,
         camera_clause,
         lighting_clause,
+        *ugc_entropy_clauses,
         texture_clause,
         "Keep the image highly photorealistic with natural skin texture, visible pores, mild facial asymmetry, and realistic body proportions.",
     ]
 
+    from agent_runtime.normalize_user_intent import normalize_user_intent
     extra_direction = (user_prompt or "").strip()
     if extra_direction:
-        sentences.append(f"Additional commercial direction: {extra_direction[:220]}.")
+        intent = normalize_user_intent(extra_direction)
+        sentences.append(f"Additional commercial direction: {intent['normalized']}.")
 
     return " ".join(sentence.strip() for sentence in sentences if sentence.strip())

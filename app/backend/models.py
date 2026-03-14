@@ -31,7 +31,7 @@ class GenerateRequest(BaseModel):
     )
     preset: Optional[str] = Field(
         default=None,
-        description="Preset v2: catalog_clean | marketplace_lifestyle | premium_lifestyle"
+        description="Preset v2: catalog_clean | marketplace_lifestyle | premium_lifestyle | ugc_real_br"
     )
     scene_preference: Optional[str] = Field(
         default=None,
@@ -101,7 +101,9 @@ class GenerateResponse(BaseModel):
     # ── Campos V2 ──
     pipeline_version: Optional[str] = Field(default=None, description="Versão do pipeline: v2 para o novo fluxo")
     art_direction_summary: Optional[dict] = Field(default=None, description="Resumo de art direction aplicado (casting, scene, pose, camera, lighting, styling)")
-    preset: Optional[str] = Field(default=None, description="Preset usado: catalog_clean | marketplace_lifestyle | premium_lifestyle")
+    lighting_signature: Optional[dict] = Field(default=None, description="Assinatura de iluminação inferida das referências para compatibilidade de cena/luz")
+    action_context: Optional[str] = Field(default=None, description="Intenção corporal semântica gerada para orientar pose/cena de forma natural")
+    preset: Optional[str] = Field(default=None, description="Preset usado: catalog_clean | marketplace_lifestyle | premium_lifestyle | ugc_real_br")
     scene_preference: Optional[str] = Field(default=None, description="Preferência de cena: auto_br | indoor_br | outdoor_br")
     fidelity_mode: Optional[str] = Field(default=None, description="Modo de fidelidade: balanceada | estrita")
     pose_flex_mode: Optional[str] = Field(default=None, description="Flexibilidade de pose: auto | controlled | balanced | dynamic")

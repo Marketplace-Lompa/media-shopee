@@ -119,18 +119,26 @@ def get_set_members(
     *,
     include_policies: Optional[set[str]] = None,
     member_classes: Optional[set[str]] = None,
+    active_only: bool = False,
+    exclude_primary_piece: bool = False,
 ) -> list[dict]:
     payload = set_detection or {}
+    if active_only and str(payload.get("set_lock_mode", "off") or "off").strip().lower() == "off":
+        return []
     members = payload.get("set_members") or []
+    primary_piece_role = str(payload.get("primary_piece_role", "") or "").strip().lower()
     rows: list[dict] = []
     for raw in members:
         if not isinstance(raw, dict):
             continue
         include_policy = str(raw.get("include_policy", "") or "").strip().lower()
         member_class = str(raw.get("member_class", "") or "").strip().lower()
+        role = str(raw.get("role", "") or "").strip().lower()
         if include_policies and include_policy not in include_policies:
             continue
         if member_classes and member_class not in member_classes:
+            continue
+        if exclude_primary_piece and primary_piece_role and role == primary_piece_role:
             continue
         rows.append(raw)
     return rows
@@ -140,12 +148,16 @@ def get_set_member_labels(
     *,
     include_policies: Optional[set[str]] = None,
     member_classes: Optional[set[str]] = None,
+    active_only: bool = False,
+    exclude_primary_piece: bool = False,
 ) -> list[str]:
     labels: list[str] = []
     for member in get_set_members(
         set_detection,
         include_policies=include_policies,
         member_classes=member_classes,
+        active_only=active_only,
+        exclude_primary_piece=exclude_primary_piece,
     ):
         label = str(member.get("role", "") or "").strip()
         if label and label not in labels:
@@ -157,12 +169,16 @@ def get_set_member_keys(
     *,
     include_policies: Optional[set[str]] = None,
     member_classes: Optional[set[str]] = None,
+    active_only: bool = False,
+    exclude_primary_piece: bool = False,
 ) -> list[str]:
     keys: list[str] = []
     for member in get_set_members(
         set_detection,
         include_policies=include_policies,
         member_classes=member_classes,
+        active_only=active_only,
+        exclude_primary_piece=exclude_primary_piece,
     ):
         key = str(member.get("role_key", "") or "").strip().lower()
         if key and key not in keys:
@@ -175,6 +191,8 @@ def has_set_member(
     *,
     include_policies: Optional[set[str]] = None,
     member_classes: Optional[set[str]] = None,
+    active_only: bool = False,
+    exclude_primary_piece: bool = False,
 ) -> bool:
     target = str(role_key or "").strip().lower()
     if not target:
@@ -183,6 +201,125 @@ def has_set_member(
         set_detection,
         include_policies=include_policies,
         member_classes=member_classes,
+        active_only=active_only,
+        exclude_primary_piece=exclude_primary_piece,
+    )
+
+def is_open_draped_outer_garment(contract: Optional[dict]) -> bool:
+    payload = contract or {}
+    front_opening = str(payload.get("front_opening", "") or "").strip().lower()
+    sleeve_type = str(payload.get("sleeve_type", "") or "").strip().lower()
+    silhouette_volume = str(payload.get("silhouette_volume", "") or "").strip().lower()
+    opening_continuity = str(payload.get("opening_continuity", "") or "").strip().lower()
+    drop_profile = str(payload.get("drop_profile", "") or "").strip().lower()
+    hem_shape = str(payload.get("hem_shape", "") or "").strip().lower()
+    edge_contour = str(payload.get("edge_contour", "") or "").strip().lower()
+    return (
+        front_opening == "open"
+        and (
+            sleeve_type in {"cape_like", "dolman_batwing"}
+            or silhouette_volume in {"draped", "oversized"}
+            or opening_continuity == "continuous"
+            or drop_profile in {"side_drop", "cocoon_side_drop"}
+            or hem_shape in {"rounded", "cocoon", "asymmetric"}
+            or edge_contour == "soft_curve"
+        )
+    )
+
+def is_spatially_sensitive_garment(
+    contract: Optional[dict],
+    *,
+    set_detection: Optional[dict] = None,
+    selector_stats: Optional[dict] = None,
+) -> bool:
+    payload = contract or {}
+    sleeve_type = str(payload.get("sleeve_type", "") or "").strip().lower()
+    silhouette_volume = str(payload.get("silhouette_volume", "") or "").strip().lower()
+    garment_length = str(payload.get("garment_length", "") or "").strip().lower()
+    set_mode = str((set_detection or {}).get("set_mode", "off") or "off").strip().lower()
+    complex_garment = bool((selector_stats or {}).get("complex_garment"))
+    return bool(
+        complex_garment
+        or set_mode in {"explicit", "probable"}
+        or is_open_draped_outer_garment(payload)
+        or sleeve_type in {"cape_like", "dolman_batwing"}
+        or (silhouette_volume in {"draped", "oversized"} and garment_length in {"upper_thigh", "mid_thigh", "knee_plus"})
+    )
+
+def is_selfie_capture_compatible(
+    contract: Optional[dict],
+    *,
+    set_detection: Optional[dict] = None,
+    selector_stats: Optional[dict] = None,
+) -> bool:
+    payload = contract or {}
+    front_opening = str(payload.get("front_opening", "") or "").strip().lower()
+    return not is_spatially_sensitive_garment(
+        payload,
+        set_detection=set_detection,
+        selector_stats=selector_stats,
+    ) and front_opening != "open"
+
+
+def has_surface_hero_priority(
+    contract: Optional[dict],
+    *,
+    set_detection: Optional[dict] = None,
+    selector_stats: Optional[dict] = None,
+) -> bool:
+    payload = contract or {}
+    must_keep = [str(item or "").strip().lower() for item in (payload.get("must_keep") or []) if str(item).strip()]
+    front_opening = str(payload.get("front_opening", "") or "").strip().lower()
+    garment_length = str(payload.get("garment_length", "") or "").strip().lower()
+    silhouette_volume = str(payload.get("silhouette_volume", "") or "").strip().lower()
+    set_mode = str((set_detection or {}).get("set_mode", "off") or "off").strip().lower()
+    hero_tokens = (
+        "texture",
+        "stitch",
+        "pattern",
+        "stripe",
+        "rib",
+        "crochet",
+        "knit",
+        "panel",
+        "scarf",
+        "set",
+    )
+    return bool(
+        is_spatially_sensitive_garment(
+            payload,
+            set_detection=set_detection,
+            selector_stats=selector_stats,
+        )
+        or set_mode in {"explicit", "probable"}
+        or any(any(token in cue for token in hero_tokens) for cue in must_keep)
+        or (
+            front_opening == "closed"
+            and garment_length in {"cropped", "waist", "hip"}
+            and silhouette_volume in {"fitted", "regular", "structured"}
+        )
+    )
+
+
+def prefers_supported_lower_body_styling(
+    contract: Optional[dict],
+    *,
+    set_detection: Optional[dict] = None,
+    selector_stats: Optional[dict] = None,
+) -> bool:
+    payload = contract or {}
+    front_opening = str(payload.get("front_opening", "") or "").strip().lower()
+    garment_length = str(payload.get("garment_length", "") or "").strip().lower()
+    set_mode = str((set_detection or {}).get("set_mode", "off") or "off").strip().lower()
+    return bool(
+        is_spatially_sensitive_garment(
+            payload,
+            set_detection=set_detection,
+            selector_stats=selector_stats,
+        )
+        or front_opening == "open"
+        or garment_length in {"upper_thigh", "mid_thigh", "knee_plus"}
+        or set_mode in {"explicit", "probable"}
     )
 
 def _normalize_structural_contract(raw: dict) -> dict:
@@ -357,19 +494,15 @@ def _normalize_set_detection(raw: dict) -> dict:
             seen_member_keys.add(member_key)
             normalized_members.append(fallback_member)
 
-    included_members = get_set_members(
+    initial_included_members = get_set_members(
         {"set_members": normalized_members},
         include_policies={"must_include", "optional"},
         member_classes={"garment", "coordinated_accessory"},
     )
-    must_include_members = get_set_members(
-        {"set_members": normalized_members},
-        include_policies={"must_include"},
-    )
     has_secondary_piece = any(
         str(member.get("member_class", "") or "").strip().lower() == "coordinated_accessory"
-        for member in included_members
-    ) or len(included_members) >= 2
+        for member in initial_included_members
+    ) or len(initial_included_members) >= 2
 
     if raw_mode in _SET_MODES:
         set_mode = raw_mode
@@ -379,6 +512,21 @@ def _normalize_set_detection(raw: dict) -> dict:
         set_mode = "probable"
     else:
         set_mode = "off"
+
+    if set_mode == "explicit":
+        for member in normalized_members:
+            member_class = str(member.get("member_class", "") or "").strip().lower()
+            if member_class == "coordinated_accessory" and str(member.get("include_policy", "") or "").strip().lower() != "exclude":
+                member["include_policy"] = "must_include"
+            if member_class == "coordinated_accessory" and str(member.get("include_policy", "") or "").strip().lower() != "exclude":
+                member["render_separately"] = True
+                member["fusion_forbidden"] = True
+    for member in normalized_members:
+        member_class = str(member.get("member_class", "") or "").strip().lower()
+        if member_class in {"styling_layer", "unrelated_accessory"}:
+            member["include_policy"] = "exclude"
+            member["render_separately"] = False
+            member["fusion_forbidden"] = True
 
     primary_piece_role = str(raw.get("primary_piece_role") or "").strip()
     if not primary_piece_role:

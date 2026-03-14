@@ -27,6 +27,126 @@ _DEFAULT_STATE = {
 
 _CASTING_FAMILIES: list[dict[str, Any]] = [
     {
+        "id": "br_social_creator",
+        "label": "BR Social Creator",
+        "presence": "charismatic Brazilian creator presence",
+        "age_options": ["mid 20s", "late 20s to early 30s"],
+        "skin_options": ["warm medium skin", "light-medium neutral skin", "golden tan skin"],
+        "face_structure_options": [
+            "balanced attractive facial structure with natural asymmetry",
+            "soft oval face with lively cheek definition and expressive brows",
+            "gentle face geometry with engaging everyday charisma",
+        ],
+        "hair_options": [
+            "soft styled brunette hair with natural movement and a casual finish",
+            "smooth dark hair with a lightly polished social-media-ready finish",
+            "natural chestnut waves with relaxed everyday volume",
+        ],
+        "makeup_options": ["fresh natural makeup", "soft everyday glam makeup"],
+        "expression_options": ["cativating relaxed expression", "subtle engaging smile", "camera-aware casual confidence"],
+        "recent_avoid": ["runway severity", "editorial calm expression"],
+    },
+    {
+        "id": "br_social_afro",
+        "label": "BR Social Afro",
+        "presence": "charismatic Brazilian creator presence",
+        "age_options": ["mid 20s", "late 20s"],
+        "skin_options": ["deep rich brown skin", "medium-deep warm skin"],
+        "face_structure_options": [
+            "balanced attractive facial planes with natural asymmetry and expressive eyes",
+            "soft cheek definition with engaging everyday charisma",
+            "gentle face geometry with lively brow expression and relaxed confidence",
+        ],
+        "hair_options": [
+            "defined natural curls with lively social-ready volume",
+            "a rounded afro with natural shape and charismatic texture",
+            "soft natural curls with casual polished definition",
+        ],
+        "makeup_options": ["fresh natural makeup", "soft everyday glam makeup"],
+        "expression_options": ["cativating relaxed expression", "subtle engaging smile", "camera-aware casual confidence"],
+        "recent_avoid": ["editorial severity", "overly polished shape"],
+    },
+    {
+        "id": "br_social_mature",
+        "label": "BR Social Mature",
+        "presence": "charismatic mature Brazilian creator presence",
+        "age_options": ["late 30s", "early 40s"],
+        "skin_options": ["medium olive skin", "medium warm skin", "light-medium neutral skin"],
+        "face_structure_options": [
+            "balanced mature facial structure with warm approachable asymmetry",
+            "gentle mature face geometry with engaging natural confidence",
+            "softly defined mature features with lively everyday charisma",
+        ],
+        "hair_options": [
+            "shoulder-length dark hair with natural social-ready movement",
+            "simple dark bob with everyday polish and soft texture",
+            "natural dark hair with loose lived-in smoothness",
+        ],
+        "makeup_options": ["fresh natural makeup", "minimal polished makeup"],
+        "expression_options": ["warm engaging smile", "cativating relaxed expression", "quiet camera-aware confidence"],
+        "recent_avoid": ["formal luxury elegance", "campaign severity"],
+    },
+    {
+        "id": "br_everyday_natural",
+        "label": "BR Everyday Natural",
+        "presence": "relatable everyday Brazilian presence",
+        "age_options": ["mid 20s to early 30s", "early 30s"],
+        "skin_options": ["warm medium skin", "light-medium neutral skin", "soft warm beige skin"],
+        "face_structure_options": [
+            "balanced everyday facial proportions with soft natural asymmetry",
+            "gentle oval face with ordinary jaw softness and subtle brow depth",
+            "natural cheek structure with a calm unpolished face impression",
+        ],
+        "hair_options": [
+            "slightly messy dark brown shoulder-length hair with natural separation",
+            "simple straight dark hair tucked behind one ear with everyday texture",
+            "natural medium-brown hair with loose lived-in movement",
+        ],
+        "makeup_options": ["minimal everyday makeup", "almost no visible makeup"],
+        "expression_options": ["neutral everyday expression", "soft relaxed expression"],
+        "recent_avoid": ["polished blowout finish", "soft editorial expression"],
+    },
+    {
+        "id": "br_everyday_afro",
+        "label": "BR Everyday Afro",
+        "presence": "relatable everyday Brazilian presence",
+        "age_options": ["mid 20s", "late 20s to early 30s"],
+        "skin_options": ["deep rich brown skin", "medium-deep warm skin"],
+        "face_structure_options": [
+            "natural facial structure with warm everyday softness and expressive brows",
+            "balanced face with soft cheek definition and ordinary lived-in asymmetry",
+            "gently defined facial planes with a calm real-life expression",
+        ],
+        "hair_options": [
+            "soft natural curls with everyday volume and loose definition",
+            "short natural textured curls with a casual shape",
+            "a natural rounded afro with ordinary lived-in texture",
+        ],
+        "makeup_options": ["minimal everyday makeup", "almost no visible makeup"],
+        "expression_options": ["neutral everyday expression", "quiet relaxed expression"],
+        "recent_avoid": ["polished shape", "confident modern gaze"],
+    },
+    {
+        "id": "br_everyday_mature",
+        "label": "BR Everyday Mature",
+        "presence": "relatable mature Brazilian presence",
+        "age_options": ["late 30s", "early 40s"],
+        "skin_options": ["medium olive skin", "medium warm skin", "light-medium neutral skin"],
+        "face_structure_options": [
+            "balanced mature facial structure with natural smile lines",
+            "ordinary oval mature face with calm everyday definition",
+            "gentle mature face geometry with subtle lived-in asymmetry",
+        ],
+        "hair_options": [
+            "simple shoulder-length dark hair with natural texture",
+            "soft jaw-length dark hair with ordinary movement",
+            "natural dark hair tucked loosely behind the ears",
+        ],
+        "makeup_options": ["minimal everyday makeup", "almost no visible makeup"],
+        "expression_options": ["calm everyday expression", "quiet composed expression"],
+        "recent_avoid": ["sharp dark chin-length bob", "elegant calm expression"],
+    },
+    {
         "id": "br_minimal_premium",
         "label": "BR Minimal Premium",
         "presence": "refined premium-catalog presence",
@@ -230,8 +350,14 @@ def _family_affinity(user_prompt: Optional[str], family: dict[str, Any]) -> int:
     if "premium" in text or "catalog" in text or "sofistic" in text or "ensaio" in text:
         if family_id in {"br_minimal_premium", "br_soft_editorial", "br_afro_modern"}:
             score += 2
+    if "ugc" in text or "cameraroll" in text or "selfie" in text or "cliente real" in text or "cotidiano" in text:
+        if family_id in {"br_everyday_natural", "br_everyday_afro", "br_everyday_mature", "br_social_creator", "br_social_afro", "br_social_mature"}:
+            score += 3
+    if "influencer" in text or "creator" in text or "criadora" in text or "conteudo" in text or "cativante" in text:
+        if family_id in {"br_social_creator", "br_social_afro", "br_social_mature"}:
+            score += 4
     if "autentic" in text or "natural" in text:
-        if family_id in {"br_warm_commercial", "br_soft_editorial", "br_afro_modern"}:
+        if family_id in {"br_warm_commercial", "br_soft_editorial", "br_afro_modern", "br_everyday_natural", "br_everyday_afro", "br_everyday_mature"}:
             score += 1
     if "madura" in text or "40" in text or "elegante" in text:
         if family_id == "br_mature_elegant":
@@ -242,9 +368,6 @@ def _family_affinity(user_prompt: Optional[str], family: dict[str, Any]) -> int:
     if "comercial" in text or "marketplace" in text or "amig" in text:
         if family_id == "br_warm_commercial":
             score += 2
-    if "negra" in text or "afro" in text or "crespo" in text:
-        if family_id == "br_afro_modern":
-            score += 3
     if "minimal" in text or "clean" in text:
         if family_id == "br_minimal_premium":
             score += 2
@@ -264,6 +387,8 @@ def select_brazilian_casting_profile(
     seed_hint: str = "",
     user_prompt: Optional[str] = None,
     forced_family_id: Optional[str] = None,
+    preferred_family_ids: Optional[list[str]] = None,
+    avoid_family_ids: Optional[list[str]] = None,
     window: int = 8,
     commit: bool = True,
 ) -> dict[str, Any]:
@@ -284,6 +409,16 @@ def select_brazilian_casting_profile(
     candidates = list(_CASTING_FAMILIES)
     if forced_family_id:
         candidates = [family for family in candidates if family["id"] == forced_family_id] or candidates
+    preferred_ids = [str(item).strip() for item in (preferred_family_ids or []) if str(item).strip()]
+    avoid_ids = {str(item).strip() for item in (avoid_family_ids or []) if str(item).strip()}
+    if preferred_ids and not forced_family_id:
+        preferred = [family for family in candidates if family["id"] in set(preferred_ids)]
+        if preferred:
+            candidates = preferred
+    if avoid_ids and len(candidates) > 1:
+        pruned = [family for family in candidates if family["id"] not in avoid_ids]
+        if pruned:
+            candidates = pruned
 
     last_family_id = str(state.get("last_family_id", "") or "")
     candidates.sort(
