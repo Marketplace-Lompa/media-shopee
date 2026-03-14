@@ -76,7 +76,7 @@ _FRONT_LOCKS = {
 _REFERENCE_USAGE_RULES_BASE = [
     "Use all references only as GARMENT references for shape, fabric, stitch, and color behavior.",
     "Never transfer identity from references: do not copy face, skin tone, body type, hairline, hairstyle, or age impression.",
-    "Never copy reference pose or background literally; create a fresh composition that follows this art direction.",
+    "Never repeat the exact composition, framing, or dominant gesture from the references. Keep the garment completely faithful, but create an entirely new context and physical presence.",
 ]
 
 _REFERENCE_USAGE_RULES_STRICT = [
@@ -217,7 +217,7 @@ def _pose_creative_brief(
         movement_text = (
             "Allow expressive, socially engaging movement and creator-style asymmetry"
             if "movement" in pose_tags else
-            "Favor cativating creator body language with attitude, micro-gesture, and believable social charisma"
+            "Favor captivating creator body language with attitude, micro-gesture, and believable social charisma"
         )
     else:
         movement_text = (
@@ -657,7 +657,7 @@ def build_art_direction_two_pass_edit_prompt(
         "Keep the image highly photorealistic with natural skin texture, visible pores, mild facial asymmetry, and realistic body proportions.",
     ]
 
-    from agent_runtime.normalize_user_intent import normalize_user_intent
+    from normalize_user_intent import normalize_user_intent
     extra_direction = (user_prompt or "").strip()
     if extra_direction:
         intent = normalize_user_intent(extra_direction)

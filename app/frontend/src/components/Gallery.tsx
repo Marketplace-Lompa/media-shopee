@@ -241,10 +241,12 @@ function JobCard({ job, onDismiss }: { job: JobEntry; onDismiss?: () => void }) 
             layout
         >
             <div className="job-card-header">
-                <Loader2 size={13} className="job-card-spinner" />
-                <span className="t-xs text-secondary">{resolveStageLabel(job.stage, job.type)}</span>
+                <div className="job-card-header-row">
+                    <Loader2 size={13} className="job-card-spinner" />
+                    <span className="t-xs text-secondary">{resolveStageLabel(job.stage, job.type)}</span>
+                </div>
                 {job.message && job.message !== resolveStageLabel(job.stage, job.type) && (
-                    <span className="t-xs text-tertiary job-card-msg" title={job.message}>{job.message}</span>
+                    <span className="job-card-msg" title={job.message}>{job.message}</span>
                 )}
             </div>
 
@@ -363,6 +365,7 @@ const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse
                         className="history-action-btn history-action-btn--danger"
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
                         title="Remover"
+                        aria-label="Remover imagem"
                     >
                         <Trash2 size={14} />
                     </button>

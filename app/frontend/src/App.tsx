@@ -398,6 +398,7 @@ export default function App() {
                           className="lightbox-copy-btn"
                           onClick={() => navigator.clipboard.writeText(lightbox.item?.prompt || lightbox.item?.optimized_prompt || '')}
                           title="Copiar prompt"
+                          aria-label="Copiar prompt"
                         >
                           <Copy size={12} /> Copiar
                         </button>

@@ -349,7 +349,6 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                                             onClick={() => setFidelityMode(option.value)}
                                             type="button"
                                             aria-pressed={fidelityMode === option.value}
-                                            disabled={busy}
                                         >{option.label}</button>
                                     ))}
                                 </div>
@@ -365,7 +364,6 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                                             onClick={() => setPoseFlexMode(option.value)}
                                             type="button"
                                             aria-pressed={poseFlexMode === option.value}
-                                            disabled={busy}
                                         >{option.label}</button>
                                     ))}
                                 </div>

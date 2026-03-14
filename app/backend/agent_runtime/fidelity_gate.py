@@ -646,10 +646,8 @@ def build_targeted_repair_prompt(
 
     patches: list[str] = [
         "This is a localized garment fidelity correction on an already successful fashion image.",
-        "Keep the same model identity, facial features, hair, expression, pose, body proportions, framing, camera feel, background, styling, and lighting mood unchanged.",
-        "Do not recompose the scene, move the subject, or redesign the garment.",
-        "Refine only the visible garment regions that drifted from the references.",
-        "Preserve the exact garment geometry, silhouette, drape, hem behavior, and edge contour already present in the image.",
+        "Focus entirely on reconstructing the visible garment regions that drifted from the references.",
+        "Re-render the exact garment geometry, silhouette, drape, hem behavior, and edge contour originally intended, integrating perfectly with the current environment and model.",
     ]
 
     if "texture_pattern_drift" in issue_codes:

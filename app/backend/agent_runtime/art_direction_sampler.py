@@ -1302,7 +1302,7 @@ def sample_art_direction(
     )
     pose_allowed_ids = [item for item in _as_list(scene.get("pose_ids")) if item]
     if preferred_pose_ids:
-        pose_allowed_ids = [item for item in pose_allowed_ids if item in preferred_pose_ids] or preferred_pose_ids
+        pose_allowed_ids = [item for item in pose_allowed_ids if item in preferred_pose_ids] or pose_allowed_ids
     pose_allowed_ids = _apply_selection_policy(
         pose_allowed_ids,
         preferred_ids=selection_policy.get("preferred_pose_ids"),
@@ -1318,7 +1318,7 @@ def sample_art_direction(
     )
     camera_allowed_ids = [item for item in _as_list(scene.get("camera_ids")) if item]
     if preferred_camera_ids:
-        camera_allowed_ids = [item for item in camera_allowed_ids if item in preferred_camera_ids] or preferred_camera_ids
+        camera_allowed_ids = [item for item in camera_allowed_ids if item in preferred_camera_ids] or camera_allowed_ids
     camera_allowed_ids = _apply_selection_policy(
         camera_allowed_ids,
         preferred_ids=selection_policy.get("preferred_camera_ids"),
@@ -1334,7 +1334,7 @@ def sample_art_direction(
     )
     lighting_allowed_ids = [item for item in _as_list(scene.get("lighting_ids")) if item]
     if preferred_lighting_ids:
-        lighting_allowed_ids = [item for item in lighting_allowed_ids if item in preferred_lighting_ids] or preferred_lighting_ids
+        lighting_allowed_ids = [item for item in lighting_allowed_ids if item in preferred_lighting_ids] or lighting_allowed_ids
     lighting_allowed_ids = _apply_selection_policy(
         lighting_allowed_ids,
         preferred_ids=selection_policy.get("preferred_lighting_ids"),
@@ -1350,7 +1350,7 @@ def sample_art_direction(
     )
     styling_allowed_ids = [item for item in _as_list(scene.get("styling_ids")) if item]
     if preferred_styling_ids:
-        styling_allowed_ids = [item for item in styling_allowed_ids if item in preferred_styling_ids] or preferred_styling_ids
+        styling_allowed_ids = [item for item in styling_allowed_ids if item in preferred_styling_ids] or styling_allowed_ids
     styling = _pick_item(
         state=state,
         pool=_STYLING_PROFILES,

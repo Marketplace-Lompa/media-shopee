@@ -3,14 +3,70 @@
  *
  * Permite submeter múltiplos jobs sem bloquear o input.
  * Cada job tem polling independente e auto-dismiss após conclusão.
+ *
+ * Persistência: job_ids ativos são salvos em localStorage.
+ * Ao recarregar a página, jobs ainda em execução no servidor são retomados
+ * automaticamente — sem perder o andamento.
  */
 import { useEffect, useRef, useState } from 'react';
 import { submitGenerateAsync, submitEditAsync } from '../lib/api';
-import type { JobEntry, JobType, EditTarget, AspectRatio, Resolution, Preset, ScenePreference, FidelityMode, PoseFlexMode } from '../types';
+import type { JobEntry, JobType, JobStatus, EditTarget, AspectRatio, Resolution, Preset, ScenePreference, FidelityMode, PoseFlexMode } from '../types';
 
 const POLL_INTERVAL_MS = 1200;
 const MAX_POLL_FAILURES = 5;
 const AUTO_DISMISS_MS = 30_000;
+const STORAGE_KEY = 'mshopee:active_jobs';
+
+// ── Persistência ─────────────────────────────────────────────────────────────
+
+interface PersistedJob {
+    id: string;
+    type: JobType;
+    prompt: string | null;
+    createdAt: number;
+}
+
+function loadPersistedJobs(): PersistedJob[] {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw) as unknown;
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter(
+            (j): j is PersistedJob =>
+                typeof j === 'object' && j !== null &&
+                typeof (j as PersistedJob).id === 'string' &&
+                typeof (j as PersistedJob).type === 'string',
+        );
+    } catch {
+        return [];
+    }
+}
+
+function persistJobs(jobs: JobEntry[]) {
+    // Salvar apenas jobs com ID real (não pending-*) ainda em execução
+    const toSave: PersistedJob[] = jobs
+        .filter(j => (j.status === 'queued' || j.status === 'running') && !j.id.startsWith('pending-'))
+        .map(j => ({ id: j.id, type: j.type, prompt: j.prompt, createdAt: j.createdAt }));
+
+    try {
+        if (toSave.length === 0) {
+            localStorage.removeItem(STORAGE_KEY);
+        } else {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+        }
+    } catch { /* quota exceeded — ignorar */ }
+}
+
+function removePersistedJob(id: string) {
+    const current = loadPersistedJobs().filter(j => j.id !== id);
+    try {
+        if (current.length === 0) localStorage.removeItem(STORAGE_KEY);
+        else localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+    } catch { /* no-op */ }
+}
+
+// ── Payload types ─────────────────────────────────────────────────────────────
 
 export interface GeneratePayload {
     prompt: string;
@@ -34,10 +90,17 @@ interface UseJobQueueOptions {
     onJobComplete: () => void;
 }
 
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
 export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
     const [jobs, setJobs] = useState<JobEntry[]>([]);
     const timers = useRef<Map<string, number>>(new Map());
     const failures = useRef<Map<string, number>>(new Map());
+
+    // Persistir sempre que a lista de jobs muda
+    useEffect(() => {
+        persistJobs(jobs);
+    }, [jobs]);
 
     // Cleanup ao desmontar
     useEffect(() => {
@@ -60,6 +123,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
 
     function dismissJob(id: string) {
         stopPolling(id);
+        removePersistedJob(id);
         setJobs(prev => {
             const job = prev.find(j => j.id === id);
             // Revogar object URLs para evitar memory leak
@@ -102,6 +166,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                     });
                 } else if (job.status === 'done') {
                     stopPolling(jobId);
+                    removePersistedJob(jobId);
                     updateJob(jobId, {
                         status: 'done',
                         result: type === 'generate' ? job.response ?? null : null,
@@ -114,6 +179,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                     window.setTimeout(() => dismissJob(jobId), AUTO_DISMISS_MS);
                 } else if (job.status === 'error') {
                     stopPolling(jobId);
+                    removePersistedJob(jobId);
                     updateJob(jobId, {
                         status: 'error',
                         error: typeof job.error === 'string' ? job.error : 'Erro desconhecido',
@@ -124,6 +190,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                 failures.current.set(jobId, current);
                 if (current >= MAX_POLL_FAILURES) {
                     stopPolling(jobId);
+                    removePersistedJob(jobId);
                     updateJob(jobId, { status: 'error', error: 'Servidor inacessível' });
                 }
             } finally {
@@ -133,6 +200,42 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
 
         timers.current.set(jobId, timerId);
     }
+
+    // ── Restaurar jobs do localStorage ao montar ──────────────────────────────
+    useEffect(() => {
+        const persisted = loadPersistedJobs();
+        if (persisted.length === 0) return;
+
+        // Descartar jobs muito antigos (>2h) — backend in-memory também não os tem mais
+        const TWO_HOURS = 2 * 60 * 60 * 1000;
+        const fresh = persisted.filter(j => Date.now() - j.createdAt < TWO_HOURS);
+
+        if (fresh.length === 0) {
+            localStorage.removeItem(STORAGE_KEY);
+            return;
+        }
+
+        const restored: JobEntry[] = fresh.map(p => ({
+            id: p.id,
+            type: p.type,
+            status: 'queued' as JobStatus,
+            stage: null,
+            message: 'Reconectando…',
+            progress: null,
+            result: null,
+            editResult: null,
+            error: null,
+            createdAt: p.createdAt,
+            inputThumbnails: [], // object URLs não sobrevivem ao reload
+            prompt: p.prompt,
+        }));
+
+        setJobs(restored);
+        restored.forEach(j => startPolling(j.id, j.type));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // apenas no mount
+
+    // ── Helpers de entrada ────────────────────────────────────────────────────
 
     function makeTempEntry(type: JobType, thumbs: string[], prompt: string | null): JobEntry {
         return {
@@ -170,7 +273,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
 
             const { job_id } = await submitGenerateAsync(fd);
 
-            // Trocar id temporário pelo real
+            // Trocar id temporário pelo real (agora persiste automaticamente via useEffect)
             setJobs(prev => prev.map(j =>
                 j.id === entry.id ? { ...j, id: job_id, message: 'Aguardando fila…' } : j
             ));
