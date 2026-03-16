@@ -115,7 +115,7 @@ export function PoolPanel({ items, loading, onRefresh }: Props) {
                                 style={{ display: 'none' }}
                                 onChange={e => handleUpload(e.target.files, type)}
                                 disabled={uploading}
-                                aria-hidden="true"
+                                aria-label={`Selecionar imagens de ${label}`}
                             />
                             <Icon size={16} style={{ color }} aria-hidden="true" />
                             <span className="t-sm" style={{ color }}>{label}</span>
@@ -136,6 +136,20 @@ export function PoolPanel({ items, loading, onRefresh }: Props) {
                     <div className="pool-empty" role="status">
                         <p className="t-sm text-tertiary">Nenhuma referência adicionada.</p>
                         <p className="t-xs text-tertiary">Arraste imagens ou clique nos botões acima.</p>
+                        <div className="pool-tips">
+                            <div className="pool-tip">
+                                <User size={12} style={{ color: 'var(--c-violet-400)', flexShrink: 0 }} aria-hidden="true" />
+                                <span><strong>Modelo</strong> — mantém a identidade visual da pessoa</span>
+                            </div>
+                            <div className="pool-tip">
+                                <Shirt size={12} style={{ color: 'var(--c-pink-400)', flexShrink: 0 }} aria-hidden="true" />
+                                <span><strong>Roupa</strong> — peça a ser fotografada</span>
+                            </div>
+                            <div className="pool-tip">
+                                <Mountain size={12} style={{ color: 'var(--c-emerald-400)', flexShrink: 0 }} aria-hidden="true" />
+                                <span><strong>Cenário</strong> — ambiente ou fundo de referência</span>
+                            </div>
+                        </div>
                     </div>
                 ) : (
                     <AnimatePresence>

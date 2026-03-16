@@ -211,6 +211,34 @@
     cursor: not-allowed;
 }
 
+/* Contextual tips in empty state */
+.pool-tips {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    margin-top: var(--sp-4);
+    padding: var(--sp-3) var(--sp-4);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--r-xl);
+    text-align: left;
+    max-width: 320px;
+}
+
+.pool-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    font-size: var(--fs-xs);
+    color: var(--text-tertiary);
+    line-height: 1.4;
+}
+
+.pool-tip strong {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
 /* Upload toast */
 .upload-toast {
     position: absolute;

@@ -1,0 +1,61 @@
+{
+  "session_id": "mkt_9461face",
+  "pipeline_version": "marketplace_v1",
+  "marketplace_channel": "shopee",
+  "operation": "main_variation",
+  "detected_colors": [],
+  "slots": [
+    {
+      "slot_id": "hero_front",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "error",
+      "error": "No module named 'dotenv'"
+    },
+    {
+      "slot_id": "front_3_4",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "error",
+      "error": "No module named 'dotenv'"
+    },
+    {
+      "slot_id": "back_or_side",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "error",
+      "error": "No module named 'dotenv'"
+    },
+    {
+      "slot_id": "fabric_closeup",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "error",
+      "error": "No module named 'dotenv'"
+    },
+    {
+      "slot_id": "functional_detail_or_size",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "error",
+      "error": "No module named 'dotenv'"
+    }
+  ],
+  "summary": {
+    "requested_slots": 5,
+    "completed_slots": 0,
+    "failed_slots": 5
+  },
+  "config": {
+    "preset": "catalog_clean",
+    "scene_preference": "indoor_br",
+    "fidelity_mode": "estrita",
+    "pose_flex_mode": "controlled",
+    "aspect_ratio": "4:5",
+    "resolution": "1K",
+    "requested_preset": "marketplace_lifestyle",
+    "requested_scene_preference": "auto_br",
+    "requested_fidelity_mode": "estrita",
+    "requested_pose_flex_mode": "controlled"
+  }
+}

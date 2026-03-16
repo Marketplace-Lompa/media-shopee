@@ -106,6 +106,40 @@ _POSITIVE_OPEN_HINTS = (
     "preserves the open front",
     "correctly maintains the open-front",
 )
+_TARGETED_PATCH_FORBIDDEN_HINTS = (
+    "background",
+    "scene",
+    "camera",
+    "lens",
+    "framing",
+    "composition",
+    "pose",
+    "hairstyle",
+    "hair",
+    "face",
+    "expression",
+    "body proportion",
+    "lighting mood",
+    "new location",
+    "move the subject",
+)
+_TARGETED_PATCH_SCOPE_HINTS = (
+    "garment",
+    "stitch",
+    "texture",
+    "textile",
+    "yarn",
+    "stripe",
+    "hem",
+    "edge",
+    "opening",
+    "panel",
+    "drape",
+    "sleeve",
+    "readability",
+    "knit",
+    "color",
+)
 
 FIDELITY_GATE_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -629,6 +663,11 @@ def build_targeted_repair_prompt(
     issue_codes = set(str(item).strip().lower() for item in (gate_result or {}).get("issue_codes", []) or [])
     front = str(contract.get("front_opening", "") or "").strip().lower()
     sleeve = str(contract.get("sleeve_type", "") or "").strip().lower()
+    volume = str(contract.get("silhouette_volume", "") or "").strip().lower()
+    hem = str(contract.get("hem_shape", "") or "").strip().lower()
+    edge_contour = str(contract.get("edge_contour", "") or "").strip().lower()
+    drop_profile = str(contract.get("drop_profile", "") or "").strip().lower()
+    opening_continuity = str(contract.get("opening_continuity", "") or "").strip().lower()
     must_include_labels = get_set_member_labels(
         set_info,
         include_policies={"must_include"},
@@ -644,28 +683,57 @@ def build_targeted_repair_prompt(
         exclude_primary_piece=True,
     )
 
-    patches: list[str] = [
-        "This is a localized garment fidelity correction on an already successful fashion image.",
-        "Focus entirely on reconstructing the visible garment regions that drifted from the references.",
-        "Re-render the exact garment geometry, silhouette, drape, hem behavior, and edge contour originally intended, integrating perfectly with the current environment and model.",
-    ]
-
+    corrected_attributes: list[str] = []
     if "texture_pattern_drift" in issue_codes:
-        patches.append(
-            "Restore the original knit or textile surface relief, stitch definition, and material micro-texture on the garment only."
-        )
+        corrected_attributes.append("knit relief, stitch definition, and textile micro-texture")
     if "stripe_order_drift" in issue_codes:
-        patches.append(
-            "Correct stripe order, stripe spacing, and stripe width on the garment only to match the references exactly."
-        )
+        corrected_attributes.append("stripe order, stripe spacing, and stripe width")
     if "color_tone_drift" in issue_codes:
-        patches.append(
-            "Correct garment yarn tones and local color balance only on the garment so they match the references exactly."
-        )
+        corrected_attributes.append("yarn tones and local garment color balance")
+
+    allowed_edits: list[str] = []
+    if "texture_pattern_drift" in issue_codes:
+        allowed_edits.append("rebuild garment-local knit/textile surface detail only where drift is visible")
+    if "stripe_order_drift" in issue_codes:
+        allowed_edits.append("correct stripe sequence and stripe sizing only on the garment")
+    if "color_tone_drift" in issue_codes:
+        allowed_edits.append("correct garment yarn tones and local garment color balance only")
     if "low_garment_readability" in issue_codes:
-        patches.append(
-            "Improve local garment readability through edge clarity, textile separation, and front-panel legibility only on the garment, without changing pose, crop, or scene lighting."
+        allowed_edits.append(
+            "increase garment readability through local edge clarity and front-panel separation without reframing"
         )
+    if not allowed_edits:
+        allowed_edits.append("apply garment-only micro-corrections in visible drift regions")
+
+    patches: list[str] = [
+        "Localized garment-only fidelity correction on an already successful fashion image.",
+        "Goal: Correct only visible garment regions that drifted from the references.",
+        "Priority rule: Keep current garment geometry and all non-garment elements unchanged.",
+        "Keep unchanged: model identity, facial features, hair, expression, pose, body proportions, framing, camera perspective/lens feel, background, styling context, and lighting mood.",
+        "Do not recompose the scene or move the subject.",
+        "Allowed edits: " + "; ".join(allowed_edits) + ".",
+    ]
+    if corrected_attributes:
+        patches.append(
+            "Use references as the source of truth only for these corrected garment-local attributes: "
+            + ", ".join(corrected_attributes)
+            + "."
+        )
+
+    if volume:
+        patches.append(f"Keep the {volume.replace('_', ' ')} silhouette unchanged.")
+    if hem:
+        patches.append(f"Keep the {hem.replace('_', ' ')} hem behavior unchanged.")
+    if edge_contour:
+        patches.append(f"Keep the {edge_contour.replace('_', ' ')} outer edge contour unchanged.")
+    if drop_profile in {"side_drop", "cocoon_side_drop"}:
+        patches.append("Keep the longest visible fall on the outer side silhouette.")
+    elif drop_profile == "high_low":
+        patches.append("Keep the high-low outline distribution unchanged.")
+    if opening_continuity == "continuous":
+        patches.append("Keep the neckline-to-front opening as one continuous uninterrupted edge.")
+    elif opening_continuity == "lapel_like":
+        patches.append("Keep the opening edge as a lapel-like break and do not smooth it into a continuous wrap edge.")
 
     if front == "open":
         patches.append("Keep the front opening visible and unchanged.")
@@ -685,9 +753,14 @@ def build_targeted_repair_prompt(
 
     model_patch = str((gate_result or {}).get("recommended_prompt_patch", "") or "").strip()
     if model_patch:
-        patches.append(model_patch[:220])
+        patch_compact = " ".join(model_patch.split())
+        patch_lower = patch_compact.lower()
+        patch_is_local_scope = any(token in patch_lower for token in _TARGETED_PATCH_SCOPE_HINTS)
+        patch_is_off_scope = any(token in patch_lower for token in _TARGETED_PATCH_FORBIDDEN_HINTS)
+        if patch_is_local_scope and not patch_is_off_scope:
+            patches.append(patch_compact[:220])
 
-    patches.append("Do not change the scene composition, lens perspective, body pose, or overall editorial mood.")
+    patches.append("No redesign, no scene-wide edits, and no garment category reinterpretation.")
     return " ".join(dict.fromkeys([item.strip() for item in patches if item and item.strip()]))
 
 

@@ -9,6 +9,10 @@ export type ScenePreference = 'auto_br' | 'indoor_br' | 'outdoor_br';
 export type FidelityMode = 'balanceada' | 'estrita';
 export type PoseFlexMode = 'auto' | 'controlled' | 'balanced' | 'dynamic';
 
+// ── Marketplace types ──
+export type MarketplaceChannel = 'shopee' | 'mercado_livre';
+export type MarketplaceOperation = 'main_variation' | 'color_variations';
+
 // ── Legacy types (mantidos para compatibilidade de leitura do histórico) ──
 export type GroundingStrategy = 'auto' | 'on' | 'off';
 export type GuidedAgeRange = '18-24' | '25-34' | '35-44' | '45+';
@@ -134,6 +138,13 @@ export interface PromptCompilerDebug {
     residual_negatives: string[];
 }
 
+export interface UserIntent {
+    raw?: string;
+    normalized?: string;
+    intent_tags?: string[];
+    normalizer_source?: string;
+}
+
 export interface GenerateResponse {
     session_id: string;
     optimized_prompt: string;
@@ -160,6 +171,7 @@ export interface GenerateResponse {
     guided_applied?: boolean;
     guided_summary?: GuidedSummary;
     prompt_compiler_debug?: PromptCompilerDebug;
+    user_intent?: UserIntent;
     art_direction_summary?: Record<string, string>;
     preset?: Preset;
     scene_preference?: ScenePreference;
@@ -249,6 +261,16 @@ export interface MediaHistoryItem {
     camera_profile?: string;
     grounding_mode?: string;
     reason_codes?: string[];
+    // Parâmetros de geração (observabilidade)
+    preset?: string;
+    scene_preference?: string;
+    fidelity_mode?: string;
+    pose_flex_mode?: string;
+    pipeline_mode?: string;
+    // Marketplace
+    marketplace_channel?: string;
+    marketplace_operation?: string;
+    slot_id?: string;
 }
 
 export interface PoolItem {
@@ -261,7 +283,7 @@ export interface PoolItem {
 }
 
 // ── Job Queue Types ──────────────────────────────────────────────────────────
-export type JobType = 'generate' | 'edit';
+export type JobType = 'generate' | 'edit' | 'marketplace';
 export type JobStatus = 'queued' | 'running' | 'done' | 'error';
 
 export interface EditJobResult {
@@ -283,12 +305,14 @@ export interface JobEntry {
     stage: string | null;
     message: string | null;
     progress: { current: number; total: number } | null;
-    result: GenerateResponse | null;      // jobs de geração
+    result: GenerateResponse | null;      // jobs de geração / marketplace
     editResult: EditJobResult | null;     // jobs de edição
     error: string | null;
     createdAt: number;
     inputThumbnails: string[];            // object URLs para preview (revogados no dismiss)
     prompt: string | null;               // texto resumido para exibir no card
+    count: number;                       // nº de imagens esperadas → nº de cards skeleton
+    meta: Record<string, unknown> | null; // parâmetros do job (para observabilidade em erros)
 }
 
 export type GenerationStatus =

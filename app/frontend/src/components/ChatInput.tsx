@@ -13,6 +13,8 @@ import type {
     ScenePreference,
     FidelityMode,
     PoseFlexMode,
+    MarketplaceChannel,
+    MarketplaceOperation
 } from '../types';
 import './ChatInput.css';
 
@@ -36,6 +38,13 @@ interface Props {
     editTarget?: EditTarget | null;
     onEditSubmit?: (editInstruction: string, files?: File[]) => void;
     onEditCancel?: () => void;
+    onMarketplaceSubmit?: (payload: {
+        channel: MarketplaceChannel;
+        operation: MarketplaceOperation;
+        baseFiles: File[];
+        colorFiles?: File[];
+        prompt?: string;
+    }) => void;
 }
 
 const AR_OPTIONS: AspectRatio[] = ['4:5', '1:1', '9:16', '16:9', '4:3', '3:4'];
@@ -43,7 +52,6 @@ const RES_OPTIONS: Resolution[] = ['1K', '2K', '4K'];
 const N_OPTIONS = [1, 2, 3, 4];
 const PRESET_OPTIONS: Array<{ value: Preset; label: string }> = [
     { value: 'catalog_clean', label: 'Catálogo clean' },
-    { value: 'marketplace_lifestyle', label: 'Marketplace' },
     { value: 'premium_lifestyle', label: 'Premium' },
     { value: 'ugc_real_br', label: 'UGC real BR' },
 ];
@@ -68,14 +76,21 @@ interface HistoryDragPayload {
     prompt?: string;
 }
 
-export function ChatInput({ onSubmit, externalData, onClearExternalData, editTarget, onEditSubmit, onEditCancel }: Props) {
+export function ChatInput({ onSubmit, onMarketplaceSubmit, externalData, onClearExternalData, editTarget, onEditSubmit, onEditCancel }: Props) {
     const [prompt, setPrompt] = useState('');
     const [files, setFiles] = useState<File[]>([]);
+    
+    // Marketplace state
+    const [isMarketplaceMode, setIsMarketplaceMode] = useState(false);
+    const [marketplaceChannel, setMarketplaceChannel] = useState<MarketplaceChannel>('shopee');
+    const [marketplaceOperation, setMarketplaceOperation] = useState<MarketplaceOperation>('main_variation');
+    const [colorFiles, setColorFiles] = useState<File[]>([]);
+    const colorFileRef = useRef<HTMLInputElement>(null);
     const [showParams, setShowParams] = useState(false);
     const [ar, setAr] = useState<AspectRatio>('4:5');
     const [res, setRes] = useState<Resolution>('1K');
     const [n, setN] = useState(1);
-    const [preset, setPreset] = useState<Preset>('marketplace_lifestyle');
+    const [preset, setPreset] = useState<Preset>('catalog_clean');
     const [scenePreference, setScenePreference] = useState<ScenePreference>('auto_br');
     const [fidelityMode, setFidelityMode] = useState<FidelityMode>('balanceada');
     const [poseFlexMode, setPoseFlexMode] = useState<PoseFlexMode>('auto');
@@ -83,6 +98,15 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
     const [dropMessage, setDropMessage] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const requiresColorFiles = marketplaceOperation === 'color_variations';
+    const hasBaseFiles = files.length > 0;
+    const hasColorFiles = colorFiles.length > 0;
+    const isMarketplaceReady = hasBaseFiles && (!requiresColorFiles || hasColorFiles);
+    const marketplacePendingText = !hasBaseFiles
+        ? 'Falta enviar fotos base da peça.'
+        : requiresColorFiles && !hasColorFiles
+            ? 'Falta enviar pelo menos 1 foto da cor.'
+            : 'Tudo pronto. Clique em "Gerar anúncio".';
     // Hook para carregar dados externos (botão Reuse do histórico)
     useEffect(() => {
         if (externalData) {
@@ -131,7 +155,33 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
         setFiles(prev => prev.filter((_, idx) => idx !== i));
     }
 
+    function handleColorFiles(incoming: FileList | null) {
+        if (!incoming) return;
+        const valid = Array.from(incoming).filter(f => f.type.startsWith('image/'));
+        setColorFiles(prev => [...prev, ...valid].slice(0, 14));
+    }
+
+    function removeColorFile(i: number) {
+        setColorFiles(prev => prev.filter((_, idx) => idx !== i));
+    }
+
     function handleSubmit() {
+        if (isMarketplaceMode && onMarketplaceSubmit && !editTarget) {
+            if (files.length === 0) return;
+            if (requiresColorFiles && colorFiles.length === 0) return;
+            onMarketplaceSubmit({
+                channel: marketplaceChannel,
+                operation: marketplaceOperation,
+                baseFiles: files,
+                colorFiles: requiresColorFiles ? colorFiles : undefined,
+                prompt: prompt.trim() || undefined
+            });
+            setPrompt('');
+            setFiles([]);
+            setColorFiles([]);
+            return;
+        }
+
         if (!editTarget && !prompt.trim() && files.length === 0) return;
         onSubmit({
             prompt,
@@ -293,8 +343,106 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                 )}
             </AnimatePresence>
 
-            {/* Preset e Cena — sempre visível */}
+            {/* Toggle de Modos */}
             {!editTarget && (
+                <div className="mode-toggle-banner">
+                    <button
+                        className={`chip ${!isMarketplaceMode ? 'chip--active' : ''}`}
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={() => { setIsMarketplaceMode(false); setShowParams(false); }}
+                        type="button"
+                    >Modo livre</button>
+                    <button
+                        className={`chip ${isMarketplaceMode ? 'chip--active' : ''}`}
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={() => { setIsMarketplaceMode(true); setShowParams(false); }}
+                        type="button"
+                    >Marketplace guiado</button>
+                </div>
+            )}
+
+            {/* Config Marketplace */}
+            {!editTarget && isMarketplaceMode && (
+                <section className="marketplace-guide" aria-label="Configuração guiada de marketplace">
+                    <fieldset className="marketplace-step-card">
+                        <legend className="t-label text-secondary">Passo 1: Canal</legend>
+                        <p className="marketplace-step-help t-xs text-secondary">Escolha onde você vai publicar.</p>
+                        <div className="param-chips">
+                            <button
+                                className={`chip ${marketplaceChannel === 'shopee' ? 'chip--active' : ''}`}
+                                onClick={() => setMarketplaceChannel('shopee')}
+                                type="button"
+                            >Shopee</button>
+                            <button
+                                className={`chip ${marketplaceChannel === 'mercado_livre' ? 'chip--active' : ''}`}
+                                onClick={() => setMarketplaceChannel('mercado_livre')}
+                                type="button"
+                            >Mercado Livre</button>
+                        </div>
+                    </fieldset>
+
+                    <fieldset className="marketplace-step-card">
+                        <legend className="t-label text-secondary">Passo 2: Objetivo</legend>
+                        <p className="marketplace-step-help t-xs text-secondary">Escolha qual tipo de imagens você quer gerar.</p>
+                        <div className="param-chips">
+                            <button
+                                className={`chip ${marketplaceOperation === 'main_variation' ? 'chip--active' : ''}`}
+                                onClick={() => setMarketplaceOperation('main_variation')}
+                                type="button"
+                            >Fotos principais (5)</button>
+                            <button
+                                className={`chip ${marketplaceOperation === 'color_variations' ? 'chip--active' : ''}`}
+                                onClick={() => setMarketplaceOperation('color_variations')}
+                                type="button"
+                            >Variações de cor (3/cor)</button>
+                        </div>
+                    </fieldset>
+
+                    <div className="marketplace-step-card marketplace-step-card--final">
+                        <p className="t-label text-secondary">Passo 3: Envie as fotos</p>
+                        <div className="marketplace-upload-grid">
+                            <div className="marketplace-upload-item">
+                                <div className="marketplace-upload-meta">
+                                    <span className="t-xs text-secondary">Fotos base da peça</span>
+                                    <span className={`marketplace-check ${hasBaseFiles ? 'marketplace-check--ok' : ''}`}>
+                                        {hasBaseFiles ? `${files.length} adicionada(s)` : 'Obrigatório'}
+                                    </span>
+                                </div>
+                                <button
+                                    className="marketplace-upload-btn"
+                                    type="button"
+                                    onClick={() => fileRef.current?.click()}
+                                >
+                                    Adicionar fotos base
+                                </button>
+                            </div>
+                            {requiresColorFiles && (
+                                <div className="marketplace-upload-item">
+                                    <div className="marketplace-upload-meta">
+                                        <span className="t-xs text-secondary">Fotos das cores</span>
+                                        <span className={`marketplace-check ${hasColorFiles ? 'marketplace-check--ok' : ''}`}>
+                                            {hasColorFiles ? `${colorFiles.length} adicionada(s)` : 'Obrigatório'}
+                                        </span>
+                                    </div>
+                                    <button
+                                        className="marketplace-upload-btn"
+                                        type="button"
+                                        onClick={() => colorFileRef.current?.click()}
+                                    >
+                                        Adicionar fotos de cor
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <p className={`marketplace-step-help t-xs ${isMarketplaceReady ? 'text-success' : 'text-secondary'}`}>
+                            {marketplacePendingText}
+                        </p>
+                    </div>
+                </section>
+            )}
+
+            {/* Preset e Cena — modo padrão */}
+            {!editTarget && !isMarketplaceMode && (
                 <div className="preset-row">
                     <fieldset className="param-group">
                         <legend className="t-label text-tertiary">Estilo</legend>
@@ -302,10 +450,11 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                             {PRESET_OPTIONS.map(option => (
                                 <button
                                     key={option.value}
-                                    className={`chip ${preset === option.value ? 'chip--active' : ''}`}
+                                    className={`chip chip--preset ${preset === option.value ? 'chip--active' : ''}`}
                                     onClick={() => setPreset(option.value)}
                                     type="button"
                                     aria-pressed={preset === option.value}
+                                    data-preset={option.value}
                                 >{option.label}</button>
                             ))}
                         </div>
@@ -421,7 +570,7 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                 )}
             </AnimatePresence>
 
-            {/* Preview de imagens anexadas */}
+            {/* Preview de imagens anexadas base */}
             <AnimatePresence>
                 {files.length > 0 && (
                     <motion.div
@@ -453,6 +602,44 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                 )}
             </AnimatePresence>
 
+            <AnimatePresence>
+                {isMarketplaceMode && requiresColorFiles && colorFiles.length > 0 && (
+                    <motion.div
+                        className="file-preview-row"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 6 }}
+                    >
+                        {colorFiles.map((f, i) => {
+                            const previewUrl = URL.createObjectURL(f);
+                            return (
+                                <div key={`color-${f.name}-${i}`} className="file-thumb">
+                                    <img src={previewUrl} alt={f.name} onLoad={() => URL.revokeObjectURL(previewUrl)} />
+                                    <button
+                                        className="file-remove"
+                                        onClick={() => removeColorFile(i)}
+                                        type="button"
+                                        aria-label={`Remover ${f.name}`}
+                                    >
+                                        <X size={10} />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <input
+                ref={colorFileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={e => handleColorFiles(e.target.files)}
+                aria-label="Selecionar imagens de variação de cor"
+            />
+
             {/* Input principal */}
             <div className="chat-input-box">
                 <button
@@ -461,6 +648,7 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                     type="button"
                     aria-label="Anexar imagem"
                     title="Anexar imagem"
+                    style={{ display: isMarketplaceMode ? 'none' : undefined }}
                 >
                     <ImagePlus size={18} />
                 </button>
@@ -471,13 +659,13 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                     multiple
                     style={{ display: 'none' }}
                     onChange={e => handleFiles(e.target.files)}
-                    aria-hidden="true"
+                    aria-label="Selecionar imagens de referência"
                 />
 
                 <textarea
                     ref={textareaRef}
                     className="chat-textarea"
-                    placeholder={editTarget ? 'Descreva a modificação desejada…' : 'Descreva o que deseja ou envie fotos da peça…'}
+                    placeholder={editTarget ? 'Descreva a modificação desejada…' : isMarketplaceMode ? 'Observações opcionais (ex.: estilo da cena)...' : 'Descreva o que deseja ou envie fotos da peça…'}
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -486,9 +674,9 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                     aria-describedby="chat-hint"
                 />
 
-{!editTarget && (
+{!editTarget && !isMarketplaceMode && (
                 <button
-                    className="input-action-btn"
+                    className="input-action-btn input-action-btn--advanced"
                     onClick={() => setShowParams(v => !v)}
                     type="button"
                     aria-label="Configurações avançadas"
@@ -496,12 +684,13 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                     title="Avançado"
                 >
                     <SlidersHorizontal size={18} />
+                    <span className="advanced-btn-label">Ajustes</span>
                     {showParams ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>
 )}
 
                 <button
-                    className={`send-btn ${editTarget ? 'send-btn--edit' : ''}`}
+                    className={`send-btn ${editTarget ? 'send-btn--edit' : ''} ${isMarketplaceMode && !editTarget ? 'send-btn--guided' : ''}`}
                     onClick={() => {
                         if (editTarget && onEditSubmit && prompt.trim()) {
                             onEditSubmit(prompt.trim(), files.length ? files : undefined);
@@ -510,23 +699,34 @@ export function ChatInput({ onSubmit, externalData, onClearExternalData, editTar
                             handleSubmit();
                         }
                     }}
-                    disabled={(!!editTarget && !prompt.trim()) || (!editTarget && !prompt.trim() && files.length === 0)}
+                    disabled={
+                        !!editTarget ? !prompt.trim() : 
+                        isMarketplaceMode ? !isMarketplaceReady :
+                        (!prompt.trim() && files.length === 0)
+                    }
                     type="button"
                     aria-label={editTarget ? 'Aplicar edição' : 'Gerar imagem'}
                 >
                     {editTarget
                         ? <Pencil size={18} aria-hidden="true" />
-                        : <Send size={18} aria-hidden="true" />
+                        : (
+                            <>
+                                <Send size={18} aria-hidden="true" />
+                                {isMarketplaceMode && <span className="send-btn-label">Gerar anúncio</span>}
+                            </>
+                        )
                     }
                 </button>
             </div>
 
-            <p id="chat-hint" className="t-xs text-tertiary" style={{ paddingLeft: 4 }}>
+            <p id="chat-hint" className="t-xs text-secondary" style={{ paddingLeft: 4 }}>
                 {dragOver
                     ? 'Solte aqui para reutilizar a mídia como referência'
                     : editTarget
                         ? 'Enter para aplicar edição · Esc para cancelar'
-                        : 'Enter para gerar · Shift+Enter para nova linha'
+                        : isMarketplaceMode
+                            ? 'Fluxo guiado: complete os 3 passos acima e clique em gerar'
+                            : 'Enter para gerar · Shift+Enter para nova linha'
                 }
             </p>
 

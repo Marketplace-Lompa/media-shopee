@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, ZoomIn, X, CheckCircle, Search, Sparkles, Image, Layers, AlertTriangle, Clock, Trash2, Copy, Loader2 } from 'lucide-react';
 import type {
@@ -7,6 +7,17 @@ import type {
     JobEntry,
 } from '../types';
 import { imageUrl } from '../lib/api';
+import {
+    humanizeFidelityMode,
+    humanizeMarketplaceChannel,
+    humanizeMarketplaceOperation,
+    humanizePoseFlexMode,
+    humanizePreset,
+    humanizeScenePreference,
+    humanizeSlotId,
+    humanizeJobMessage,
+} from '../lib/humanize';
+import { useDialogA11y } from '../hooks/useDialogA11y';
 import './Gallery.css';
 import React from 'react'; // Added React import for React.memo
 
@@ -53,9 +64,9 @@ interface StepDef {
 
 // V2 pipeline steps — seller-facing
 const STEPS_V2: StepDef[] = [
-    { id: 'preparing_references', label: 'Preparando referências', icon: <Search size={16} /> },
-    { id: 'stabilizing_garment', label: 'Estabilizando a peça', icon: <Layers size={16} /> },
-    { id: 'creating_listing', label: 'Criando o anúncio', icon: <Image size={16} /> },
+    { id: 'preparing_references', label: 'Analisando peça', icon: <Search size={16} /> },
+    { id: 'stabilizing_garment', label: 'Preparando modelo', icon: <Layers size={16} /> },
+    { id: 'creating_listing', label: 'Gerando fotos', icon: <Image size={16} /> },
 ];
 
 // Legacy steps (kept for old pipeline compat)
@@ -162,120 +173,175 @@ function PipelineStepper({ status }: { status: GenerationStatus }) {
 
 /* ── Stage label map ─────────────────────────────────────── */
 const STAGE_LABELS: Record<string, string> = {
-    queued: 'Na fila…',
-    preparing_references: 'Preparando referências',
-    stabilizing_garment: 'Estabilizando a peça',
-    creating_listing: 'Criando o anúncio',
-    editing: 'Analisando instrução',
-    generating: 'Gerando…',
+    queued: 'Aguardando…',
+    preparing_references: 'Analisando peça…',
+    stabilizing_garment: 'Preparando modelo…',
+    creating_listing: 'Gerando fotos do anúncio…',
+    marketplace_started: 'Iniciando…',
+    done_partial: 'Concluído parcialmente',
+    editing: 'Aplicando edição…',
+    generating: 'Gerando imagem…',
 };
 function resolveStageLabel(stage: string | null, type: JobEntry['type']): string {
     if (!stage) return type === 'edit' ? 'Preparando edição…' : 'Na fila…';
     return STAGE_LABELS[stage] ?? stage;
 }
 
-/* ── Job Card ─────────────────────────────────────────────── */
+/* ── Job Card (grid-native) ───────────────────────────────── */
 function JobCard({ job, onDismiss }: { job: JobEntry; onDismiss?: () => void }) {
-    if (job.status === 'done') {
-        const images = job.type === 'generate'
-            ? (job.result?.images ?? [])
-            : (job.editResult?.images ?? []);
+    // done → imagens já aparecem no grid via histórico; card some silenciosamente
+    if (job.status === 'done') return null;
+
+    // error → card de erro no grid
+    if (job.status === 'error') {
+        const m = job.meta;
+        const metaItems = m ? [
+            m.marketplace_channel && humanizeMarketplaceChannel(String(m.marketplace_channel)),
+            m.marketplace_operation && humanizeMarketplaceOperation(String(m.marketplace_operation)),
+            m.preset && humanizePreset(String(m.preset)),
+            m.fidelity_mode && humanizeFidelityMode(String(m.fidelity_mode)),
+            m.aspect_ratio && `${m.aspect_ratio}`,
+        ].filter(Boolean) as string[] : [];
+
         return (
             <motion.div
-                className="job-card job-card--done"
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+                className="image-card job-card-grid job-card-grid--error"
+                role="listitem"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
                 layout
             >
-                <div className="job-card-header">
-                    <CheckCircle size={13} className="text-success" />
-                    <span className="t-xs text-success">{job.type === 'edit' ? 'Edição concluída' : 'Geração concluída'}</span>
-                    {onDismiss && (
-                        <button className="job-card-dismiss" onClick={onDismiss} aria-label="Fechar" title="Fechar">
-                            <X size={12} />
-                        </button>
+                <div className="job-card-grid-body">
+                    <AlertTriangle size={22} className="text-error" aria-hidden="true" />
+                    <p className="t-xs text-error" style={{ textAlign: 'center', marginTop: 4 }}>
+                        {job.error ?? 'Erro na geração'}
+                    </p>
+                    {metaItems.length > 0 && (
+                        <div className="job-card-error-meta" aria-label="Parâmetros do job">
+                            {metaItems.map(item => (
+                                <span key={item} className="job-card-error-tag">{item}</span>
+                            ))}
+                        </div>
                     )}
                 </div>
-                {images.length > 0 && (
-                    <div className="job-card-images">
-                        {images.slice(0, 4).map(img => (
-                            <img key={img.filename} src={imageUrl(img.url)} alt="Resultado" className="job-card-result-thumb" />
-                        ))}
-                    </div>
+                {onDismiss && (
+                    <button className="job-card-grid-dismiss" onClick={onDismiss} aria-label="Fechar">
+                        <X size={12} />
+                    </button>
                 )}
             </motion.div>
         );
     }
 
-    if (job.status === 'error') {
+    // queued | running → shimmer card nativo no grid
+    const rawMessage = job.message;
+    const stageLabel = humanizeJobMessage(rawMessage) || resolveStageLabel(job.stage, job.type);
+    const isMarketplace = job.type === 'marketplace';
+    const isHeroCard = !!onDismiss; // primeiro card do grupo
+
+    // ── Marketplace Hero Card: card informativo com progresso detalhado ──
+    if (isMarketplace && isHeroCard) {
+        const pct = job.progress
+            ? Math.round((job.progress.current / job.progress.total) * 100)
+            : 0;
+        const progressLabel = job.progress
+            ? `${job.progress.current}/${job.progress.total}`
+            : '';
+
         return (
             <motion.div
-                className="job-card job-card--error"
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+                className="image-card job-card-grid job-card-grid--loading job-card-grid--hero"
+                role="listitem"
+                aria-label={`Marketplace em andamento: ${stageLabel}`}
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.94 }}
                 layout
             >
-                <div className="job-card-header">
-                    <AlertTriangle size={13} className="text-error" />
-                    <span className="t-xs text-error">Erro</span>
-                    {onDismiss && (
-                        <button className="job-card-dismiss" onClick={onDismiss} aria-label="Fechar">
-                            <X size={12} />
-                        </button>
+                {/* Shimmer sweep */}
+                <div className="job-card-grid-shimmer" aria-hidden="true" />
+
+                {/* Conteúdo central informativo */}
+                <div className="job-card-hero-body">
+                    <motion.div
+                        className="job-card-hero-spinner"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
+                    >
+                        <Loader2 size={24} />
+                    </motion.div>
+
+                    <span className="job-card-hero-label">{stageLabel}</span>
+
+                    {job.progress && (
+                        <div className="job-card-hero-progress-wrap">
+                            <div className="job-card-hero-progress-bar">
+                                <motion.div
+                                    className="job-card-hero-progress-fill"
+                                    initial={{ width: '0%' }}
+                                    animate={{ width: `${pct}%` }}
+                                    transition={{ ease: 'easeOut', duration: 0.4 }}
+                                />
+                            </div>
+                            <span className="job-card-hero-progress-text">{progressLabel}</span>
+                        </div>
                     )}
+
+                    <span className="job-card-hero-stage">{resolveStageLabel(job.stage, job.type)}</span>
                 </div>
-                <p className="t-xs text-tertiary job-card-error-msg">{job.error}</p>
+
+                <button className="job-card-grid-dismiss" onClick={onDismiss} aria-label="Cancelar geração">
+                    <X size={12} />
+                </button>
             </motion.div>
         );
     }
 
-    // queued | running → loading card
+    // ── Placeholder card (slots restantes de marketplace ou card padrão generate/edit) ──
     return (
         <motion.div
-            className="job-card job-card--loading"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            className="image-card job-card-grid job-card-grid--loading"
+            role="listitem"
+            aria-label={`Geração em andamento: ${stageLabel}`}
+            initial={{ opacity: 0, scale: 0.94 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.94 }}
             layout
         >
-            <div className="job-card-header">
-                <div className="job-card-header-row">
-                    <Loader2 size={13} className="job-card-spinner" />
-                    <span className="t-xs text-secondary">{resolveStageLabel(job.stage, job.type)}</span>
-                </div>
-                {job.message && job.message !== resolveStageLabel(job.stage, job.type) && (
-                    <span className="job-card-msg" title={job.message}>{job.message}</span>
+            {/* Shimmer sweep */}
+            <div className="job-card-grid-shimmer" aria-hidden="true" />
+
+            {/* Anel central pulsante */}
+            <div className="job-card-grid-center" aria-hidden="true">
+                <motion.div
+                    className="job-card-grid-ring"
+                    animate={{ scale: [1, 1.18, 1], opacity: [0.45, 0.9, 0.45] }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <Loader2 size={18} className="job-card-grid-icon" aria-hidden="true" />
+            </div>
+
+            {/* Label no rodapé — sempre visível */}
+            <div className="job-card-grid-footer" role="status" aria-live="polite">
+                <span className="job-card-grid-label">{isMarketplace ? '' : stageLabel}</span>
+                {!isMarketplace && job.progress && (
+                    <div className="job-card-grid-progress" aria-hidden="true">
+                        <motion.div
+                            className="job-card-grid-progress-fill"
+                            initial={{ width: '0%' }}
+                            animate={{ width: `${Math.round((job.progress.current / job.progress.total) * 100)}%` }}
+                            transition={{ ease: 'easeOut' }}
+                        />
+                    </div>
                 )}
             </div>
 
-            {/* Thumbnails das imagens enviadas */}
-            {job.inputThumbnails.length > 0 && (
-                <div className="job-card-thumbs">
-                    {job.inputThumbnails.slice(0, 3).map((url, i) => (
-                        <img key={i} src={url} alt="" className="job-card-thumb" />
-                    ))}
-                    {job.inputThumbnails.length > 3 && (
-                        <span className="job-card-thumb-more t-xs text-tertiary">+{job.inputThumbnails.length - 3}</span>
-                    )}
-                </div>
+            {onDismiss && (
+                <button className="job-card-grid-dismiss" onClick={onDismiss} aria-label="Cancelar geração">
+                    <X size={12} />
+                </button>
             )}
-
-            {/* Mini progress bar */}
-            {job.progress && (
-                <div className="job-card-progress">
-                    <motion.div
-                        className="job-card-progress-fill"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.round((job.progress.current / job.progress.total) * 100)}%` }}
-                        transition={{ ease: 'easeOut' }}
-                    />
-                </div>
-            )}
-
-            {/* Skeleton */}
-            <div className="job-card-skeleton" />
         </motion.div>
     );
 }
@@ -302,6 +368,38 @@ function CopyAction({ text }: { text: string }) {
             aria-label="Copiar prompt"
         >
             {copied ? <CheckCircle size={14} className="text-success" /> : <Copy size={14} />}
+        </button>
+    );
+}
+
+/* ── Session ID Chip (copiável) ───────────────────────────── */
+function SessionIdChip({ sessionId, slotId }: { sessionId?: string; slotId?: string }) {
+    const [copied, setCopied] = useState(false);
+    if (!sessionId) return null;
+
+    const shortId = sessionId.slice(0, 8);
+    const slotLabel = slotId ? humanizeSlotId(slotId) : null;
+    const displayText = slotLabel ? `#${shortId} · ${slotLabel}` : `#${shortId}`;
+
+    const handleCopy = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await navigator.clipboard.writeText(`#${shortId}`);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1800);
+        } catch { /* no-op */ }
+    };
+
+    return (
+        <button
+            className={`session-id-chip ${copied ? 'session-id-chip--copied' : ''}`}
+            onClick={handleCopy}
+            title={`ID da sessão: #${shortId}${slotId ? ` · slot: ${slotId}` : ''} — clique para copiar`}
+            aria-label={`Copiar ID da sessão ${shortId}`}
+            type="button"
+        >
+            {copied ? <CheckCircle size={9} /> : <Copy size={9} />}
+            <span>{displayText}</span>
         </button>
     );
 }
@@ -342,12 +440,20 @@ const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse
                 <div className="image-card-badges">
                     {item.aspect_ratio && <span className="badge badge--sm">{item.aspect_ratio}</span>}
                 </div>
+                <SessionIdChip sessionId={item.session_id} slotId={item.slot_id} />
                 <span className="image-card-time"><Clock size={9} /> {timeAgo(item.created_at)}</span>
             </div>
 
             {/* Actions */}
             <div className="image-card-actions" role="group" onClick={e => e.stopPropagation()}>
-                <a href={src} download={item.filename} className="img-action-btn" title="Baixar" onClick={e => e.stopPropagation()}>
+                <a
+                    href={src}
+                    download={item.filename}
+                    className="img-action-btn"
+                    title="Baixar"
+                    aria-label={`Baixar ${item.filename}`}
+                    onClick={e => e.stopPropagation()}
+                >
                     <Download size={14} />
                 </a>
                 {onReuse && (
@@ -395,23 +501,11 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
     const isDone = status.type === 'done' || status.type === 'done_partial';
     const isEditing = status.type === 'editing';
 
-    /* ── Feed de jobs ativos (sempre renderizado acima do resto) ── */
-    const jobFeed = activeJobs.length > 0 ? (
-        <div className="active-jobs-feed">
-            <AnimatePresence>
-                {activeJobs.map(job => (
-                    <JobCard key={job.id} job={job} onDismiss={() => onDismissJob?.(job.id)} />
-                ))}
-            </AnimatePresence>
-        </div>
-    ) : null;
-
     /* ── Edição pontual ativa (SSE legado) ──────────────────── */
     if (isEditing) {
         const editingMsg = 'message' in status && status.message ? status.message : 'Editando imagem…';
         return (
             <>
-                {jobFeed}
                 <div className="gallery-state-wrap">
                     <div className="gallery-loading">
                         <div className="editing-indicator" role="status" aria-live="polite">
@@ -440,7 +534,6 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
     if (isPipeline) {
         return (
             <>
-                {jobFeed}
                 <div className="gallery-state-wrap">
                     <div className="gallery-loading">
                         <PipelineStepper status={status} />
@@ -464,7 +557,6 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
     if (status.type === 'error') {
         return (
             <>
-                {jobFeed}
                 <div className="gallery-state-wrap">
                     <div className="gallery-empty" role="alert">
                         <p className="t-h4 text-error">Erro na geração</p>
@@ -521,29 +613,24 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
     const currentFilenames = new Set(currentImages.map(img => img.filename));
     const filteredHistory = mediaHistory.filter(h => !currentFilenames.has(h.filename));
 
-    const hasAnything = currentImages.length > 0 || filteredHistory.length > 0;
-
+    const hasAnything = currentImages.length > 0 || filteredHistory.length > 0 || activeJobs.length > 0;
 
     if (!hasAnything) {
         return (
-            <>
-                {jobFeed}
-                <div className="gallery-state-wrap">
-                    <div className="gallery-empty" role="status" aria-live="polite">
-                        <div className="empty-icon" aria-hidden="true">✦</div>
-                        <p className="t-h4 text-secondary">Pronto para criar</p>
-                        <p className="t-sm text-tertiary" style={{ maxWidth: 320, textAlign: 'center' }}>
-                            Envie fotos da peça e escolha o estilo para gerar imagens profissionais.
-                        </p>
-                    </div>
+            <div className="gallery-state-wrap">
+                <div className="gallery-empty" role="status" aria-live="polite">
+                    <div className="empty-icon" aria-hidden="true">✦</div>
+                    <p className="t-h4 text-secondary">Pronto para criar</p>
+                    <p className="t-sm text-tertiary" style={{ maxWidth: 320, textAlign: 'center' }}>
+                        Envie fotos da peça e escolha o estilo para gerar imagens profissionais.
+                    </p>
                 </div>
-            </>
+            </div>
         );
     }
 
     return (
         <>
-            {jobFeed}
             {/* Prompt result card */}
             {promptInfo && (
                 <motion.div
@@ -576,10 +663,10 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
                     ) : null}
                     {(promptInfo.preset || promptInfo.scene_preference || promptInfo.fidelity_mode || promptInfo.pose_flex_mode) && (
                         <div className="prompt-meta-badges">
-                            {promptInfo.preset && <span className="badge badge--sm">{promptInfo.preset}</span>}
-                            {promptInfo.scene_preference && <span className="badge badge--sm">{promptInfo.scene_preference}</span>}
-                            {promptInfo.fidelity_mode && <span className="badge badge--sm">fidelidade: {promptInfo.fidelity_mode}</span>}
-                            {promptInfo.pose_flex_mode && <span className="badge badge--sm">pose: {promptInfo.pose_flex_mode}</span>}
+                            {promptInfo.preset && <span className="badge badge--sm" title={promptInfo.preset}>{humanizePreset(promptInfo.preset)}</span>}
+                            {promptInfo.scene_preference && <span className="badge badge--sm" title={promptInfo.scene_preference}>{humanizeScenePreference(promptInfo.scene_preference)}</span>}
+                            {promptInfo.fidelity_mode && <span className="badge badge--sm" title={promptInfo.fidelity_mode}>{humanizeFidelityMode(promptInfo.fidelity_mode)}</span>}
+                            {promptInfo.pose_flex_mode && <span className="badge badge--sm" title={promptInfo.pose_flex_mode}>{humanizePoseFlexMode(promptInfo.pose_flex_mode)}</span>}
                             {promptInfo.repair_applied && <span className="badge badge--sm">recovery: on</span>}
                         </div>
                     )}
@@ -587,9 +674,25 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
                 </motion.div>
             )}
 
-            {/* Grid unificado: geração recente + histórico */}
+            {/* Grid unificado: jobs ativos + geração recente + histórico */}
             <div className="unified-grid" role="list" aria-label="Imagens geradas">
                 <AnimatePresence>
+                    {/* Jobs em andamento — N cards por job (1 por imagem esperada) */}
+                    {activeJobs.flatMap(job => {
+                        // Oculta cards redundantes se a operação inteira falhou ou foi abortada
+                        const isErrorState = job.status === 'error';
+                        const displayCount = isErrorState ? 1 : Math.max(1, job.count);
+
+                        return Array.from({ length: displayCount }, (_, i) => (
+                            <JobCard
+                                key={`${job.id}-${i}`}
+                                job={job}
+                                // dismiss só no primeiro card do grupo
+                                onDismiss={i === 0 ? () => onDismissJob?.(job.id) : undefined}
+                            />
+                        ));
+                    })}
+
                     {/* Geração atual — cards maiores com destaque */}
                     {currentImages.map((img, i) => (
                         <motion.div
@@ -619,10 +722,22 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
                                 onClick={() => openLightbox(imageUrl(img.url))}
                             />
                             <div className="image-card-actions" role="group" onClick={e => e.stopPropagation()}>
-                                <button className="img-action-btn" onClick={(e) => { e.stopPropagation(); openLightbox(imageUrl(img.url)); }} title="Ampliar">
+                                <button
+                                    className="img-action-btn"
+                                    onClick={(e) => { e.stopPropagation(); openLightbox(imageUrl(img.url)); }}
+                                    title="Ampliar"
+                                    aria-label={`Ampliar ${img.filename}`}
+                                >
                                     <ZoomIn size={15} />
                                 </button>
-                                <a href={imageUrl(img.url)} download={img.filename} className="img-action-btn" onClick={e => e.stopPropagation()} title="Baixar">
+                                <a
+                                    href={imageUrl(img.url)}
+                                    download={img.filename}
+                                    className="img-action-btn"
+                                    onClick={e => e.stopPropagation()}
+                                    title="Baixar"
+                                    aria-label={`Baixar ${img.filename}`}
+                                >
                                     <Download size={15} />
                                 </a>
                             </div>
@@ -645,10 +760,14 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
 
 /* ── Lightbox ─────────────────────────────────────────────── */
 function LightboxOverlay({ src, onClose }: { src: string; onClose: () => void }) {
+    const dialogRef = useRef<HTMLDivElement>(null);
+    useDialogA11y(true, dialogRef, onClose);
+
     return (
         <AnimatePresence>
             <motion.div
                 className="lightbox"
+                ref={dialogRef}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -656,6 +775,7 @@ function LightboxOverlay({ src, onClose }: { src: string; onClose: () => void })
                 role="dialog"
                 aria-modal="true"
                 aria-label="Imagem ampliada"
+                tabIndex={-1}
             >
                 <button className="lightbox-close" onClick={onClose} aria-label="Fechar">
                     <X size={20} />

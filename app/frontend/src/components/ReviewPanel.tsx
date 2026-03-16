@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, ClipboardList, Eye, RefreshCw, RotateCcw, SearchCode } from 'lucide-react';
 import type { JobReviewPayload } from '../types';
 import { imageUrl } from '../lib/api';
+import { humanizeFidelityMode, humanizePoseFlexMode, humanizePreset } from '../lib/humanize';
 import './ReviewPanel.css';
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
     error: string | null;
     onRefresh: () => void;
     onUseInCreate?: (review: JobReviewPayload) => void;
+    onGoToCreate?: () => void;
 }
 
 function verdictLabel(verdict: string): string {
@@ -24,7 +26,7 @@ function gateVerdictLabel(verdict?: string | null): string {
     return 'sem leitura';
 }
 
-export function ReviewPanel({ data, loading, error, onRefresh, onUseInCreate }: Props) {
+export function ReviewPanel({ data, loading, error, onRefresh, onUseInCreate, onGoToCreate }: Props) {
     if (loading) {
         return (
             <div className="review-layout">
@@ -54,8 +56,16 @@ export function ReviewPanel({ data, loading, error, onRefresh, onUseInCreate }: 
         return (
             <div className="review-layout">
                 <div className="review-empty">
-                    <ClipboardList size={18} aria-hidden="true" />
-                    <p className="t-sm text-tertiary">Nenhum job revisável disponível ainda.</p>
+                    <ClipboardList size={32} className="review-empty-icon" aria-hidden="true" />
+                    <p className="t-sm text-secondary" style={{ fontWeight: 600 }}>Nenhuma geração revisada ainda</p>
+                    <p className="t-xs text-tertiary" style={{ textAlign: 'center', maxWidth: 260, lineHeight: 1.5 }}>
+                        Gere uma imagem e ela aparecerá aqui com análise de qualidade automática.
+                    </p>
+                    {onGoToCreate && (
+                        <button className="review-action-btn review-action-btn--primary" onClick={onGoToCreate} type="button">
+                            Criar agora
+                        </button>
+                    )}
                 </div>
             </div>
         );
@@ -99,9 +109,9 @@ export function ReviewPanel({ data, loading, error, onRefresh, onUseInCreate }: 
                 </div>
                 <p className="t-sm text-secondary">{data.review.summary}</p>
                 <div className="review-meta-row">
-                    {data.context.preset && <span className="badge badge--sm">{data.context.preset}</span>}
-                    {data.context.fidelity_mode && <span className="badge badge--sm">fidelidade: {data.context.fidelity_mode}</span>}
-                    {data.context.pose_flex_mode && <span className="badge badge--sm">pose: {data.context.pose_flex_mode}</span>}
+                    {data.context.preset && <span className="badge badge--sm" title={data.context.preset}>{humanizePreset(data.context.preset)}</span>}
+                    {data.context.fidelity_mode && <span className="badge badge--sm" title={data.context.fidelity_mode}>{humanizeFidelityMode(data.context.fidelity_mode)}</span>}
+                    {data.context.pose_flex_mode && <span className="badge badge--sm" title={data.context.pose_flex_mode}>{humanizePoseFlexMode(data.context.pose_flex_mode)}</span>}
                     {data.context.reference_guard_strength && <span className="badge badge--sm">guard: {data.context.reference_guard_strength}</span>}
                 </div>
             </section>

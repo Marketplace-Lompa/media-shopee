@@ -55,9 +55,11 @@ def _reference_role_instruction(scope: str = "garment") -> str:
     scope_text = str(scope or "garment").strip().lower()
     if scope_text == "edit":
         return (
-            "REFERENCE ROLE MAP: GARMENT ONLY. "
-            "Allowed transfer: garment geometry, fabric behavior, stitch/texture, and palette. "
-            "Forbidden transfer: face, body, skin tone, hair, age impression, pose, and background layout."
+            "REFERENCE IMAGES BELOW — ITEM/GARMENT EXTRACTION ONLY. "
+            "If a reference shows a flat lay or isolated item (no person): extract its color, texture, stitch, construction directly. "
+            "If a reference shows a person wearing the item: that person is IRRELEVANT — "
+            "do NOT use their face, skin tone, hair, body shape, age, or pose. Extract only the item properties. "
+            "The person to preserve is exclusively the one in the BASE IMAGE labeled above."
         )
     return (
         "REFERENCE ROLE MAP: GARMENT ONLY. "
@@ -159,6 +161,7 @@ def generate_images(
     session_id: Optional[str] = None,
     start_index: int = 1,
     structural_hint: Optional[str] = None,           # e.g. "poncho/ruana, cocoon silhouette, no sleeves"
+    use_image_grounding: bool = False,               # ativa Google Image Search como contexto visual extra
 ) -> List[dict]:
     """
     Gera n_images imagens com o Nano Banana 2.
@@ -245,6 +248,17 @@ def generate_images(
             # Prompt textual (sempre por último para ter peso máximo)
             content_parts.append(types.Part(text=_effective_prompt))
 
+            # Montar tools: image_search ativado por flag
+            _tools = None
+            if use_image_grounding:
+                _tools = [
+                    types.Tool(google_search=types.GoogleSearch(
+                        search_types=types.SearchTypes(
+                            image_search=types.ImageSearch()
+                        )
+                    ))
+                ]
+
             try:
                 response = client.models.generate_content(
                     model=MODEL_IMAGE,
@@ -258,8 +272,24 @@ def generate_images(
                         ),
                         thinking_config=types.ThinkingConfig(thinking_level=effective_thinking_level),  # type: ignore[arg-type]
                         safety_settings=SAFETY_CONFIG,
+                        tools=_tools,
                     ),
                 )
+                # Log image search grounding metadata para observabilidade
+                if use_image_grounding and response.candidates:
+                    for cand in response.candidates:
+                        gm = getattr(cand, "grounding_metadata", None)
+                        if gm:
+                            queries = getattr(gm, "image_search_queries", None) or getattr(gm, "web_search_queries", None)
+                            chunks = getattr(gm, "grounding_chunks", None) or []
+                            if queries:
+                                print(f"[IMAGE_GROUNDING] 🔍 queries: {queries}")
+                            if chunks:
+                                print(f"[IMAGE_GROUNDING] 📎 sources ({len(chunks)}): "
+                                      + ", ".join(
+                                          str(getattr(getattr(c, 'web', None) or getattr(c, 'retrieved_context', None), 'uri', ''))
+                                          for c in chunks[:3]
+                                      ))
                 break
             except Exception as exc:
                 last_error = exc
@@ -315,6 +345,7 @@ def edit_image(
     thinking_level: str = "HIGH",
     session_id: Optional[str] = None,
     reference_images_bytes: Optional[List[bytes]] = None,
+    use_image_grounding: bool = False,               # ativa Google Image Search como contexto visual extra
 ) -> List[dict]:
     """
     Edita uma imagem existente via Nano Banana 2.
@@ -339,22 +370,26 @@ def edit_image(
     for attempt in range(1, _REFERENCE_RETRY_ATTEMPTS + 1):
         current_references = _build_retry_reference_subset(prepared_reference_images, attempt, minimum_keep=2)
         _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
+        # Etiquetar explicitamente a imagem base ANTES de enviá-la.
+        # O modelo de imagem precisa saber qual imagem é a base a editar
+        # e quais são referências — sem rótulo, ele funde as identidades.
         content_parts = [
+            types.Part(text=(
+                "BASE IMAGE TO EDIT: The image immediately below is the source to edit. "
+                "LOCK the person in this image — their face, skin tone, hair, body proportions, "
+                "and pose must remain exactly as shown. Do not alter the person in any way."
+            )),
             types.Part(
                 inline_data=types.Blob(mime_type=_detect_image_mime(source_image_bytes), data=source_image_bytes),
                 media_resolution=_hi_res,
             ),
         ]
         # Adicionar imagens de referência COM object fidelity labeling.
-        # M4: As referências são para GARMENT ONLY — o Nano Banana NÃO deve
+        # As referências são para ITEM/GARMENT ONLY — o Nano Banana NÃO deve
         # copiar a pessoa que aparece nas fotos, apenas a textura e construção da peça.
         if current_references:
             content_parts.append(
-                types.Part(
-                    text=(
-                        _reference_role_instruction("edit")
-                    )
-                )
+                types.Part(text=_reference_role_instruction("edit"))
             )
             for ref_bytes in current_references:
                 content_parts.append(
@@ -364,6 +399,17 @@ def edit_image(
                     )
                 )
         content_parts.append(types.Part(text=edit_prompt))
+
+        # Montar tools: image_search ativado por flag
+        _tools = None
+        if use_image_grounding:
+            _tools = [
+                types.Tool(google_search=types.GoogleSearch(
+                    search_types=types.SearchTypes(
+                        image_search=types.ImageSearch()
+                    )
+                ))
+            ]
 
         try:
             _edit_modalities = ["IMAGE"] if EDIT_IMAGE_ONLY_MODALITY else ["TEXT", "IMAGE"]
@@ -378,8 +424,24 @@ def edit_image(
                     ),
                     thinking_config=types.ThinkingConfig(thinking_level=effective_thinking_level), # type: ignore[arg-type]
                     safety_settings=SAFETY_CONFIG,
+                    tools=_tools,
                 ),
             )
+            # Log image search grounding metadata para observabilidade
+            if use_image_grounding and response.candidates:
+                for cand in response.candidates:
+                    gm = getattr(cand, "grounding_metadata", None)
+                    if gm:
+                        queries = getattr(gm, "image_search_queries", None) or getattr(gm, "web_search_queries", None)
+                        chunks = getattr(gm, "grounding_chunks", None) or []
+                        if queries:
+                            print(f"[IMAGE_GROUNDING/EDIT] 🔍 queries: {queries}")
+                        if chunks:
+                            print(f"[IMAGE_GROUNDING/EDIT] 📎 sources ({len(chunks)}): "
+                                  + ", ".join(
+                                      str(getattr(getattr(c, 'web', None) or getattr(c, 'retrieved_context', None), 'uri', ''))
+                                      for c in chunks[:3]
+                                  ))
             break
         except Exception as exc:
             last_error = exc

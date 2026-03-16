@@ -34,10 +34,9 @@
 }
 
 .generate-header h1 {
-  background: linear-gradient(135deg, var(--c-violet-400), var(--c-pink-400));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.03em;
 }
 
 .generate-content {
@@ -57,4 +56,41 @@
 #root {
   height: 100vh;
   overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  .app-main {
+    min-height: 0;
+  }
+
+  .generate-header {
+    padding: var(--sp-4);
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .generate-content {
+    min-height: 0;
+  }
+}
+
+/* ── Mobile adjustments ───────────────────────────────────── */
+@media (max-width: 768px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .app-main {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .generate-header {
+    padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  }
 }

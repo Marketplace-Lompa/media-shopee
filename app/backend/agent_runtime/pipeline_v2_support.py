@@ -30,14 +30,36 @@ def normalize_v2_options(
     )
 
 
-def persist_v2_history(raw: dict[str, Any], *, aspect_ratio: str, resolution: str) -> None:
+def persist_v2_history(
+    raw: dict[str, Any],
+    *,
+    aspect_ratio: str,
+    resolution: str,
+    preset: Optional[str] = None,
+    scene_preference: Optional[str] = None,
+    fidelity_mode: Optional[str] = None,
+    pose_flex_mode: Optional[str] = None,
+    pipeline_mode: Optional[str] = None,
+    marketplace_channel: Optional[str] = None,
+    marketplace_operation: Optional[str] = None,
+    slot_id: Optional[str] = None,
+) -> None:
     session_id = str(raw.get("session_id", "") or "")
     if not session_id:
         return
 
+    resolved_preset = preset or raw.get("preset")
+    resolved_scene_preference = scene_preference or raw.get("scene_preference")
+    resolved_fidelity_mode = fidelity_mode or raw.get("fidelity_mode")
+    resolved_pose_flex_mode = pose_flex_mode or raw.get("pose_flex_mode")
+    resolved_marketplace_channel = marketplace_channel or raw.get("marketplace_channel")
+    resolved_marketplace_operation = marketplace_operation or raw.get("marketplace_operation")
+    resolved_slot_id = slot_id or raw.get("slot_id")
     art_direction_summary = raw.get("art_direction_summary") or {}
     camera_profile = art_direction_summary.get("camera_profile") if isinstance(art_direction_summary, dict) else None
     reference_urls = list(raw.get("review_reference_urls", []) or [])
+    optimized_prompt = raw.get("optimized_prompt") or None
+    resolved_pipeline_mode = pipeline_mode or raw.get("pipeline_mode") or None
 
     for img in raw.get("images", []) or []:
         try:
@@ -45,13 +67,22 @@ def persist_v2_history(raw: dict[str, Any], *, aspect_ratio: str, resolution: st
                 session_id=session_id,
                 filename=img["filename"],
                 url=img["url"],
-                prompt=raw.get("optimized_prompt", ""),
+                prompt=optimized_prompt or "",
                 thinking_level="MINIMAL",
                 aspect_ratio=aspect_ratio,
                 resolution=resolution,
                 references=reference_urls,
                 base_prompt=raw.get("stage1_prompt"),
                 camera_profile=camera_profile,
+                preset=resolved_preset,
+                scene_preference=resolved_scene_preference,
+                fidelity_mode=resolved_fidelity_mode,
+                pose_flex_mode=resolved_pose_flex_mode,
+                pipeline_mode=resolved_pipeline_mode,
+                optimized_prompt=optimized_prompt,
+                marketplace_channel=resolved_marketplace_channel,
+                marketplace_operation=resolved_marketplace_operation,
+                slot_id=resolved_slot_id,
             )
         except Exception as hist_err:
             print(f"[HISTORY] v2 persist error: {hist_err}")
@@ -78,6 +109,7 @@ def build_v2_response_payload(
         "pipeline_version": "v2",
         "thinking_level": "MINIMAL",
         "thinking_reason": "pipeline_v2",
+        "user_intent": raw.get("user_intent"),
         "aspect_ratio": aspect_ratio,
         "resolution": resolution,
         "images": raw.get("images", []),
@@ -125,6 +157,7 @@ def build_v2_generate_response(
         pipeline_mode=payload.get("pipeline_mode", "reference_mode_strict"),
         thinking_level="MINIMAL",
         thinking_reason="pipeline_v2",
+        user_intent=payload.get("user_intent"),
         aspect_ratio=aspect_ratio,
         resolution=resolution,
         images=[GeneratedImage(**img) for img in raw.get("images", [])],

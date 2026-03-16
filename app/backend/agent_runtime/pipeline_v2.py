@@ -44,6 +44,7 @@ from agent_runtime.two_pass_flow import (
 from generator import edit_image, generate_images
 from pipeline_effectiveness import assess_generated_image
 from config import OUTPUTS_DIR
+from request_validation import validate_generation_params
 
 
 _POSE_FLEX_MODES = {"auto", "controlled", "balanced", "dynamic"}
@@ -119,6 +120,76 @@ def _persist_review_inputs(
     }
 
 
+def _should_use_image_grounding(
+    structural_contract: Optional[dict[str, Any]],
+    image_analysis: Optional[str],
+    gate_policy: Optional[dict[str, Any]],
+    n_uploaded: int,
+) -> bool:
+    """
+    Decide se deve ativar Google Image Search grounding para esta geração.
+
+    Critérios de ativação (qualquer um satisfeito):
+    - Garment é subtipo incomum/draped que o modelo pode confundir (ruana, poncho, cape, kimono)
+    - Gate detectou garment complexo ou drape architecture especial
+    - Image analysis descreve padrão específico (chevron, diagonal, crochet radiante)
+      que o modelo pode não renderizar corretamente sem referências visuais adicionais
+    - Poucas referências do usuário (< 3) para garment de alta fidelidade
+
+    Critérios de NÃO ativação:
+    - Garment comum (t-shirt, hoodie, basic knit) — modelo já sabe
+    - Muitas referências de alta qualidade (>= 4) — contexto suficiente
+    - Variação de cor simples — queremos cor específica do usuário, não web
+    """
+    contract = structural_contract or {}
+    ia = str(image_analysis or "").lower()
+    gate = gate_policy or {}
+
+    subtype = str(contract.get("garment_subtype", "") or "").strip().lower()
+    confidence = float(contract.get("confidence", 1.0) or 1.0)
+    gate_reasons = [str(r).lower() for r in (gate.get("reasons") or [])]
+
+    # Subtypes que se beneficiam de contexto visual extra da web
+    _complex_subtypes = {
+        "ruana_wrap", "poncho", "cape", "kimono", "bolero",
+        "cape_like", "draped_wrap",
+    }
+
+    # Padrões que o modelo tende a errar sem referência visual extra
+    _pattern_keywords = (
+        "chevron", "diagonal", "radiating", "concentric", "crochet",
+        "crochê", "handmade", "artisanal", "boucle", "bouclê",
+        "patchwork", "jacquard", "intarsia", "fair isle",
+    )
+
+    reasons: list[str] = []
+
+    if subtype in _complex_subtypes:
+        reasons.append(f"complex_subtype:{subtype}")
+
+    if any(r in gate_reasons for r in (
+        "complex_garment", "draped_subtype", "cape_like", "sleeve_architecture"
+    )):
+        reasons.append("gate_complex_garment")
+
+    if ia and any(kw in ia for kw in _pattern_keywords):
+        reasons.append("distinctive_pattern_in_analysis")
+
+    if n_uploaded < 3 and subtype in _complex_subtypes:
+        reasons.append("few_refs_complex_garment")
+
+    if confidence < 0.7:
+        reasons.append(f"low_triage_confidence:{confidence:.2f}")
+
+    active = bool(reasons)
+    if active:
+        print(f"[IMAGE_GROUNDING] ✅ ativado — razões: {reasons}")
+    else:
+        print(f"[IMAGE_GROUNDING] ⏭ skipped — garment:{subtype}, refs:{n_uploaded}, confidence:{confidence:.2f}")
+
+    return active
+
+
 def _derive_garment_material_text(
     structural_contract: Optional[dict[str, Any]],
     image_analysis: Optional[str],
@@ -160,6 +231,8 @@ def _build_stage1_prompt(
     set_detection: Optional[dict[str, Any]] = None,
     fidelity_mode: str = "balanceada",
     preset: str = "",
+    angle_directive: str = "",
+    look_contract: Optional[dict[str, Any]] = None,
 ) -> str:
     """Prompt curto e reproduzivel para stage 1: base fiel da peca."""
     structure_guards = build_structure_guard_clauses(structural_contract, set_detection=set_detection)
@@ -203,6 +276,9 @@ def _build_stage1_prompt(
             "Clean premium indoor composition, soft natural daylight.",
             "Preserve exact garment geometry, texture continuity, and construction details.",
         ]
+    # angle_directive governa o ângulo/crop desta slot — entra como instrução #2 (após a descrição do sujeito humano) para evitar a perda da modelo na foto
+    if angle_directive:
+        parts.insert(1, angle_directive)
     if structural_hint:
         parts.append(f"Garment identity: {structural_hint}.")
     if structure_guards:
@@ -229,6 +305,14 @@ def _build_stage1_prompt(
         + "Do not promote inner tops, jewelry, shoes, or unrelated accessories into coordinated product pieces. "
         + "Build new styling independent from the reference person's lower-body look, footwear, and props."
     )
+    # look_contract: guia de coerência de look gerado pelo triage — bottom preferido + proibidos
+    if look_contract and float(look_contract.get("confidence", 0) or 0) > 0.5:
+        _lc_bottom = str(look_contract.get("bottom_style") or "").strip()
+        _lc_forbidden = [str(x).strip() for x in (look_contract.get("forbidden_bottoms") or []) if str(x).strip()]
+        if _lc_bottom:
+            parts.append(f"Preferred lower-body styling: {_lc_bottom}.")
+        if _lc_forbidden:
+            parts.append(f"Avoid these lower-body types (incoherent with this garment): {', '.join(_lc_forbidden)}.")
     return " ".join(parts)
 
 
@@ -426,6 +510,12 @@ def run_pipeline_v2(
         if on_stage:
             on_stage(stage, data or {})
 
+    validate_generation_params(
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        n_images=n_images,
+    )
+
     if not uploaded_bytes:
         raise ValueError("Pipeline v2 requer pelo menos 1 imagem de referencia")
 
@@ -458,6 +548,16 @@ def run_pipeline_v2(
     image_analysis = str((unified_triage.get("image_analysis") or "") if isinstance(unified_triage, dict) else "").strip()
     lighting_signature = (
         (unified_triage.get("lighting_signature") or {})
+        if isinstance(unified_triage, dict)
+        else {}
+    )
+    look_contract = (
+        (unified_triage.get("look_contract") or {})
+        if isinstance(unified_triage, dict)
+        else {}
+    )
+    garment_aesthetic = (
+        (unified_triage.get("garment_aesthetic") or {})
         if isinstance(unified_triage, dict)
         else {}
     )
@@ -580,6 +680,14 @@ def run_pipeline_v2(
     if gate_policy.get("enabled"):
         reason_codes.update(str(item) for item in (gate_policy.get("reasons") or []))
 
+    # Decidir se ativar Google Image Search grounding baseado no triage
+    _use_image_grounding = _should_use_image_grounding(
+        structural_contract=structural_contract,
+        image_analysis=image_analysis,
+        gate_policy=gate_policy,
+        n_uploaded=len(uploaded_bytes),
+    )
+
     effective_art_direction_request = dict(art_direction_request or {})
     effective_art_direction_request.setdefault("scene_preference", scene_preference)
     effective_art_direction_request.setdefault("preset", preset)
@@ -591,9 +699,13 @@ def run_pipeline_v2(
     if lighting_signature:
         effective_art_direction_request.setdefault("lighting_signature", lighting_signature)
     if image_analysis:
-        effective_art_direction_request.setdefault("image_analysis_hint", image_analysis[:220])
+        effective_art_direction_request.setdefault("image_analysis_hint", image_analysis[:400])
     if structural_hint:
         effective_art_direction_request.setdefault("structural_hint", structural_hint)
+    if look_contract and float(look_contract.get("confidence", 0) or 0) > 0.5:
+        effective_art_direction_request.setdefault("look_contract", look_contract)
+    if garment_aesthetic:
+        effective_art_direction_request.setdefault("garment_aesthetic", garment_aesthetic)
     directive_hints = effective_art_direction_request.get("directive_hints")
     if not isinstance(directive_hints, dict):
         directive_hints = {}
@@ -612,12 +724,17 @@ def run_pipeline_v2(
     # ── 2. Generate base image (stage 1 — locks fortes) ──────────────────────
     _emit("stabilizing_garment", {"message": "Estabilizando a peca..."})
 
+    # Extrair angle_directive para governar ângulo/crop em ambos os estágios
+    _stage1_angle_directive = str(directive_hints.get("angle_directive", "") or "").strip()
+
     stage1_prompt = _build_stage1_prompt(
         structural_contract,
         structural_hint,
         set_detection=set_detection,
         fidelity_mode=fidelity_mode,
         preset=preset,
+        angle_directive=_stage1_angle_directive,
+        look_contract=look_contract,
     )
 
     stage1_candidate_count = _stage1_candidate_count(
@@ -634,6 +751,7 @@ def run_pipeline_v2(
         uploaded_images=base_gen_bytes,
         session_id=f"v2base_{session_id}",
         structural_hint=structural_hint,
+        use_image_grounding=_use_image_grounding,
     )
 
     if not base_results:
@@ -748,7 +866,8 @@ def run_pipeline_v2(
     all_results: list[dict[str, Any]] = []
     failed_indices: list[int] = []
     last_art_direction: dict[str, Any] = {}
-    last_edit_prompt = ""
+    last_primary_edit_prompt = ""
+    last_applied_edit_prompt = ""
     stage2_thinking_level = "MINIMAL" if str(fidelity_mode).strip().lower() == "estrita" else "HIGH"
     any_repair_applied = bool(stage1_recovery.get("applied"))
 
@@ -785,6 +904,7 @@ def run_pipeline_v2(
                 reference_usage_rules=reference_usage_rules,
                 pose_flex_guideline=pose_flex_hint,
                 user_prompt=prompt,
+                image_analysis=image_analysis,
             )
             if str(fidelity_mode).strip().lower() == "estrita":
                 edit_prompt += (
@@ -792,7 +912,8 @@ def run_pipeline_v2(
                     "Do not alter garment silhouette, length, sleeve architecture, hem behavior, or stripe placement."
                 )
 
-            last_edit_prompt = edit_prompt
+            primary_edit_prompt = edit_prompt
+            selected_edit_prompt = primary_edit_prompt
             edit_session_id = f"v2edit_{session_id}_{img_idx + 1}"
             edit_results = edit_image(
                 source_image_bytes=base_image_bytes,
@@ -802,6 +923,7 @@ def run_pipeline_v2(
                 thinking_level=stage2_thinking_level,
                 session_id=edit_session_id,
                 reference_images_bytes=edit_reference_bytes,
+                use_image_grounding=_use_image_grounding,
             )
 
             if not edit_results:
@@ -903,7 +1025,7 @@ def run_pipeline_v2(
                         result["art_direction_summary"] = art_direction.get("summary", {})
                         final_assessment = localized_assessment or final_assessment
                         final_gate = localized_gate or final_gate
-                        last_edit_prompt = localized_prompt
+                        selected_edit_prompt = localized_prompt
                         any_repair_applied = True
                         reason_codes.add("stage2_targeted_repair")
                         recovery_info["applied"] = True
@@ -974,6 +1096,7 @@ def run_pipeline_v2(
                         thinking_level=retry_thinking_level,
                         session_id=f"{edit_session_id}_retry",
                         reference_images_bytes=edit_reference_bytes,
+                        use_image_grounding=_use_image_grounding,
                     )
                     retry_result = retry_results[0] if retry_results else None
                     retry_assessment = (
@@ -1001,7 +1124,7 @@ def run_pipeline_v2(
                         result["art_direction_summary"] = art_direction.get("summary", {})
                         final_assessment = retry_assessment or final_assessment
                         final_gate = retry_gate or final_gate
-                        last_edit_prompt = retry_prompt
+                        selected_edit_prompt = retry_prompt
                         any_repair_applied = True
                         reason_codes.add("stage2_fidelity_retry")
                     recovery_info["full_retry"] = {
@@ -1040,13 +1163,16 @@ def run_pipeline_v2(
             commit_art_direction_choice(art_direction)
             result["fidelity_gate"] = final_gate
             result["recovery_applied"] = bool(recovery_info.get("applied"))
+            last_primary_edit_prompt = primary_edit_prompt
+            last_applied_edit_prompt = selected_edit_prompt
             all_results.append(result)
             observability_runs.append(
                 {
                     "index": img_idx + 1,
                     "art_direction_summary": art_direction.get("summary", {}),
                     "art_direction": art_direction,
-                    "edit_prompt": edit_prompt,
+                    "edit_prompt": primary_edit_prompt,
+                    "applied_edit_prompt": selected_edit_prompt,
                     "edit_reference_names": edit_reference_names,
                     "result": {
                         "filename": result.get("filename"),
@@ -1067,14 +1193,18 @@ def run_pipeline_v2(
                     },
                 }
             )
-        except Exception:
+        except Exception as stage2_exc:
+            import traceback
+            print(f"\n[DEBUG P2] Stage 2 Loop Exception (idx {img_idx}): {str(stage2_exc)}")
+            traceback.print_exc()
             observability_runs.append(
                 {
                     "index": img_idx + 1,
                     "art_direction_summary": art_direction.get("summary", {}),
                     "art_direction": art_direction,
-                    "edit_prompt": last_edit_prompt,
-                    "error": "edit_failed",
+                    "edit_prompt": last_primary_edit_prompt or "",
+                    "applied_edit_prompt": last_applied_edit_prompt or "",
+                    "error": str(stage2_exc),
                 }
             )
             failed_indices.append(img_idx + 1)
@@ -1084,15 +1214,18 @@ def run_pipeline_v2(
         raise RuntimeError("Stage 2 falhou: nenhuma imagem final gerada")
 
     elapsed = round(time.time() - started, 2)
+    from agent_runtime.normalize_user_intent import normalize_user_intent
+    user_intent_payload = normalize_user_intent(prompt or "")
 
     # ── Build response ────────────────────────────────────────────────────────
     response: dict[str, Any] = {
         "session_id": session_id,
         "pipeline_version": "v2",
         "pipeline_mode": "reference_mode_strict" if str(fidelity_mode).strip().lower() == "estrita" else "reference_mode",
-        "optimized_prompt": last_edit_prompt or stage1_prompt,
+        "optimized_prompt": last_primary_edit_prompt or stage1_prompt,
         "stage1_prompt": stage1_prompt,
-        "edit_prompt": last_edit_prompt,
+        "edit_prompt": last_applied_edit_prompt or last_primary_edit_prompt or stage1_prompt,
+        "user_intent": user_intent_payload,
         "images": all_results,
         "failed_indices": failed_indices,
         "generation_time": elapsed,
@@ -1123,9 +1256,6 @@ def run_pipeline_v2(
             "stage1_recovery": stage1_recovery,
         },
     }
-
-    from agent_runtime.normalize_user_intent import normalize_user_intent
-    user_intent_payload = normalize_user_intent(prompt or "")
 
     observability_meta = write_v2_observability_report(
         session_id,

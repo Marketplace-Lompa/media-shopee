@@ -20,6 +20,8 @@ _JOBS: Dict[str, Dict[str, Any]] = {}
 # ── Parâmetros que aparecem no log visual do terminal ──────────────
 _LOG_META_KEYS = [
     "pipeline_version",
+    "marketplace_channel",
+    "marketplace_operation",
     "preset",
     "n_images",
     "aspect_ratio",
@@ -32,6 +34,8 @@ _LOG_META_KEYS = [
     "has_images",
     "image_count",
     "image_filenames",
+    "color_count",
+    "color_filenames",
     "has_guided_brief",
     "prompt",
 ]

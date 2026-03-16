@@ -17,13 +17,13 @@ const nav = [
 
 export function Sidebar({ activeTab, onTabChange }: Props) {
     return (
-        <div className="sidebar">
-            <div className="sidebar-brand">
+        <aside className="sidebar" aria-label="Barra lateral">
+            <header className="sidebar-brand">
                 <div className="brand-logo" aria-hidden="true">
                     <img src="/studio-logo.png" alt="" />
                 </div>
                 <span className="brand-name">Studio</span>
-            </div>
+            </header>
 
             <nav className="sidebar-nav" aria-label="Navegação principal">
                 {nav.map(({ id, icon: Icon, label }) => (
@@ -40,9 +40,9 @@ export function Sidebar({ activeTab, onTabChange }: Props) {
                 ))}
             </nav>
 
-            <div className="sidebar-footer">
+            <footer className="sidebar-footer">
                 <span className="t-xs text-tertiary">v0.2</span>
-            </div>
-        </div>
+            </footer>
+        </aside>
     );
 }

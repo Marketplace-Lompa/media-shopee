@@ -26,9 +26,9 @@ from dotenv import load_dotenv
 ROOT       = Path(__file__).parent.parent.parent  # raiz do mono-repo
 APP_DIR    = Path(__file__).parent.parent          # app/
 TESTS_DIR  = Path(__file__).parent                 # app/tests/
-INPUT_DIR  = TESTS_DIR / "output" / "poncho-teste"
+INPUT_DIR  = TESTS_DIR / "samples" / "poncho-ruana-listras"
 OUTPUT_DIR = TESTS_DIR / "output" / "look_contract_test"
-BASELINE   = TESTS_DIR / "output" / "poncho-teste" / "resultado1.png"
+BASELINE   = TESTS_DIR / "output" / "gen_01.png"
 BASE_URL   = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 load_dotenv(ROOT / ".env")

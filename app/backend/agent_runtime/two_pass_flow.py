@@ -528,8 +528,22 @@ def build_art_direction_two_pass_edit_prompt(
     reference_usage_rules: Optional[list[str]] = None,
     pose_flex_guideline: Optional[str] = None,
     user_prompt: Optional[str] = None,
+    image_analysis: Optional[str] = None,
 ) -> str:
     locks = build_structure_guard_clauses(structural_contract, set_detection=set_detection)
+
+    # Se image_analysis descreve um padrão específico (listras, chevron, etc.),
+    # gera um lock explícito de direção de padrão para substituir o genérico.
+    _pattern_lock_sentence = ""
+    _ia = str(image_analysis or "").strip()
+    _pattern_keywords = ("stripe", "chevron", "diagonal", "radiating", "concentric", "plaid", "grid", "check", "argyle", "listras", "listra", "xadrez")
+    if _ia and any(w in _ia.lower() for w in _pattern_keywords):
+        _ia_truncated = _ia[:250].rstrip(",. ")
+        _pattern_lock_sentence = (
+            f"CRITICAL — preserve the exact surface pattern geometry from the references: {_ia_truncated}. "
+            "Do not reinterpret stripe direction, pattern angle, or pattern scale. "
+            "If the pattern appears diagonal or chevron in the references, it must remain diagonal or chevron in the output."
+        )
 
     casting = art_direction.get("casting_profile", {}) or {}
     scene = art_direction.get("scene", {}) or {}
@@ -567,6 +581,14 @@ def build_art_direction_two_pass_edit_prompt(
 
     request_meta = art_direction.get("request", {}) if isinstance(art_direction.get("request"), dict) else {}
     preset_hint = str(request_meta.get("preset", "") or "").strip().lower()
+    directive_hints_meta = request_meta.get("directive_hints", {}) if isinstance(request_meta.get("directive_hints"), dict) else {}
+    angle_directive = str(directive_hints_meta.get("angle_directive", "") or "").strip()
+    look_contract_meta = (
+        request_meta.get("look_contract")
+        if isinstance(request_meta.get("look_contract"), dict)
+        else {}
+    )
+    _lc_active = bool(look_contract_meta) and float(look_contract_meta.get("confidence", 0) or 0) > 0.5
     scene_brief = _scene_creative_brief(
         scene,
         preset=preset_hint,
@@ -629,7 +651,9 @@ def build_art_direction_two_pass_edit_prompt(
     ugc_entropy_clauses = _ugc_entropy_clauses(ugc_entropy_profile)
 
     sentences = [
+        angle_directive,  # instrução de ângulo/crop obrigatória — vazia se não houver slot directive
         "Keep the garment exactly the same: " + ", ".join(locks) + ".",
+        _pattern_lock_sentence,  # lock específico de padrão — vazio se padrão não detectado
         f"Replace the model with {identity_sentence}.",
         reference_policy_clause,
         "Before rendering, internally plan the composition around a locked garment object. Only the model identity, pose, camera, and environment may change.",
@@ -646,7 +670,18 @@ def build_art_direction_two_pass_edit_prompt(
         ) if recent_avoid else "",
         neckline_guard,
         f"Change the inner top to a {str(styling.get('innerwear', '') or 'clean white crew-neck tee')}." if not neckline_guard else "",
-        f"Change the lower-body styling to {str(styling.get('bottom', '') or 'clean commercial separates')}.",
+        # look_contract.bottom_style tem prioridade sobre styling profile aleatório quando confiança > 0.5
+        (
+            "Change the lower-body styling to "
+            + (str(look_contract_meta.get("bottom_style") or "").strip() or str(styling.get("bottom", "") or "clean commercial separates"))
+            + "."
+        ) if not neckline_guard else "",
+        # forbidden_bottoms: guard explícito contra looks incoerentes com a peça
+        (
+            "NEVER use these lower-body types for this garment (styling incoherence): "
+            + ", ".join(str(x).strip() for x in (look_contract_meta.get("forbidden_bottoms") or []) if str(x).strip())
+            + "."
+        ) if _lc_active and look_contract_meta.get("forbidden_bottoms") else "",
         style_clause,
         scene_clause,
         model_clause,
@@ -657,7 +692,7 @@ def build_art_direction_two_pass_edit_prompt(
         "Keep the image highly photorealistic with natural skin texture, visible pores, mild facial asymmetry, and realistic body proportions.",
     ]
 
-    from normalize_user_intent import normalize_user_intent
+    from agent_runtime.normalize_user_intent import normalize_user_intent
     extra_direction = (user_prompt or "").strip()
     if extra_direction:
         intent = normalize_user_intent(extra_direction)

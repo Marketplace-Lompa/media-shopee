@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, TypedDict
 
 from agent_runtime.structural import (
     is_selfie_capture_compatible,
@@ -52,6 +52,20 @@ _MOVEMENT_POSE_IDS = [
     "walking_stride_controlled",
     "twist_step_forward",
 ]
+
+
+class ArtDirectionSelectionPolicy(TypedDict):
+    preferred_scene_ids: list[str]
+    avoid_scene_ids: list[str]
+    preferred_camera_ids: list[str]
+    avoid_camera_ids: list[str]
+    preferred_lighting_ids: list[str]
+    avoid_lighting_ids: list[str]
+    preferred_casting_family_ids: list[str]
+    avoid_casting_family_ids: list[str]
+    preferred_pose_ids: list[str]
+    avoid_pose_ids: list[str]
+    ugc_intent: str
 
 
 def _lighting_signature_policy_enabled() -> bool:
@@ -225,7 +239,7 @@ def derive_art_direction_selection_policy(
     pose_flex_mode: str,
     selector_stats: Optional[dict[str, Any]] = None,
     structural_contract: Optional[dict[str, Any]] = None,
-) -> dict[str, list[str]]:
+) -> ArtDirectionSelectionPolicy:
     stats = selector_stats or {}
     text = " ".join(
         part for part in [
@@ -305,16 +319,6 @@ def derive_art_direction_selection_policy(
         lighting_preferred.extend(["open_shade_daylight", "cloudy_tropical", "window_daylight", "overcast_cafe", "mixed_window_lamp", "phone_practical_mixed"])
         lighting_avoid.extend(["clean_showroom"])
 
-        # ── P0 Hard coherence: indoor scenes MUST NOT use outdoor-only lighting ──
-        _indoor_scene_ids = {
-            "br_boutique_floor", "br_fitting_room_mirror", "br_elevator_mirror",
-            "br_condo_hallway", "br_bedroom_window", "br_pinheiros_living",
-            "br_curitiba_cafe", "br_porto_alegre_bookstore", "br_rio_art_loft",
-            "br_showroom_sp",
-        }
-        _outdoor_only_lighting = {"coastal_late_morning", "golden_hour_soft"}
-        if scene_preferred and all(sid in _indoor_scene_ids for sid in scene_preferred[:3]):
-            lighting_avoid.extend(list(_outdoor_only_lighting))
         casting_preferred.extend([
             "br_social_creator",
             "br_social_afro",
@@ -568,6 +572,24 @@ def derive_art_direction_selection_policy(
             pose_avoid.extend(["front_relaxed_hold"])
         if spatially_sensitive or str((structural_contract or {}).get("front_opening", "") or "").strip().lower() == "open":
             pose_avoid.extend(["mirror_selfie_offset"])
+
+    # Apply indoor/outdoor lighting compatibility after scene candidates are fully assembled.
+    _indoor_scene_ids = {
+        "br_boutique_floor",
+        "br_fitting_room_mirror",
+        "br_elevator_mirror",
+        "br_condo_hallway",
+        "br_bedroom_window",
+        "br_pinheiros_living",
+        "br_curitiba_cafe",
+        "br_porto_alegre_bookstore",
+        "br_rio_art_loft",
+        "br_showroom_sp",
+    }
+    _outdoor_only_lighting = {"coastal_late_morning", "golden_hour_soft"}
+    _top_scene_ids = dedupe_preserve_order(scene_preferred)[:3]
+    if _top_scene_ids and all(sid in _indoor_scene_ids for sid in _top_scene_ids):
+        lighting_avoid.extend(list(_outdoor_only_lighting))
 
     return {
         "preferred_scene_ids": dedupe_preserve_order(scene_preferred),

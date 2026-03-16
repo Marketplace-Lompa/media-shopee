@@ -609,12 +609,7 @@ def run_agent(
     print(f"[AGENT] Prompt ({len(prompt_text)} chars): {prompt_text[:300]}{'…' if len(prompt_text) > 300 else ''}")
     print(f"{'='*60}\n")
 
-    from normalize_user_intent import normalize_user_intent
-    extra_direction = str(instruction_notes or "").strip()
-    base_direction = str(user_prompt or "").strip()
-    if extra_direction:
-        result["user_intent"] = normalize_user_intent(extra_direction)
-    else:
-        result["user_intent"] = normalize_user_intent(base_direction)
+    from agent_runtime.normalize_user_intent import normalize_user_intent
+    result["user_intent"] = normalize_user_intent(str(user_prompt or "").strip())
 
     return result

@@ -33,7 +33,8 @@ from pipeline_effectiveness import (
     log_effectiveness_event,
     select_diversity_target,
 )
-from config import DEFAULT_ASPECT_RATIO, DEFAULT_N_IMAGES, DEFAULT_RESOLUTION, VALID_ASPECT_RATIOS, VALID_RESOLUTIONS, VALID_N_IMAGES
+from config import DEFAULT_ASPECT_RATIO, DEFAULT_N_IMAGES, DEFAULT_RESOLUTION, VALID_N_IMAGES
+from request_validation import validate_generation_params
 
 router = APIRouter(prefix="/generate", tags=["generate-stream"])
 
@@ -58,6 +59,20 @@ async def generate_stream(
     pose_flex_mode: str = Form(default="auto"),
     images: List[UploadFile] = File(default=[]),
 ):
+    try:
+        validate_generation_params(
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            n_images=n_images,
+            valid_n_images=VALID_N_IMAGES,
+        )
+    except ValueError as e:
+        return StreamingResponse(
+            iter([_sse_event("error", {"message": str(e)})]),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        )
+
     # UploadFile precisa ser lido no contexto do request
     uploaded_bytes = []
     uploaded_filenames = []
@@ -69,6 +84,17 @@ async def generate_stream(
 
     async def event_generator_v2():
         """SSE generator para pipeline v2."""
+        try:
+            validate_generation_params(
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                n_images=n_images,
+                valid_n_images=VALID_N_IMAGES,
+            )
+        except ValueError as e:
+            yield _sse_event("error", {"message": str(e)})
+            return
+
         collected_events: list[dict] = []
         normalized_preset, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_v2_options(
             preset=preset,
@@ -105,7 +131,15 @@ async def generate_stream(
             if stage != "done":
                 yield _sse_event(stage, evt)
 
-        persist_v2_history(raw, aspect_ratio=aspect_ratio, resolution=resolution)
+        persist_v2_history(
+            raw,
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            preset=normalized_preset,
+            scene_preference=normalized_scene_preference,
+            fidelity_mode=normalized_fidelity_mode,
+            pose_flex_mode=normalized_pose_flex_mode,
+        )
         response_data = build_v2_response_payload(
             raw,
             aspect_ratio=aspect_ratio,
@@ -125,14 +159,15 @@ async def generate_stream(
         )
 
     async def event_generator():
-        if aspect_ratio not in VALID_ASPECT_RATIOS:
-            yield _sse_event("error", {"message": f"aspect_ratio inválido. Use: {VALID_ASPECT_RATIOS}"})
-            return
-        if resolution not in VALID_RESOLUTIONS:
-            yield _sse_event("error", {"message": f"resolution inválida. Use: {VALID_RESOLUTIONS}"})
-            return
-        if n_images not in VALID_N_IMAGES:
-            yield _sse_event("error", {"message": f"n_images inválido. Use: {VALID_N_IMAGES}"})
+        try:
+            validate_generation_params(
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                n_images=n_images,
+                valid_n_images=VALID_N_IMAGES,
+            )
+        except ValueError as e:
+            yield _sse_event("error", {"message": str(e)})
             return
 
         session_id = str(uuid.uuid4())[:8]
@@ -420,6 +455,7 @@ async def generate_stream(
         response_data = {
             "session_id": session_id,
             "optimized_prompt": optimized_prompt,
+            "user_intent": agent_result.get("user_intent"),
             "pipeline_mode": pipeline_mode,
             "thinking_level": thinking_level,
             "thinking_reason": thinking_reason,

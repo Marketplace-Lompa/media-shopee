@@ -1,0 +1,102 @@
+{
+  "session_id": "mkt_4e6efe9c",
+  "pipeline_version": "marketplace_v1",
+  "marketplace_channel": "shopee",
+  "operation": "main_variation",
+  "detected_colors": [],
+  "slots": [
+    {
+      "slot_id": "hero_front",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "74d6bcf5",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_74d6bcf5_1_1.png",
+        "url": "/outputs/v2edit_74d6bcf5_1/edit_v2edit_74d6bcf5_1_1.png",
+        "size_kb": 2100.5,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_74d6bcf5/report.json"
+    },
+    {
+      "slot_id": "front_3_4",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "05468b4f",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_05468b4f_1_1.png",
+        "url": "/outputs/v2edit_05468b4f_1/edit_v2edit_05468b4f_1_1.png",
+        "size_kb": 1848.3,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_05468b4f/report.json"
+    },
+    {
+      "slot_id": "back_or_side",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "afe84f1e",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_afe84f1e_1_microrepair_1.png",
+        "url": "/outputs/v2edit_afe84f1e_1_microrepair/edit_v2edit_afe84f1e_1_microrepair_1.png",
+        "size_kb": 1949.1,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_afe84f1e/report.json"
+    },
+    {
+      "slot_id": "fabric_closeup",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "e5f11eab",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_e5f11eab_1_1.png",
+        "url": "/outputs/v2edit_e5f11eab_1/edit_v2edit_e5f11eab_1_1.png",
+        "size_kb": 1847.8,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_e5f11eab/report.json"
+    },
+    {
+      "slot_id": "functional_detail_or_size",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "ab33b5a4",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_ab33b5a4_1_1.png",
+        "url": "/outputs/v2edit_ab33b5a4_1/edit_v2edit_ab33b5a4_1_1.png",
+        "size_kb": 2006.8,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_ab33b5a4/report.json"
+    }
+  ],
+  "summary": {
+    "requested_slots": 5,
+    "completed_slots": 5,
+    "failed_slots": 0
+  },
+  "config": {
+    "preset": "marketplace_lifestyle",
+    "scene_preference": "auto_br",
+    "fidelity_mode": "estrita",
+    "pose_flex_mode": "controlled",
+    "aspect_ratio": "4:5",
+    "resolution": "1K"
+  }
+}

@@ -29,6 +29,7 @@ from agent_runtime.casting_engine import (  # type: ignore
     select_brazilian_casting_profile,
 )
 from agent_runtime.curation_policy import (  # type: ignore
+    ArtDirectionSelectionPolicy,
     apply_selection_policy as _policy_apply_selection_policy,
     dedupe_preserve_order as _policy_dedupe_preserve_order,
     derive_art_direction_selection_policy,
@@ -75,7 +76,7 @@ _SCENE_FAMILIES: list[dict[str, Any]] = [
         "camera_ids": ["phone_cameraroll", "canon_balanced", "sony_documentary", "phone_clean", "fujifilm_candid"],
         "lighting_ids": ["mixed_window_lamp", "window_daylight", "phone_practical_mixed"],
         "styling_ids": ["soft_blue_trousers", "indigo_jeans", "black_tailored_pants"],
-        "pose_ids": ["standing_full_shift", "front_relaxed_hold", "soft_wall_lean", "hand_adjust_neckline", "doorway_pause_candid", "phone_low_hand_snapshot", "standing_3q_relaxed", "contrapposto_editorial"],
+        "pose_ids": ["standing_full_shift", "front_relaxed_hold", "soft_wall_lean", "hand_adjust_neckline", "doorway_pause_candid", "phone_low_hand_snapshot", "standing_3q_relaxed", "contrapposto_editorial", "full_back_view"],
     },
     {
         "id": "br_curitiba_cafe",
@@ -95,7 +96,7 @@ _SCENE_FAMILIES: list[dict[str, Any]] = [
         "camera_ids": ["canon_balanced", "sony_documentary", "phone_clean", "fujifilm_candid"],
         "lighting_ids": ["clean_showroom", "window_daylight", "open_shade_daylight"],
         "styling_ids": ["soft_blue_trousers", "black_tailored_pants"],
-        "pose_ids": ["standing_full_shift", "front_relaxed_hold", "contrapposto_editorial", "hand_adjust_neckline", "standing_3q_relaxed", "half_turn_lookback", "soft_wall_lean", "twist_step_forward"],
+        "pose_ids": ["standing_full_shift", "front_relaxed_hold", "contrapposto_editorial", "hand_adjust_neckline", "standing_3q_relaxed", "half_turn_lookback", "soft_wall_lean", "twist_step_forward", "full_back_view"],
     },
     {
         "id": "br_salvador_colonial_street",
@@ -125,7 +126,7 @@ _SCENE_FAMILIES: list[dict[str, Any]] = [
         "camera_ids": ["canon_balanced", "sony_documentary", "nikon_street", "fujifilm_candid", "phone_clean"],
         "lighting_ids": ["open_shade_daylight", "cloudy_tropical", "golden_hour_soft"],
         "styling_ids": ["black_tailored_pants", "soft_blue_trousers"],
-        "pose_ids": ["contrapposto_editorial", "half_turn_lookback", "standing_full_shift", "hand_adjust_neckline", "walking_stride_controlled", "standing_3q_relaxed", "twist_step_forward", "front_relaxed_hold"],
+        "pose_ids": ["contrapposto_editorial", "half_turn_lookback", "standing_full_shift", "hand_adjust_neckline", "walking_stride_controlled", "standing_3q_relaxed", "twist_step_forward", "front_relaxed_hold", "full_back_view"],
     },
     {
         "id": "br_bh_rooftop_lounge",
@@ -267,6 +268,14 @@ _POSE_FAMILIES: list[dict[str, Any]] = [
         "pose_description": "Use a controlled half-turn pose with a soft look-back while keeping the garment front and side lines visible.",
         "model_hero_pose": "controlled half-turn stance with soft look-back and relaxed arms",
         "tags": ["editorial", "lifestyle", "movement", "outdoor", "indoor"],
+    },
+    {
+        "id": "full_back_view",
+        "label": "Full Back View",
+        "angle_description": "Camera positioned directly behind the model. Model faces completely away from camera. Full garment back visible from neckline to hem.",
+        "pose_description": "Model fully turned with back to camera, arms naturally at sides, garment back completely visible from collar to hem.",
+        "model_hero_pose": "full back-to-camera stance with arms naturally at sides",
+        "tags": ["catalog", "stable", "indoor", "outdoor", "back_view"],
     },
     {
         "id": "walking_stride_controlled",
@@ -615,7 +624,7 @@ def _derive_realism_selection_policy(
     pose_flex_mode: str = "auto",
     selector_stats: Optional[dict[str, Any]] = None,
     structural_contract: Optional[dict[str, Any]] = None,
-) -> dict[str, list[str]]:
+) -> ArtDirectionSelectionPolicy:
     return derive_art_direction_selection_policy(
         preset=preset,
         scene_preference=scene_preference,
@@ -1225,6 +1234,8 @@ def sample_art_direction(
     selector_stats = request.get("selector_stats") if isinstance(request.get("selector_stats"), dict) else {}
     structural_contract = request.get("structural_contract") if isinstance(request.get("structural_contract"), dict) else {}
     set_detection = request.get("set_detection") if isinstance(request.get("set_detection"), dict) else {}
+    look_contract_req = request.get("look_contract") if isinstance(request.get("look_contract"), dict) else {}
+    garment_aesthetic_req = request.get("garment_aesthetic") if isinstance(request.get("garment_aesthetic"), dict) else {}
     directive_hints = request.get("directive_hints", {}) if isinstance(request.get("directive_hints"), dict) else {}
     scene_context_hint = str(directive_hints.get("scene_context_hint", "") or "").strip()
     pose_context_hint = str(directive_hints.get("pose_context_hint", "") or "").strip()
@@ -1241,9 +1252,30 @@ def sample_art_direction(
     if custom_context_hint:
         guidance_tokens.append(custom_context_hint[:220])
     if image_analysis_hint:
-        guidance_tokens.append(image_analysis_hint[:220])
+        guidance_tokens.append(image_analysis_hint[:400])
     if structural_hint:
         guidance_tokens.append(structural_hint[:140])
+    # garment_aesthetic → vibe/sazonalidade/formalidade informam a seleção de cena
+    if garment_aesthetic_req:
+        _vibe = str(garment_aesthetic_req.get("vibe") or "").strip()
+        _season = str(garment_aesthetic_req.get("season") or "").strip()
+        _formality = str(garment_aesthetic_req.get("formality") or "").strip()
+        if _vibe:
+            guidance_tokens.append(f"garment vibe: {_vibe}")
+        if _season and _season != "mid_season":
+            guidance_tokens.append(f"garment season: {_season}")
+        if _formality and _formality != "casual":
+            guidance_tokens.append(f"garment formality: {_formality}")
+    # look_contract → ocasião e DNA de estilo para casting e seleção de cena
+    if look_contract_req and float(look_contract_req.get("confidence", 0) or 0) > 0.5:
+        _occasion = str(look_contract_req.get("occasion") or "").strip()
+        _style_kw = ", ".join(
+            str(x).strip() for x in (look_contract_req.get("style_keywords") or []) if str(x).strip()
+        )
+        if _occasion:
+            guidance_tokens.append(f"garment occasion: {_occasion}")
+        if _style_kw:
+            guidance_tokens.append(f"garment style DNA: {_style_kw}")
 
     hint_prompt = " ".join(part for part in [str(user_prompt or "").strip(), *guidance_tokens] if part).strip()
     if not hint_prompt:

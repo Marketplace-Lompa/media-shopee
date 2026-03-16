@@ -9,12 +9,11 @@
  * automaticamente — sem perder o andamento.
  */
 import { useEffect, useRef, useState } from 'react';
-import { submitGenerateAsync, submitEditAsync } from '../lib/api';
-import type { JobEntry, JobType, JobStatus, EditTarget, AspectRatio, Resolution, Preset, ScenePreference, FidelityMode, PoseFlexMode } from '../types';
+import { submitGenerateAsync, submitEditAsync, submitMarketplaceAsync } from '../lib/api';
+import type { JobEntry, JobType, JobStatus, EditTarget, AspectRatio, Resolution, Preset, ScenePreference, FidelityMode, PoseFlexMode, MarketplaceChannel, MarketplaceOperation } from '../types';
 
 const POLL_INTERVAL_MS = 1200;
 const MAX_POLL_FAILURES = 5;
-const AUTO_DISMISS_MS = 30_000;
 const STORAGE_KEY = 'mshopee:active_jobs';
 
 // ── Persistência ─────────────────────────────────────────────────────────────
@@ -24,6 +23,7 @@ interface PersistedJob {
     type: JobType;
     prompt: string | null;
     createdAt: number;
+    count: number;
 }
 
 function loadPersistedJobs(): PersistedJob[] {
@@ -47,7 +47,7 @@ function persistJobs(jobs: JobEntry[]) {
     // Salvar apenas jobs com ID real (não pending-*) ainda em execução
     const toSave: PersistedJob[] = jobs
         .filter(j => (j.status === 'queued' || j.status === 'running') && !j.id.startsWith('pending-'))
-        .map(j => ({ id: j.id, type: j.type, prompt: j.prompt, createdAt: j.createdAt }));
+        .map(j => ({ id: j.id, type: j.type, prompt: j.prompt, createdAt: j.createdAt, count: j.count }));
 
     try {
         if (toSave.length === 0) {
@@ -86,6 +86,14 @@ export interface EditPayload {
     files?: File[];
 }
 
+export interface MarketplacePayload {
+    channel: MarketplaceChannel;
+    operation: MarketplaceOperation;
+    baseFiles: File[];
+    colorFiles?: File[];
+    prompt?: string;
+}
+
 interface UseJobQueueOptions {
     onJobComplete: () => void;
 }
@@ -96,9 +104,14 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
     const [jobs, setJobs] = useState<JobEntry[]>([]);
     const timers = useRef<Map<string, number>>(new Map());
     const failures = useRef<Map<string, number>>(new Map());
+    // Guard: só persistir após a restauração do localStorage ter ocorrido no mount.
+    // Sem este guard, o efeito de persistência roda primeiro (jobs=[]) e apaga o
+    // localStorage antes do efeito de restauração ter chance de lê-lo.
+    const restoredRef = useRef(false);
 
-    // Persistir sempre que a lista de jobs muda
+    // Persistir sempre que a lista de jobs muda (mas nunca antes da restauração)
     useEffect(() => {
+        if (!restoredRef.current) return;
         persistJobs(jobs);
     }, [jobs]);
 
@@ -137,7 +150,9 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
     function startPolling(jobId: string, type: JobType) {
         const endpoint = type === 'generate'
             ? `/generate/jobs/${jobId}`
-            : `/edit/jobs/${jobId}`;
+            : type === 'marketplace'
+                ? `/marketplace/jobs/${jobId}`
+                : `/edit/jobs/${jobId}`;
 
         let isPolling = false;
         const timerId = window.setInterval(async () => {
@@ -145,6 +160,18 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
             isPolling = true;
             try {
                 const r = await fetch(endpoint);
+
+                // ── 404 = job finalizado (backend faz GC de jobs concluídos) ──
+                // Tratar como conclusão implícita, não como erro de rede.
+                if (r.status === 404) {
+                    stopPolling(jobId);
+                    removePersistedJob(jobId);
+                    // Dismiss silencioso + refresh do histórico
+                    dismissJob(jobId);
+                    onJobComplete();
+                    return;
+                }
+
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 const job = await r.json();
 
@@ -152,37 +179,59 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                 failures.current.set(jobId, 0);
 
                 if (job.status === 'queued') {
-                    updateJob(jobId, { status: 'queued', message: 'Na fila…' });
+                    const event = (job.event || {}) as Record<string, unknown>;
+                    updateJob(jobId, {
+                        status: 'queued',
+                        message: typeof event.message === 'string' ? event.message : 'Na fila…',
+                    });
                 } else if (job.status === 'running') {
                     const event = (job.event || {}) as Record<string, unknown>;
                     const hasProg = typeof event.current === 'number' && typeof event.total === 'number';
-                    updateJob(jobId, {
+                    const hasTotalSlots = typeof event.total_slots === 'number';
+                    
+                    const patch: Partial<JobEntry> = {
                         status: 'running',
                         stage: typeof job.stage === 'string' ? job.stage : null,
                         message: typeof event.message === 'string' ? event.message : null,
                         progress: hasProg
                             ? { current: event.current as number, total: event.total as number }
                             : null,
-                    });
+                    };
+
+                    // Sincroniza a contagem visual de cartões com a realidade do backend 
+                    // (ex: após de-duplicação de cores)
+                    if (hasTotalSlots) {
+                        patch.count = Math.max(1, event.total_slots as number);
+                    }
+                    if (hasProg) {
+                        patch.count = Math.max(1, event.total as number);
+                    }
+
+                    updateJob(jobId, patch);
                 } else if (job.status === 'done') {
                     stopPolling(jobId);
                     removePersistedJob(jobId);
                     updateJob(jobId, {
                         status: 'done',
-                        result: type === 'generate' ? job.response ?? null : null,
+                        result: (type === 'generate' || type === 'marketplace') ? job.response ?? null : null,
                         editResult: type === 'edit' ? job.response ?? null : null,
                         stage: null,
                         message: null,
                         progress: null,
                     });
-                    onJobComplete();
-                    window.setTimeout(() => dismissJob(jobId), AUTO_DISMISS_MS);
+                    // Descarta o card após breve exibição de conclusão,
+                    // depois atualiza o histórico — evita refresh manual e duplicação visual.
+                    window.setTimeout(() => {
+                        dismissJob(jobId);
+                        onJobComplete();
+                    }, 2_000);
                 } else if (job.status === 'error') {
                     stopPolling(jobId);
                     removePersistedJob(jobId);
                     updateJob(jobId, {
                         status: 'error',
                         error: typeof job.error === 'string' ? job.error : 'Erro desconhecido',
+                        meta: job.meta && typeof job.meta === 'object' ? job.meta as Record<string, unknown> : null,
                     });
                 }
             } catch {
@@ -191,7 +240,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                 if (current >= MAX_POLL_FAILURES) {
                     stopPolling(jobId);
                     removePersistedJob(jobId);
-                    updateJob(jobId, { status: 'error', error: 'Servidor inacessível' });
+                    updateJob(jobId, { status: 'error', error: 'Conexão perdida com o servidor' });
                 }
             } finally {
                 isPolling = false;
@@ -204,7 +253,10 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
     // ── Restaurar jobs do localStorage ao montar ──────────────────────────────
     useEffect(() => {
         const persisted = loadPersistedJobs();
-        if (persisted.length === 0) return;
+        if (persisted.length === 0) {
+            restoredRef.current = true;
+            return;
+        }
 
         // Descartar jobs muito antigos (>2h) — backend in-memory também não os tem mais
         const TWO_HOURS = 2 * 60 * 60 * 1000;
@@ -212,32 +264,51 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
 
         if (fresh.length === 0) {
             localStorage.removeItem(STORAGE_KEY);
+            restoredRef.current = true;
             return;
         }
 
         const restored: JobEntry[] = fresh.map(p => ({
             id: p.id,
             type: p.type,
-            status: 'queued' as JobStatus,
+            status: 'running' as JobStatus,
             stage: null,
-            message: 'Reconectando…',
+            message: 'Sincronizando…',
             progress: null,
             result: null,
             editResult: null,
             error: null,
+            meta: null,
             createdAt: p.createdAt,
             inputThumbnails: [], // object URLs não sobrevivem ao reload
             prompt: p.prompt,
+            count: p.count ?? 1,
         }));
 
+        restoredRef.current = true;
         setJobs(restored);
         restored.forEach(j => startPolling(j.id, j.type));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // apenas no mount
 
+    // ── Heartbeat: re-inicia polling se timers foram perdidos (ex: HMR) ──────
+    useEffect(() => {
+        const heartbeat = window.setInterval(() => {
+            const activeJobs = jobs.filter(j => j.status === 'queued' || j.status === 'running');
+            for (const j of activeJobs) {
+                if (!timers.current.has(j.id)) {
+                    console.info(`[JobQueue] Polling perdido para ${j.id}, reiniciando…`);
+                    startPolling(j.id, j.type);
+                }
+            }
+        }, 2000);
+        return () => window.clearInterval(heartbeat);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [jobs]);
+
     // ── Helpers de entrada ────────────────────────────────────────────────────
 
-    function makeTempEntry(type: JobType, thumbs: string[], prompt: string | null): JobEntry {
+    function makeTempEntry(type: JobType, thumbs: string[], prompt: string | null, count = 1): JobEntry {
         return {
             id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             type,
@@ -248,15 +319,17 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
             result: null,
             editResult: null,
             error: null,
+            meta: null,
             createdAt: Date.now(),
             inputThumbnails: thumbs,
             prompt,
+            count,
         };
     }
 
     async function submitGenerateJob(payload: GeneratePayload) {
         const thumbs = payload.files.map(f => URL.createObjectURL(f));
-        const entry = makeTempEntry('generate', thumbs, payload.prompt || null);
+        const entry = makeTempEntry('generate', thumbs, payload.prompt || null, payload.n_images ?? 1);
         setJobs(prev => [entry, ...prev]);
 
         try {
@@ -317,5 +390,39 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
         }
     }
 
-    return { jobs, submitGenerateJob, submitEditJob, dismissJob };
+    async function submitMarketplaceJob(payload: MarketplacePayload) {
+        const allFiles = [...payload.baseFiles, ...(payload.colorFiles || [])];
+        const thumbs = allFiles.map(f => URL.createObjectURL(f));
+        // color_variations é estimativa inicial conservadora; backend ajusta via stage total_slots/total.
+        const count = payload.operation === 'main_variation' ? 5 : 3;
+        const entryLabel = payload.operation === 'main_variation' ? 'Marketplace: Variação principal' : 'Marketplace: Variações de cor';
+        
+        const entry = makeTempEntry('marketplace', thumbs, entryLabel, count);
+        setJobs(prev => [entry, ...prev]);
+
+        try {
+            const fd = new FormData();
+            fd.append('marketplace_channel', payload.channel);
+            fd.append('operation', payload.operation);
+            if (payload.prompt) {
+                fd.append('prompt', payload.prompt);
+            }
+            payload.baseFiles.forEach(f => fd.append('base_images', f));
+            payload.colorFiles?.forEach(f => fd.append('color_images', f));
+
+            const { job_id } = await submitMarketplaceAsync(fd);
+
+            setJobs(prev => prev.map(j =>
+                j.id === entry.id ? { ...j, id: job_id, message: 'Aguardando fila…' } : j
+            ));
+            startPolling(job_id, 'marketplace');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Erro ao enviar job de marketplace';
+            setJobs(prev => prev.map(j =>
+                j.id === entry.id ? { ...j, status: 'error', error: msg } : j
+            ));
+        }
+    }
+
+    return { jobs, submitGenerateJob, submitEditJob, submitMarketplaceJob, dismissJob };
 }

@@ -31,6 +31,7 @@ EDIT_ANALYSIS_SCHEMA = {
                 "background",
                 "color",
                 "accessory",
+                "set_member",
                 "lighting",
                 "framing",
                 "pose",
@@ -41,6 +42,7 @@ EDIT_ANALYSIS_SCHEMA = {
         },
         "refined_prompt": {"type": "string"},
         "preserve_clause": {"type": "string"},
+        "reference_item_description": {"type": "string"},
         "change_summary_ptbr": {"type": "string"},
         "confidence": {"type": "number"},
     },
@@ -64,6 +66,11 @@ PRESERVATION_TEMPLATES = {
         "PRESERVE exactly: the model's clothing, fabric texture, color, pose, expression, "
         "background, and lighting. "
         "Only modify: accessories as instructed."
+    ),
+    "set_member": (
+        "PRESERVE exactly: the model's face, skin tone, hair, body proportions, pose, and expression; "
+        "all existing garments already on the model; the background environment and lighting setup. "
+        "Only ADD the new coordinated piece described in the prompt — do not replace, alter, or remove anything already in the scene."
     ),
     "lighting": (
         "PRESERVE exactly: all physical elements — garment, model, background, pose, "
@@ -107,23 +114,53 @@ then produce an OPTIMIZED, FULLY ENGLISH prompt for Nano Banana 2 (Gemini image 
    - Scene: lighting quality, background, environment
    - Fabric behavior: how it drapes, falls, structures itself
 
-3. **Use the REFERENCE KNOWLEDGE** to choose the best technical vocabulary:
+3. **REFERENCE IMAGE ANTI-IDENTITY RULE — NON-NEGOTIABLE:**
+   When the user provides reference images, those images may show persons wearing items.
+   - **NEVER transfer the reference person's identity** (face, skin tone, hair, body shape, age, pose) into the edit.
+   - **Extract ONLY the item's visual properties**: color, stitch pattern, fabric texture, drape behavior, proportions.
+   - The reference image is a garment/accessory/piece evidence only — NOT a person reference.
+   - The model in the ORIGINAL image must remain unchanged in all identity characteristics.
+
+4. **Use the REFERENCE KNOWLEDGE** to choose the best technical vocabulary:
    - For fabric/drape edits: use terms like "natural gravity drape", "relaxed cascade", "fabric responding to gravity"
    - For knitwear: apply ANTI-INFLATION rules (DO/DON'T tokens)
    - For texture: use proper texture tokens (subtle/medium/maximum)
    - For model/pose: use the Brazilian Model Framework vocabulary
 
-4. **Classify the edit type** accurately: background | color | accessory | lighting | framing | pose | model | fabric | general
+5. **Classify the edit type** accurately:
+   - background | color | lighting | framing | pose | model | fabric | general — for single-element changes
+   - **accessory** — adding a generic accessory (jewelry, bag, hat) NOT from reference images
+   - **set_member** — adding a coordinated garment piece (cachecol, cardigan, saia) to the model. USE THIS whenever the user wants to add a new garment piece, whether or not a reference image is provided.
 
-5. **Write a precise, actionable refined_prompt** that:
+6. **For set_member edits specifically — TWO SCENARIOS based on reference type:**
+
+   **Scenario A — Reference is a FLAT LAY or isolated item (no person visible):**
+   - This is the IDEAL reference for adding a new piece
+   - Use the reference freely to extract: color, texture, stitch pattern, construction, approximate dimensions
+   - `reference_item_description`: describe precisely from the flat lay — fabric type, colors, stitch, scale
+   - `refined_prompt`: describe the item in full and where it drapes on the body; OK to mention "matching the reference item's texture"
+   - The preserve_clause protects the model's identity from the BASE IMAGE
+
+   **Scenario B — Reference shows a PERSON wearing the item:**
+   - HIGH identity leak risk — the person in the reference may bleed into the output
+   - DO NOT use the reference person as a model — extract ONLY the item's visual properties
+   - `reference_item_description`: describe the ITEM ONLY (color, stitch, texture, drape) — ignore the person
+   - `refined_prompt`: describe the item fully in text without relying on the reference image; add "Do not transfer any person identity from the reference image"
+   - If the piece is the SAME FABRIC as the existing garment (e.g., matching knit set), infer properties from the base image garment instead
+
+   **For BOTH scenarios:**
+   - The preserve_clause must explicitly name and protect the original model's identity from the BASE IMAGE
+   - Specify the item's position and drape direction (front/back/shoulder) relative to the base image view
+
+7. **Write a precise, actionable refined_prompt** that:
    - Starts with "Edit this image: "
    - Describes the EXACT desired visual result using specific technical terms
-   - If reference images are provided: "Match the [specific element] from the reference image"
-   - Maximum 100 words, dense with visual information
+   - For set_member: fully describes the new item in text (color + material + construction + drape + position)
+   - Maximum 120 words, dense with visual information
 
-6. **Write a targeted preserve_clause** listing every element you SEE in the image that must NOT change. Be exhaustive and specific — describe actual colors, materials, features.
+8. **Write a targeted preserve_clause** listing every element you SEE in the image that must NOT change. Be exhaustive and specific — describe actual colors, materials, features.
 
-7. **change_summary_ptbr**: concise summary in Brazilian Portuguese.
+9. **change_summary_ptbr**: concise summary in Brazilian Portuguese.
 
 ## NANO BANANA 2 — EDITING BEST PRACTICES:
 
@@ -131,6 +168,7 @@ then produce an OPTIMIZED, FULLY ENGLISH prompt for Nano Banana 2 (Gemini image 
 - **Background**: "Change only the background to [SCENE]. Keep the model, pose, lighting on the subject, and all garment details (fabric texture, color, draping) exactly as they are."
 - **Color change**: "Change the color of the [GARMENT] from [CURRENT] to [NEW]. Preserve the exact same fabric texture, draping, and construction details."
 - **Add accessory**: "Add [ACCESSORY] to the model. Keep everything else — pose, expression, clothing, background — exactly the same."
+- **Add set_member**: "Edit this image: add a [FULL DESCRIPTION OF ITEM — color + material + construction + drape + position on body]. Do not alter the model's existing outfit, identity, pose, or expression. Do not transfer any person identity from the reference image — only the described item properties."
 - **Remove element**: "Remove [ELEMENT] from the image. Fill the area naturally with the surrounding context."
 - **Lighting**: "Adjust the lighting to [LIGHT_TYPE] while keeping everything else identical. The light should feel [DESCRIPTION]."
 - **Reframe**: "Reframe this as a [wide/medium/close-up] shot, keeping the model, outfit, and style exactly the same."
@@ -172,6 +210,11 @@ User input: "mudar cor da blusa pra verde musgo"
 GOOD refined_prompt: "Edit this image: change the garment color from the current shade to a deep olive moss green. Maintain the exact same fabric texture, stitch pattern, construction, and draping behavior — only the hue should change."
 GOOD preserve_clause: "PRESERVE exactly: the model's face, hair, skin tone, pose, and expression; the garment's fabric texture, weave pattern, fit, and silhouette; the background scene and lighting setup; all accessories and styling."
 
+User input: "adicionar o cachecol do conjunto na modelo." (Scenario A — flat lay reference provided, no person)
+GOOD reference_item_description: "From flat lay reference: rectangular knit scarf in vertical olive green and dusty rose stripe crochet pattern, matching the main garment's color DNA. Medium-weight, ~20-25cm wide, long enough to drape over shoulders and fall to waist. Same stitch density and yarn weight as the cardigan."
+GOOD refined_prompt: "Edit this image: add a matching knit scarf wrapped once around the model's neck, with the ends falling naturally down the front of her chest over the existing cardigan. The scarf features the same olive green and dusty rose vertical stripe pattern and crochet texture as the cardigan, draping with soft gravity-driven folds. Do not transfer any person identity from any reference image — extract only the described item."
+GOOD preserve_clause: "PRESERVE exactly: the model's face, skin tone, and shoulder-length dark brown hair; the white crew-neck cotton t-shirt and white linen shorts; the green and pink striped cardigan's specific knit texture, stripe scale, and fit; the model's standing pose and hand placement; the minimalist light grey background and soft, even studio lighting."
+
 Output valid JSON only."""
 
 
@@ -208,7 +251,14 @@ def refine_edit_instruction(
     if source_prompt:
         context += f'\nOriginal generation prompt (for context): "{source_prompt[:500]}"'
     if reference_images_bytes:
-        context += f'\nThe user also provided {len(reference_images_bytes)} reference image(s) to guide the edit. Consider them as visual references for the requested change.'
+        context += (
+            f'\nThe user provided {len(reference_images_bytes)} reference image(s). '
+            f'CRITICAL: These references may show persons wearing the item. '
+            f'DO NOT transfer any person identity (face, skin tone, hair, body shape, pose) from the references. '
+            f'Extract ONLY the item\'s visual properties (color, texture, stitch, drape, construction, proportions). '
+            f'If the user wants to ADD the item shown in the reference to the original image, classify as set_member '
+            f'and describe the item in detail in reference_item_description before writing refined_prompt.'
+        )
 
     # Injetar REFERENCE KNOWLEDGE completo para curadoria com vocabulário técnico
     context += f'\n\n{REFERENCE_KNOWLEDGE}'
@@ -266,6 +316,13 @@ def refine_edit_instruction(
 
     refined_prompt = parsed.get("refined_prompt", f"Edit this image: apply the following modification — {edit_instruction}. Keep all other elements unchanged.")
     preserve_clause = parsed.get("preserve_clause") or PRESERVATION_TEMPLATES.get(edit_type, "")
+    reference_item_description = parsed.get("reference_item_description") or ""
+
+    # Para set_member: garantir anti-identidade no final do prompt caso o agente tenha esquecido
+    if edit_type == "set_member" and reference_item_description:
+        anti_identity = "Do not transfer any person identity from any reference image — extract only the described item."
+        if anti_identity.lower()[:30] not in refined_prompt.lower():
+            refined_prompt = f"{refined_prompt.rstrip('.')}. {anti_identity}"
 
     # Montar prompt final: refined + preserve
     final_prompt = f"{refined_prompt.rstrip('.')}. {preserve_clause}"
@@ -278,12 +335,14 @@ def refine_edit_instruction(
         "edit_type": edit_type,
         "refined_prompt": refined_prompt,
         "preserve_clause": preserve_clause,
+        "reference_item_description": reference_item_description,
         "change_summary_ptbr": parsed.get("change_summary_ptbr", edit_instruction),
         "confidence": round(confidence, 3),
         "final_prompt": final_prompt,
     }
 
-    print(f"[EDIT_AGENT] ✏️ type={edit_type} conf={confidence:.2f}")
+    ref_desc_log = f" | ref_item={reference_item_description[:60]}…" if reference_item_description else ""
+    print(f"[EDIT_AGENT] ✏️ type={edit_type} conf={confidence:.2f}{ref_desc_log}")
     print(f"[EDIT_AGENT] Prompt ({len(final_prompt)} chars): {final_prompt[:200]}{'…' if len(final_prompt) > 200 else ''}")
 
     return result

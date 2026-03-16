@@ -1,0 +1,102 @@
+{
+  "session_id": "mkt_f552a9eb",
+  "pipeline_version": "marketplace_v1",
+  "marketplace_channel": "mercado_livre",
+  "operation": "main_variation",
+  "detected_colors": [],
+  "slots": [
+    {
+      "slot_id": "hero_front",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "79862d5a",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_79862d5a_1_1.png",
+        "url": "/outputs/v2edit_79862d5a_1/edit_v2edit_79862d5a_1_1.png",
+        "size_kb": 2265.3,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_79862d5a/report.json"
+    },
+    {
+      "slot_id": "front_3_4",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "dc4aed91",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_dc4aed91_1_1.png",
+        "url": "/outputs/v2edit_dc4aed91_1/edit_v2edit_dc4aed91_1_1.png",
+        "size_kb": 2141.7,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_dc4aed91/report.json"
+    },
+    {
+      "slot_id": "back_or_side",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "eba9cac8",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_eba9cac8_1_1.png",
+        "url": "/outputs/v2edit_eba9cac8_1/edit_v2edit_eba9cac8_1_1.png",
+        "size_kb": 2108.1,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_eba9cac8/report.json"
+    },
+    {
+      "slot_id": "fabric_closeup",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "da88c606",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_da88c606_1_microrepair_1.png",
+        "url": "/outputs/v2edit_da88c606_1_microrepair/edit_v2edit_da88c606_1_microrepair_1.png",
+        "size_kb": 2447.9,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_da88c606/report.json"
+    },
+    {
+      "slot_id": "functional_detail_or_size",
+      "slot_type": "main_variation",
+      "color": null,
+      "status": "done",
+      "session_id": "f90a3af2",
+      "pipeline_mode": "reference_mode_strict",
+      "image": {
+        "index": 1,
+        "filename": "edit_v2edit_f90a3af2_1_microrepair_1.png",
+        "url": "/outputs/v2edit_f90a3af2_1_microrepair/edit_v2edit_f90a3af2_1_microrepair_1.png",
+        "size_kb": 1943.6,
+        "mime_type": "image/png"
+      },
+      "debug_report_url": "/outputs/v2diag_f90a3af2/report.json"
+    }
+  ],
+  "summary": {
+    "requested_slots": 5,
+    "completed_slots": 5,
+    "failed_slots": 0
+  },
+  "config": {
+    "preset": "marketplace_lifestyle",
+    "scene_preference": "auto_br",
+    "fidelity_mode": "estrita",
+    "pose_flex_mode": "controlled",
+    "aspect_ratio": "4:5",
+    "resolution": "1K"
+  }
+}

@@ -1,7 +1,7 @@
 """
 Schemas Pydantic para request/response da API.
 """
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
 
 
@@ -98,6 +98,7 @@ class GenerateResponse(BaseModel):
     guided_applied: Optional[bool] = Field(default=None, description="Se o modo guiado foi aplicado no job")
     guided_summary: Optional[dict] = Field(default=None, description="Resumo do brief guiado efetivamente aplicado")
     prompt_compiler_debug: Optional[PromptCompilerDebug] = Field(default=None, description="Telemetria do Prompt Compiler V2")
+    user_intent: Optional[dict] = Field(default=None, description="Normalização do texto do usuário para intenção técnica (raw/normalized/tags)")
     # ── Campos V2 ──
     pipeline_version: Optional[str] = Field(default=None, description="Versão do pipeline: v2 para o novo fluxo")
     art_direction_summary: Optional[dict] = Field(default=None, description="Resumo de art direction aplicado (casting, scene, pose, camera, lighting, styling)")
@@ -134,3 +135,44 @@ class PoolListResponse(BaseModel):
     """Resposta do GET /pool"""
     items: List[PoolItem]
     total: int
+
+
+class MarketplaceSlotImage(BaseModel):
+    """Imagem final de um slot no fluxo Marketplace."""
+    index: int = 1
+    filename: Optional[str] = None
+    url: Optional[str] = None
+    size_kb: Optional[float] = None
+    mime_type: Optional[str] = None
+
+
+class MarketplaceSlotResult(BaseModel):
+    """Status detalhado de um slot gerado no fluxo Marketplace."""
+    slot_id: str
+    slot_type: str
+    color: Optional[str] = None
+    status: Literal["done", "error"]
+    session_id: Optional[str] = None
+    pipeline_mode: Optional[str] = None
+    image: Optional[MarketplaceSlotImage] = None
+    error: Optional[str] = None
+    debug_report_url: Optional[str] = None
+
+
+class MarketplaceSummary(BaseModel):
+    """Resumo final de execução do fluxo Marketplace."""
+    requested_slots: int
+    completed_slots: int
+    failed_slots: int
+
+
+class MarketplaceGenerateResponse(BaseModel):
+    """Payload consolidado do fluxo Marketplace."""
+    session_id: str
+    pipeline_version: str = "marketplace_v1"
+    marketplace_channel: Literal["shopee", "mercado_livre"]
+    operation: Literal["main_variation", "color_variations"]
+    detected_colors: List[dict] = Field(default_factory=list)
+    slots: List[MarketplaceSlotResult] = Field(default_factory=list)
+    summary: MarketplaceSummary
+    config: dict = Field(default_factory=dict)

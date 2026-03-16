@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Copy, Download, Clock, Pencil, ChevronDown } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
@@ -8,7 +8,18 @@ import { Gallery } from './components/Gallery';
 import { PoolPanel } from './components/PoolPanel';
 import { ReviewPanel } from './components/ReviewPanel';
 import { listPool, listHistory, deleteHistoryEntry, getLatestReview, getReviewBySession } from './lib/api';
+import {
+  humanizeFidelityMode,
+  humanizeMarketplaceChannel,
+  humanizeMarketplaceOperation,
+  humanizePipelineMode,
+  humanizePoseFlexMode,
+  humanizePreset,
+  humanizeScenePreference,
+  humanizeSlotId,
+} from './lib/humanize';
 import { useJobQueue } from './hooks/useJobQueue';
+import { useDialogA11y } from './hooks/useDialogA11y';
 import type {
   PoolItem,
   MediaHistoryItem,
@@ -66,6 +77,9 @@ export default function App() {
   const [reviewData, setReviewData] = useState<JobReviewPayload | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+
+  useDialogA11y(!!lightbox, lightboxRef, () => setLightbox(null));
 
   const fetchPool = useCallback(async () => {
     setPoolLoading(true);
@@ -102,6 +116,14 @@ export default function App() {
         camera_profile: e.camera_profile as string | undefined,
         grounding_mode: e.grounding_mode as string | undefined,
         reason_codes: e.reason_codes as string[] | undefined,
+        preset: e.preset as string | undefined,
+        scene_preference: e.scene_preference as string | undefined,
+        fidelity_mode: e.fidelity_mode as string | undefined,
+        pose_flex_mode: e.pose_flex_mode as string | undefined,
+        pipeline_mode: e.pipeline_mode as string | undefined,
+        marketplace_channel: e.marketplace_channel as string | undefined,
+        marketplace_operation: e.marketplace_operation as string | undefined,
+        slot_id: e.slot_id as string | undefined,
       }));
       setMediaHistory(items);
     } catch {
@@ -146,7 +168,7 @@ export default function App() {
   }, [tab, reviewData, reviewLoading, fetchLatestReviewData]);
 
   // ── Job Queue ─────────────────────────────────────────────
-  const { jobs, submitGenerateJob, submitEditJob, dismissJob } = useJobQueue({
+  const { jobs, submitGenerateJob, submitEditJob, submitMarketplaceJob, dismissJob } = useJobQueue({
     onJobComplete: fetchHistory,
   });
 
@@ -187,6 +209,10 @@ export default function App() {
     submitGenerateJob(payload);
   }
 
+  function handleMarketplaceSubmit(payload: Parameters<typeof submitMarketplaceJob>[0]) {
+    submitMarketplaceJob(payload);
+  }
+
   return (
     <>
       <a href="#main-content" className="skip-link">Ir para conteúdo principal</a>
@@ -212,7 +238,7 @@ export default function App() {
                   </p>
                 </header>
 
-                <div className="generate-content scroll-y" aria-live="polite">
+                <div className="generate-content scroll-y">
                   <Gallery
                     mediaHistory={mediaHistory}
                     onDelete={handleHistoryDelete}
@@ -226,6 +252,7 @@ export default function App() {
 
                 <ChatInput
                   onSubmit={handleGenerate}
+                  onMarketplaceSubmit={handleMarketplaceSubmit}
                   externalData={reuseData}
                   onClearExternalData={() => setReuseData(null)}
                   editTarget={editTarget}
@@ -256,6 +283,7 @@ export default function App() {
                     }
                   }}
                   onUseInCreate={handleUseReviewInCreate}
+                  onGoToCreate={() => setTab('criar')}
                 />
               </motion.div>
             )}
@@ -273,7 +301,7 @@ export default function App() {
                   <h1 className="t-h3">Histórico</h1>
                   <p className="t-sm text-tertiary">Suas gerações anteriores</p>
                 </header>
-                <div className="generate-content scroll-y" aria-live="polite">
+                <div className="generate-content scroll-y">
                   <Gallery
                     mediaHistory={mediaHistory}
                     onDelete={handleHistoryDelete}
@@ -310,6 +338,7 @@ export default function App() {
         {lightbox && (
           <motion.div
             className="lightbox"
+            ref={lightboxRef}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -317,6 +346,7 @@ export default function App() {
             role="dialog"
             aria-modal="true"
             aria-label="Imagem ampliada"
+            tabIndex={-1}
           >
             <button
               className="lightbox-close"
@@ -370,7 +400,13 @@ export default function App() {
                       >
                         <Pencil size={14} /> Modificar
                       </button>
-                      <a href={lightbox.url} download={lightbox.item.filename} className="lightbox-action-btn" title="Baixar">
+                      <a
+                        href={lightbox.url}
+                        download={lightbox.item.filename}
+                        className="lightbox-action-btn"
+                        title="Baixar"
+                        aria-label={`Baixar ${lightbox.item.filename}`}
+                      >
                         <Download size={14} />
                       </a>
                     </div>
@@ -380,12 +416,18 @@ export default function App() {
                   <div className="lightbox-badges">
                     {lightbox.item.aspect_ratio && <span className="badge">{lightbox.item.aspect_ratio}</span>}
                     {lightbox.item.resolution && <span className="badge">{lightbox.item.resolution}</span>}
-                    {lightbox.item.thinking_level && <span className="badge badge--accent">{lightbox.item.thinking_level}</span>}
+                    {lightbox.item.preset && <span className="badge badge--accent" title={lightbox.item.preset}>{humanizePreset(lightbox.item.preset)}</span>}
+                    {lightbox.item.fidelity_mode && <span className="badge" title={lightbox.item.fidelity_mode}>{humanizeFidelityMode(lightbox.item.fidelity_mode)}</span>}
+                    {lightbox.item.scene_preference && <span className="badge" title={lightbox.item.scene_preference}>{humanizeScenePreference(lightbox.item.scene_preference)}</span>}
+                    {lightbox.item.pose_flex_mode && lightbox.item.pose_flex_mode !== 'auto' && <span className="badge" title={lightbox.item.pose_flex_mode}>{humanizePoseFlexMode(lightbox.item.pose_flex_mode)}</span>}
+                    {lightbox.item.pipeline_mode && <span className="badge" title={lightbox.item.pipeline_mode}>{humanizePipelineMode(lightbox.item.pipeline_mode)}</span>}
+                    {lightbox.item.thinking_level && lightbox.item.thinking_level !== 'MINIMAL' && <span className="badge badge--accent">{lightbox.item.thinking_level}</span>}
                     {lightbox.item.shot_type && <span className="badge">{lightbox.item.shot_type}</span>}
-                    {lightbox.item.grounding_effective != null && (
-                      <span className={`badge ${lightbox.item.grounding_effective ? 'badge--success' : ''}`}>
-                        {lightbox.item.grounding_effective ? '🌐 Pesquisa web ativa' : 'Sem pesquisa web'}
-                      </span>
+                    {lightbox.item.marketplace_channel && <span className="badge badge--accent" title={lightbox.item.marketplace_channel}>{humanizeMarketplaceChannel(lightbox.item.marketplace_channel)}</span>}
+                    {lightbox.item.marketplace_operation && <span className="badge" title={lightbox.item.marketplace_operation}>{humanizeMarketplaceOperation(lightbox.item.marketplace_operation)}</span>}
+                    {lightbox.item.slot_id && <span className="badge" title={lightbox.item.slot_id}>{humanizeSlotId(lightbox.item.slot_id)}</span>}
+                    {lightbox.item.grounding_effective && (
+                      <span className="badge badge--success">🌐 Pesquisa web ativa</span>
                     )}
                   </div>
 

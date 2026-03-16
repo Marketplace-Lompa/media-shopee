@@ -8,12 +8,14 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
+import os
+
 from config import OUTPUTS_DIR
 
-HISTORY_FILE = OUTPUTS_DIR / "history.json"
+_custom = os.getenv("HISTORY_PATH")
+HISTORY_FILE = Path(_custom) if _custom else OUTPUTS_DIR / "history.json"
 
 # ── Limite de sessões ─────────────────────────────────────────────
-import os
 
 MAX_SESSIONS = int(os.getenv("MAX_SESSIONS", "50"))
 
@@ -55,10 +57,24 @@ def add_entry(
     camera_profile: Optional[str] = None,
     grounding_mode: Optional[str] = None,
     reason_codes: Optional[list[str]] = None,
+    # ── Parâmetros de geração (observabilidade) ───────────────────
+    preset: Optional[str] = None,
+    scene_preference: Optional[str] = None,
+    fidelity_mode: Optional[str] = None,
+    pose_flex_mode: Optional[str] = None,
+    pipeline_mode: Optional[str] = None,
+    optimized_prompt: Optional[str] = None,
+    # ── Marketplace ───────────────────────────────────────────────
+    marketplace_channel: Optional[str] = None,
+    marketplace_operation: Optional[str] = None,
+    slot_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Adiciona uma entrada ao histórico e retorna a entry criada."""
+    # ID legível e referenciável: "{session_id}:{slot_id}" (marketplace)
+    # ou "{session_id}:t{timestamp_s}" (geração padrão — único por imagem)
+    _id_suffix = slot_id if slot_id else f"t{int(time.time())}"
     entry = {
-        "id": f"{session_id}_{filename}_{int(time.time() * 1000)}",
+        "id": f"{session_id}:{_id_suffix}",
         "session_id": session_id,
         "filename": filename,
         "url": url,
@@ -76,6 +92,17 @@ def add_entry(
         "camera_profile": camera_profile or None,
         "grounding_mode": grounding_mode or None,
         "reason_codes": reason_codes or [],
+        # Parâmetros de geração (observabilidade)
+        "preset": preset or None,
+        "scene_preference": scene_preference or None,
+        "fidelity_mode": fidelity_mode or None,
+        "pose_flex_mode": pose_flex_mode or None,
+        "pipeline_mode": pipeline_mode or None,
+        "optimized_prompt": optimized_prompt or None,
+        # Marketplace
+        "marketplace_channel": marketplace_channel or None,
+        "marketplace_operation": marketplace_operation or None,
+        "slot_id": slot_id or None,
     }
     if source_session_id:
         entry["source_session_id"] = source_session_id
@@ -147,14 +174,16 @@ def purge_oldest() -> int:
     new_entries = [e for e in entries if e.get("session_id", "") in keep_sessions]
     _save(new_entries)
 
-    # Remover pastas do disco
+    # Remover pastas do disco relacionadas ao session_id
     removed = 0
     for sid in remove_sessions:
-        session_dir = OUTPUTS_DIR / sid
-        if session_dir.exists() and session_dir.is_dir():
-            shutil.rmtree(session_dir, ignore_errors=True)
-            removed += 1
-            print(f"[CLEANUP] 🗑️  Removed session {sid}")
+        # Pipeline v2 cria múltiplas pastas com o ID (ex: v2base_{sid}, v2edit_{sid}_1)
+        for d in OUTPUTS_DIR.glob(f"*{sid}*"):
+            if d.is_dir():
+                shutil.rmtree(d, ignore_errors=True)
+                removed += 1
+                
+        print(f"[CLEANUP] 🗑️  Removed session artifacts for {sid}")
 
     print(f"[CLEANUP] Purged {removed} sessions, kept {len(keep_sessions)}")
     return removed

@@ -24,9 +24,7 @@ from config import (
     DEFAULT_N_IMAGES,
     DEFAULT_RESOLUTION,
     OUTPUTS_DIR,
-    VALID_ASPECT_RATIOS,
     VALID_N_IMAGES,
-    VALID_RESOLUTIONS,
 )
 from generator import generate_images
 from grounding_policy import compute_grounding_triage, normalize_grounding_strategy
@@ -44,6 +42,7 @@ from pipeline_effectiveness import (
     log_effectiveness_event,
     select_diversity_target,
 )
+from request_validation import validate_generation_params
 
 router = APIRouter(prefix="/generate", tags=["generate"])
 
@@ -143,13 +142,12 @@ def _run_generate_pipeline(
 
     normalized_guided = normalize_guided_brief(guided_brief)
     strict_reference_mode = _is_strict_reference_mode(normalized_guided, uploaded_bytes)
-
-    if aspect_ratio not in VALID_ASPECT_RATIOS:
-        raise ValueError(f"aspect_ratio inválido. Use: {VALID_ASPECT_RATIOS}")
-    if resolution not in VALID_RESOLUTIONS:
-        raise ValueError(f"resolution inválida. Use: {VALID_RESOLUTIONS}")
-    if n_images not in VALID_N_IMAGES:
-        raise ValueError(f"n_images inválido. Use: {VALID_N_IMAGES}")
+    validate_generation_params(
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        n_images=n_images,
+        valid_n_images=VALID_N_IMAGES,
+    )
 
     pool_context = ""
     pipeline_mode = "reference_mode_strict" if strict_reference_mode else ("reference_mode" if uploaded_bytes else "text_mode")
@@ -298,12 +296,18 @@ def _run_generate_pipeline(
             )
 
         if strict_reference_mode:
+            from agent_runtime.normalize_user_intent import normalize_user_intent
+
             optimized_prompt = _build_strict_reference_prompt(
                 user_prompt=prompt,
                 classifier_summary=classifier_summary,
                 guided_brief=normalized_guided,
                 structural_contract=structural_contract_for_diversity,
             )
+            strict_user_intent = normalize_user_intent(prompt or "")
+            strict_tags = set(strict_user_intent.get("intent_tags", []) or [])
+            strict_tags.add("strict_reference")
+            strict_user_intent["intent_tags"] = sorted(strict_tags)
             agent_result = {
                 "pipeline_mode": pipeline_mode,
                 "prompt": optimized_prompt,
@@ -321,12 +325,7 @@ def _run_generate_pipeline(
                     "grounded_images_count": 0,
                     "reason_codes": ["strict_reference_mode"],
                 },
-                "user_intent": {
-                    "raw": prompt or "",
-                    "normalized": "",
-                    "intent_tags": ["strict_reference"],
-                    "normalizer_source": "skipped",
-                },
+                "user_intent": strict_user_intent,
                 "prompt_compiler_debug": {
                     "mode": "strict_reference_mode",
                     "source": "direct_template",
@@ -574,6 +573,7 @@ def _run_generate_pipeline(
         guided_applied=bool(guided_sum),
         guided_summary=guided_sum,
         prompt_compiler_debug=agent_result.get("prompt_compiler_debug"),
+        user_intent=agent_result.get("user_intent"),
     )
 
     emit(
@@ -598,6 +598,16 @@ async def generate(
     pose_flex_mode: str = Form(default="auto"),
     images: List[UploadFile] = File(default=[]),
 ):
+    try:
+        validate_generation_params(
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            n_images=n_images,
+            valid_n_images=VALID_N_IMAGES,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
     limited_images = images[:14]
     uploaded_bytes = [await img.read() for img in limited_images]
     uploaded_filenames = [str(img.filename or "").strip() for img in limited_images]
@@ -670,7 +680,15 @@ def _run_v2_pipeline_and_persist(
         resolution=resolution,
         on_stage=on_stage,
     )
-    persist_v2_history(raw, aspect_ratio=aspect_ratio, resolution=resolution)
+    persist_v2_history(
+        raw,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        preset=preset,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+        pose_flex_mode=pose_flex_mode,
+    )
     return build_v2_generate_response(
         raw,
         aspect_ratio=aspect_ratio,
@@ -697,6 +715,16 @@ async def generate_async(
     pose_flex_mode: str = Form(default="auto"),
     images: List[UploadFile] = File(default=[]),
 ):
+    try:
+        validate_generation_params(
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            n_images=n_images,
+            valid_n_images=VALID_N_IMAGES,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
     limited_images = images[:14]
     uploaded_bytes = [await img.read() for img in limited_images]
     uploaded_filenames = [str(img.filename or "").strip() for img in limited_images]
