@@ -12,9 +12,28 @@ import { useEffect, useRef, useState } from 'react';
 import { submitGenerateAsync, submitEditAsync, submitMarketplaceAsync } from '../lib/api';
 import type { JobEntry, JobType, JobStatus, EditTarget, AspectRatio, Resolution, Preset, ScenePreference, FidelityMode, PoseFlexMode, MarketplaceChannel, MarketplaceOperation } from '../types';
 
-const POLL_INTERVAL_MS = 1200;
+// Adaptive polling: ajusta taxa baseado no estágio atual do job
+const POLL_DEFAULT_MS = 1200;       // queued / desconhecido
+const POLL_ANALYSIS_MS = 2000;      // stages de análise/preparação
+const POLL_GENERATION_MS = 4500;    // stages de GPU (geração/edição — sabidamente 15-30s)
 const MAX_POLL_FAILURES = 5;
 const STORAGE_KEY = 'mshopee:active_jobs';
+
+const _SLOW_STAGES = new Set([
+    'generating', 'editing', 'creating_listing',
+    'stage1_generate', 'stage2_edit', 'marketplace_started',
+]);
+const _MEDIUM_STAGES = new Set([
+    'analyzing', 'researching', 'preparing_references',
+    'fidelity_gate', 'reference_selection',
+]);
+
+function _adaptiveInterval(stage: string | null | undefined): number {
+    if (!stage) return POLL_DEFAULT_MS;
+    if (_SLOW_STAGES.has(stage)) return POLL_GENERATION_MS;
+    if (_MEDIUM_STAGES.has(stage)) return POLL_ANALYSIS_MS;
+    return POLL_DEFAULT_MS;
+}
 
 // ── Persistência ─────────────────────────────────────────────────────────────
 
@@ -118,7 +137,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
     // Cleanup ao desmontar
     useEffect(() => {
         return () => {
-            timers.current.forEach((timerId) => window.clearInterval(timerId));
+            timers.current.forEach((timerId) => window.clearTimeout(timerId));
             timers.current.clear();
         };
     }, []);
@@ -129,7 +148,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
 
     function stopPolling(id: string) {
         const timerId = timers.current.get(id);
-        if (timerId != null) window.clearInterval(timerId);
+        if (timerId != null) window.clearTimeout(timerId);
         timers.current.delete(id);
         failures.current.delete(id);
     }
@@ -154,19 +173,22 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                 ? `/marketplace/jobs/${jobId}`
                 : `/edit/jobs/${jobId}`;
 
-        let isPolling = false;
-        const timerId = window.setInterval(async () => {
-            if (isPolling) return;
-            isPolling = true;
+        let currentStage: string | null = null;
+
+        function scheduleNext() {
+            const delay = _adaptiveInterval(currentStage);
+            const timerId = window.setTimeout(() => pollOnce(), delay);
+            timers.current.set(jobId, timerId);
+        }
+
+        async function pollOnce() {
             try {
                 const r = await fetch(endpoint);
 
                 // ── 404 = job finalizado (backend faz GC de jobs concluídos) ──
-                // Tratar como conclusão implícita, não como erro de rede.
                 if (r.status === 404) {
                     stopPolling(jobId);
                     removePersistedJob(jobId);
-                    // Dismiss silencioso + refresh do histórico
                     dismissJob(jobId);
                     onJobComplete();
                     return;
@@ -178,12 +200,18 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                 // Resetar contador de falhas em sucesso
                 failures.current.set(jobId, 0);
 
+                // Atualizar estágio para adaptar intervalo do próximo poll
+                if (typeof job.stage === 'string') {
+                    currentStage = job.stage;
+                }
+
                 if (job.status === 'queued') {
                     const event = (job.event || {}) as Record<string, unknown>;
                     updateJob(jobId, {
                         status: 'queued',
                         message: typeof event.message === 'string' ? event.message : 'Na fila…',
                     });
+                    scheduleNext();
                 } else if (job.status === 'running') {
                     const event = (job.event || {}) as Record<string, unknown>;
                     const hasProg = typeof event.current === 'number' && typeof event.total === 'number';
@@ -208,6 +236,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                     }
 
                     updateJob(jobId, patch);
+                    scheduleNext();
                 } else if (job.status === 'done') {
                     stopPolling(jobId);
                     removePersistedJob(jobId);
@@ -219,8 +248,6 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                         message: null,
                         progress: null,
                     });
-                    // Descarta o card após breve exibição de conclusão,
-                    // depois atualiza o histórico — evita refresh manual e duplicação visual.
                     window.setTimeout(() => {
                         dismissJob(jobId);
                         onJobComplete();
@@ -241,13 +268,15 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
                     stopPolling(jobId);
                     removePersistedJob(jobId);
                     updateJob(jobId, { status: 'error', error: 'Conexão perdida com o servidor' });
+                    return;
                 }
-            } finally {
-                isPolling = false;
+                scheduleNext();
             }
-        }, POLL_INTERVAL_MS);
+        }
 
-        timers.current.set(jobId, timerId);
+        // Kick-off: primeiro poll rápido
+        const initialTimer = window.setTimeout(() => pollOnce(), POLL_DEFAULT_MS);
+        timers.current.set(jobId, initialTimer);
     }
 
     // ── Restaurar jobs do localStorage ao montar ──────────────────────────────

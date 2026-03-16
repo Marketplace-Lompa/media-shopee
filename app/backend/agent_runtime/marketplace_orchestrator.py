@@ -2,9 +2,15 @@
 Orquestrador Marketplace:
 - cada slot roda como geração independente (n_images=1)
 - suporta main_variation (5 slots) e color_variations (3 slots por cor)
+
+Performance:
+  - Hero-First: slot hero_front roda primeiro (define âncora de identidade)
+  - Slots 2-5 rodam em paralelo via asyncio.gather
+  - Versão sync mantida para compatibilidade
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 import re
@@ -17,20 +23,16 @@ from agent_runtime.marketplace_policy import resolve_marketplace_policy
 _log = logging.getLogger(__name__)
 
 # ── Configuração de art direction por slot ────────────────────────────────────
-# Define ângulo, câmera, fidelidade e hint contextual específico por slot_id.
-# Isso garante que cada imagem entregue o enquadramento prometido ao comprador.
 
 _SLOT_ART_DIRECTION: dict[str, dict[str, Any]] = {
-    # Capa: full body frontal, câmera catálogo, fidelidade máxima
     "hero_front": {
-        "fidelity_override": None,  # usa normalized_fidelity do fluxo
+        "fidelity_override": None,
         "pose_flex_override": None,
         "preferred_pose_ids": ["front_relaxed_hold", "contrapposto_editorial", "standing_full_shift"],
         "preferred_camera_ids": ["sony_documentary", "canon_balanced"],
         "custom_context_hint": "Full body front-facing catalog shot. Model fully visible head to toe. Neutral studio background.",
         "angle_directive": "MANDATORY SHOT ANGLE: straight-on front view. Camera directly in front of model, model faces camera fully, complete garment front visible from collar to hem.",
     },
-    # 3/4: ângulo ligeiramente girado, full body
     "front_3_4": {
         "fidelity_override": None,
         "pose_flex_override": None,
@@ -39,9 +41,6 @@ _SLOT_ART_DIRECTION: dict[str, dict[str, Any]] = {
         "custom_context_hint": "Three-quarter angle shot. Model slightly turned to reveal front drape and side silhouette simultaneously. Full body visible.",
         "angle_directive": "MANDATORY SHOT ANGLE: three-quarter angle (45°). Camera positioned to the model's right, model body rotated ~45°, face partially toward camera, front and right-side of garment visible simultaneously.",
     },
-    # Costas/lateral: ângulo 3/4 de costas — garment back panel + drape visíveis
-    # Não força 180° exato (full back) pois referências são majoritariamente frontais;
-    # 3/4 de costas usa a geometria estrutural conhecida sem precisar inventar o verso.
     "back_or_side": {
         "fidelity_override": None,
         "pose_flex_override": None,
@@ -56,8 +55,6 @@ _SLOT_ART_DIRECTION: dict[str, dict[str, Any]] = {
             "Show the complete back construction and how the garment falls from behind."
         ),
     },
-    # Close-up têxtil: zoom de produto com ênfase na textura do tecido
-    # Não força macro extremo de fibra — mantém contexto de peça vestida com detalhe de textura.
     "fabric_closeup": {
         "fidelity_override": "balanceada",
         "pose_flex_override": "balanced",
@@ -72,16 +69,14 @@ _SLOT_ART_DIRECTION: dict[str, dict[str, Any]] = {
             "and pattern should remain readable. Hands or partial arms may be visible for natural context."
         ),
     },
-    # Detalhe funcional: zoom em acabamento/bainhas/fechos
     "functional_detail_or_size": {
-        "fidelity_override": "balanceada",  # libera câmera para detalhe
+        "fidelity_override": "balanceada",
         "pose_flex_override": "balanced",
         "preferred_pose_ids": [],
         "preferred_camera_ids": ["sony_documentary", "canon_balanced"],
         "custom_context_hint": "Close-up detail shot showing functional garment features: hem finishing, cuff, collar, opening edge, button, or closure. Tight crop on the specific functional area.",
         "angle_directive": "MANDATORY FRAMING: tight detail close-up. Crop tightly on one specific functional garment area (hem finishing, cuff, collar, opening edge, or closure). No full body shot.",
     },
-    # Color variations slots — mantêm fidelidade estrita mas mudam ângulo
     "color_hero_front": {
         "fidelity_override": None,
         "pose_flex_override": None,
@@ -210,9 +205,6 @@ def _resolve_runtime_options(
     requested_fidelity = str(fidelity_mode or "").strip()
     requested_pose = str(pose_flex_mode or "").strip()
 
-    # Mantém override manual apenas quando for claramente intencional.
-    # No guided mode, os valores legados ("marketplace_lifestyle"/"auto_br")
-    # são substituídos por baseline clean/compliance.
     desired_preset = (
         runtime_defaults.get("preset", "catalog_clean")
         if requested_preset.lower() in {"", "marketplace_lifestyle"}
@@ -323,7 +315,151 @@ def _output_path_from_url(url: str) -> Optional[Path]:
     return candidate
 
 
-def run_marketplace_orchestration(
+def _process_slot_sync(
+    *,
+    idx: int,
+    slot: dict[str, Any],
+    policy: dict[str, Any],
+    normalized_preset: str,
+    normalized_scene: str,
+    normalized_fidelity: str,
+    normalized_pose: str,
+    prompt: Optional[str],
+    operation: str,
+    aspect_ratio: str,
+    resolution: str,
+    continuity_anchor_bytes: Optional[bytes],
+    continuity_anchor_filename: Optional[str],
+    on_stage: Optional[Callable[[str, dict[str, Any]], None]],
+    total_slots: int,
+) -> dict[str, Any]:
+    """Processa um slot individual — versão sync."""
+    from agent_runtime.pipeline_v2 import run_pipeline_v2
+    from agent_runtime.pipeline_v2_support import persist_v2_history
+
+    slot_id = str(slot["slot_id"])
+    slot_type = str(slot["slot_type"])
+    color_label = slot.get("color_label")
+    slot_reference_bytes = list(slot.get("reference_bytes") or [])
+    slot_reference_names = list(slot.get("reference_filenames") or [])
+    continuity_anchor_active = False
+
+    if operation == "main_variation" and continuity_anchor_bytes and slot_id != "hero_front":
+        continuity_anchor_active = True
+        anchor_name = continuity_anchor_filename or "continuity_anchor.png"
+        slot_reference_bytes = [continuity_anchor_bytes] + slot_reference_bytes
+        slot_reference_names = [anchor_name] + slot_reference_names
+        slot_reference_bytes = slot_reference_bytes[:14]
+        slot_reference_names = slot_reference_names[:14]
+
+    _emit(
+        on_stage,
+        "creating_listing",
+        {
+            "message": f"Gerando slot {idx}/{total_slots}: {slot_id}",
+            "current": idx,
+            "total": total_slots,
+            "slot_id": slot_id,
+            "slot_type": slot_type,
+            "color": color_label,
+        },
+    )
+
+    slot_prompt = _compose_slot_prompt(
+        channel_hint=str(policy.get("channel_style_hint", "")),
+        slot_id=slot_id,
+        slot_prompt=str(slot.get("slot_prompt", "")),
+        user_prompt=prompt,
+        operation=operation,
+        color_label=color_label,
+        prompt_guardrails=list(policy.get("prompt_guardrails") or []),
+        continuity_anchor_active=continuity_anchor_active,
+    )
+
+    slot_art_cfg = _SLOT_ART_DIRECTION.get(slot_id, {})
+    effective_fidelity = str(slot_art_cfg.get("fidelity_override") or "balanceada")
+    effective_pose = str(slot_art_cfg.get("pose_flex_override") or normalized_pose)
+
+    slot_art_request: dict[str, Any] = {}
+    preferred_pose_ids = list(slot_art_cfg.get("preferred_pose_ids") or [])
+    preferred_camera_ids = list(slot_art_cfg.get("preferred_camera_ids") or [])
+    custom_hint = str(slot_art_cfg.get("custom_context_hint") or "")
+    angle_directive = str(slot_art_cfg.get("angle_directive") or "")
+
+    if preferred_pose_ids:
+        slot_art_request["preferred_pose_ids"] = preferred_pose_ids
+    if preferred_camera_ids:
+        slot_art_request["preferred_camera_ids"] = preferred_camera_ids
+    directive_hints: dict[str, Any] = {}
+    if custom_hint:
+        directive_hints["custom_context_hint"] = custom_hint
+    if angle_directive:
+        directive_hints["angle_directive"] = angle_directive
+    if directive_hints:
+        slot_art_request["directive_hints"] = directive_hints
+
+    raw = run_pipeline_v2(
+        uploaded_bytes=slot_reference_bytes,
+        uploaded_filenames=slot_reference_names,
+        prompt=slot_prompt,
+        preset=normalized_preset,
+        scene_preference=normalized_scene,
+        fidelity_mode=effective_fidelity,
+        pose_flex_mode=effective_pose,
+        n_images=1,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        art_direction_request=slot_art_request if slot_art_request else None,
+        on_stage=None,
+    )
+    persist_v2_history(
+        raw,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        preset=normalized_preset,
+        scene_preference=normalized_scene,
+        fidelity_mode=normalized_fidelity,
+        pose_flex_mode=normalized_pose,
+        marketplace_channel=policy.get("channel", ""),
+        marketplace_operation=operation,
+        slot_id=slot_id,
+    )
+
+    first_image = (raw.get("images") or [None])[0]
+    if not first_image:
+        return {
+            "slot_id": slot_id,
+            "slot_type": slot_type,
+            "color": color_label,
+            "status": "error",
+            "error": "Pipeline não retornou imagem para o slot",
+        }
+
+    image_payload = {
+        "index": int(first_image.get("index", 1) or 1),
+        "filename": first_image.get("filename"),
+        "url": first_image.get("url"),
+        "size_kb": first_image.get("size_kb"),
+        "mime_type": first_image.get("mime_type"),
+    }
+    return {
+        "slot_id": slot_id,
+        "slot_type": slot_type,
+        "color": color_label,
+        "status": "done",
+        "session_id": raw.get("session_id"),
+        "pipeline_mode": raw.get("pipeline_mode"),
+        "image": image_payload,
+        "debug_report_url": raw.get("report_url"),
+        "_raw": raw,  # usado internamente para extrair anchor
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ██ ASYNC: Hero-First + Paralelo
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def run_marketplace_orchestration_async(
     *,
     marketplace_channel: str,
     operation: str,
@@ -340,9 +476,13 @@ def run_marketplace_orchestration(
     pose_flex_mode: str = "controlled",
     on_stage: Optional[Callable[[str, dict[str, Any]], None]] = None,
 ) -> dict[str, Any]:
+    """
+    Orquestrador ASYNC Hero-First:
+      1. Roda hero_front primeiro (define âncora de identidade)
+      2. Dispara slots 2-5 em paralelo via asyncio.gather
+    """
     if not base_images_bytes:
         raise ValueError("Marketplace requer pelo menos 1 imagem base em base_images")
-
     if operation == "color_variations" and not (color_images_bytes or []):
         raise ValueError("operation=color_variations requer pelo menos 1 imagem em color_images")
 
@@ -386,13 +526,8 @@ def run_marketplace_orchestration(
         )
         if not color_refs:
             raise ValueError("Não foi possível detectar variações de cor a partir das referências")
-
         detected_colors = [
-            {
-                "label": item.label,
-                "source_index": item.source_index,
-                "source_filename": item.filename,
-            }
+            {"label": item.label, "source_index": item.source_index, "source_filename": item.filename}
             for item in color_refs
         ]
         for color_ref in color_refs:
@@ -418,174 +553,120 @@ def run_marketplace_orchestration(
     continuity_anchor_filename: Optional[str] = None
     continuity_anchor_url: Optional[str] = None
 
-    _emit(
-        on_stage,
-        "marketplace_started",
-        {
-            "message": "Iniciando fluxo Marketplace...",
-            "channel": marketplace_channel,
-            "operation": operation,
-            "total_slots": total_slots,
-        },
-    )
+    _emit(on_stage, "marketplace_started", {
+        "message": "Iniciando fluxo Marketplace (async hero-first)...",
+        "channel": marketplace_channel,
+        "operation": operation,
+        "total_slots": total_slots,
+    })
 
-    for idx, slot in enumerate(slots_plan, start=1):
-        slot_id = str(slot["slot_id"])
-        slot_type = str(slot["slot_type"])
-        color_label = slot.get("color_label")
-        slot_reference_bytes = list(slot.get("reference_bytes") or [])
-        slot_reference_names = list(slot.get("reference_filenames") or [])
-        continuity_anchor_active = False
+    # ── STEP 1: HERO FIRST (sequencial — define âncora) ───────────────────────
+    hero_slot = next((s for s in slots_plan if s["slot_id"] == "hero_front"), None)
+    other_slots = [s for s in slots_plan if s["slot_id"] != "hero_front"]
 
-        # Fluxo em turno: após a capa principal, as próximas fotos seguem a mesma
-        # identidade/modelo gerada, mantendo a peça como contrato fixo.
-        if operation == "main_variation" and continuity_anchor_bytes and slot_id != "hero_front":
-            continuity_anchor_active = True
-            anchor_name = continuity_anchor_filename or "continuity_anchor.png"
-            slot_reference_bytes = [continuity_anchor_bytes] + slot_reference_bytes
-            slot_reference_names = [anchor_name] + slot_reference_names
-            slot_reference_bytes = slot_reference_bytes[:14]
-            slot_reference_names = slot_reference_names[:14]
-
-        _emit(
-            on_stage,
-            "creating_listing",
-            {
-                "message": f"Gerando slot {idx}/{total_slots}: {slot_id}",
-                "current": idx,
-                "total": total_slots,
-                "slot_id": slot_id,
-                "slot_type": slot_type,
-                "color": color_label,
-            },
-        )
-
-        slot_prompt = _compose_slot_prompt(
-            channel_hint=str(policy.get("channel_style_hint", "")),
-            slot_id=slot_id,
-            slot_prompt=str(slot.get("slot_prompt", "")),
-            user_prompt=prompt,
-            operation=operation,
-            color_label=color_label,
-            prompt_guardrails=list(policy.get("prompt_guardrails") or []),
-            continuity_anchor_active=continuity_anchor_active,
-        )
-
+    if hero_slot:
         try:
-            # Lazy import evita acoplamento pesado em import-time e melhora testabilidade.
-            from agent_runtime.pipeline_v2 import run_pipeline_v2
-            from agent_runtime.pipeline_v2_support import persist_v2_history
-
-            # ── Resolver art direction específica do slot ─────────────────────
-            slot_art_cfg = _SLOT_ART_DIRECTION.get(slot_id, {})
-            # Forçar balanceada para todos os slots pelo Orchestrator a não ser que slot declare estrita
-            effective_fidelity = str(slot_art_cfg.get("fidelity_override") or "balanceada")
-            effective_pose = str(slot_art_cfg.get("pose_flex_override") or normalized_pose)
-
-            slot_art_request: dict[str, Any] = {}
-            preferred_pose_ids = list(slot_art_cfg.get("preferred_pose_ids") or [])
-            preferred_camera_ids = list(slot_art_cfg.get("preferred_camera_ids") or [])
-            custom_hint = str(slot_art_cfg.get("custom_context_hint") or "")
-            angle_directive = str(slot_art_cfg.get("angle_directive") or "")
-
-            if preferred_pose_ids:
-                slot_art_request["preferred_pose_ids"] = preferred_pose_ids
-            if preferred_camera_ids:
-                slot_art_request["preferred_camera_ids"] = preferred_camera_ids
-            directive_hints: dict[str, Any] = {}
-            if custom_hint:
-                directive_hints["custom_context_hint"] = custom_hint
-            if angle_directive:
-                directive_hints["angle_directive"] = angle_directive
-            if directive_hints:
-                slot_art_request["directive_hints"] = directive_hints
-
-            raw = run_pipeline_v2(
-                uploaded_bytes=slot_reference_bytes,
-                uploaded_filenames=slot_reference_names,
-                prompt=slot_prompt,
-                preset=normalized_preset,
-                scene_preference=normalized_scene,
-                fidelity_mode=effective_fidelity,
-                pose_flex_mode=effective_pose,
-                n_images=1,
+            # run_pipeline_v2 é sync → roda em thread
+            hero_result = await asyncio.to_thread(
+                _process_slot_sync,
+                idx=1,
+                slot=hero_slot,
+                policy=policy,
+                normalized_preset=normalized_preset,
+                normalized_scene=normalized_scene,
+                normalized_fidelity=normalized_fidelity,
+                normalized_pose=normalized_pose,
+                prompt=prompt,
+                operation=operation,
                 aspect_ratio=aspect_ratio,
                 resolution=resolution,
-                art_direction_request=slot_art_request if slot_art_request else None,
-                on_stage=None,
+                continuity_anchor_bytes=None,
+                continuity_anchor_filename=None,
+                on_stage=on_stage,
+                total_slots=total_slots,
             )
-            persist_v2_history(
-                raw,
-                aspect_ratio=aspect_ratio,
-                resolution=resolution,
-                preset=normalized_preset,
-                scene_preference=normalized_scene,
-                fidelity_mode=normalized_fidelity,
-                pose_flex_mode=normalized_pose,
-                marketplace_channel=marketplace_channel,
-                marketplace_operation=operation,
-                slot_id=slot_id,
-            )
-            first_image = (raw.get("images") or [None])[0]
-            if not first_image:
-                failed_slots += 1
-                results.append(
-                    {
-                        "slot_id": slot_id,
-                        "slot_type": slot_type,
-                        "color": color_label,
-                        "status": "error",
-                        "error": "Pipeline não retornou imagem para o slot",
-                    }
-                )
-                continue
 
-            completed_slots += 1
-            image_payload = {
-                "index": int(first_image.get("index", 1) or 1),
-                "filename": first_image.get("filename"),
-                "url": first_image.get("url"),
-                "size_kb": first_image.get("size_kb"),
-                "mime_type": first_image.get("mime_type"),
-            }
-
-            if operation == "main_variation" and (slot_id == "hero_front" or continuity_anchor_bytes is None):
-                anchor_path = _output_path_from_url(str(first_image.get("url") or ""))
+            if hero_result.get("status") == "done":
+                completed_slots += 1
+                # Extrair anchor
+                raw_data = hero_result.pop("_raw", None) or {}
+                first_img = (raw_data.get("images") or [{}])[0] or hero_result.get("image", {})
+                anchor_path = _output_path_from_url(str(first_img.get("url") or hero_result.get("image", {}).get("url", "")))
                 if anchor_path and anchor_path.exists():
                     try:
-                        continuity_anchor_bytes = anchor_path.read_bytes()
-                        continuity_anchor_filename = str(first_image.get("filename") or anchor_path.name)
-                        continuity_anchor_url = str(first_image.get("url") or "")
-                        _log.info("[marketplace] continuity anchor salvo: %s (%d bytes)", continuity_anchor_filename, len(continuity_anchor_bytes))
+                        continuity_anchor_bytes = await asyncio.to_thread(anchor_path.read_bytes)
+                        continuity_anchor_filename = str(first_img.get("filename") or anchor_path.name)
+                        continuity_anchor_url = str(first_img.get("url") or "")
+                        _log.info("[marketplace-async] continuity anchor salvo: %s (%d bytes)",
+                                  continuity_anchor_filename, len(continuity_anchor_bytes))
                     except Exception as anchor_exc:
-                        _log.warning("[marketplace] falha ao ler anchor %s: %s", anchor_path, anchor_exc)
-                        # Mantém anchor anterior se houver; não sobrescreve com None
-                else:
-                    _log.warning("[marketplace] anchor path não encontrado: %s", anchor_path)
+                        _log.warning("[marketplace-async] falha ao ler anchor: %s", anchor_exc)
+            else:
+                failed_slots += 1
+                hero_result.pop("_raw", None)
 
-            results.append(
-                {
-                    "slot_id": slot_id,
-                    "slot_type": slot_type,
-                    "color": color_label,
-                    "status": "done",
-                    "session_id": raw.get("session_id"),
-                    "pipeline_mode": raw.get("pipeline_mode"),
-                    "image": image_payload,
-                    "debug_report_url": raw.get("report_url"),
-                }
-            )
-        except Exception as slot_exc:
+            results.append(hero_result)
+        except Exception as hero_exc:
             failed_slots += 1
-            results.append(
-                {
-                    "slot_id": slot_id,
-                    "slot_type": slot_type,
-                    "color": color_label,
-                    "status": "error",
-                    "error": str(slot_exc),
-                }
+            results.append({
+                "slot_id": "hero_front",
+                "slot_type": hero_slot.get("slot_type", "hero"),
+                "color": None,
+                "status": "error",
+                "error": str(hero_exc),
+            })
+
+    # ── STEP 2: REMAINING SLOTS EM PARALELO 🚀 ──────────────────────────────
+    if other_slots:
+        _emit(on_stage, "creating_listing", {
+            "message": f"Disparando {len(other_slots)} slots em paralelo...",
+            "current": 2,
+            "total": total_slots,
+        })
+
+        async def _run_slot(idx: int, slot: dict[str, Any]) -> dict[str, Any]:
+            return await asyncio.to_thread(
+                _process_slot_sync,
+                idx=idx,
+                slot=slot,
+                policy=policy,
+                normalized_preset=normalized_preset,
+                normalized_scene=normalized_scene,
+                normalized_fidelity=normalized_fidelity,
+                normalized_pose=normalized_pose,
+                prompt=prompt,
+                operation=operation,
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                continuity_anchor_bytes=continuity_anchor_bytes,
+                continuity_anchor_filename=continuity_anchor_filename,
+                on_stage=on_stage,
+                total_slots=total_slots,
             )
+
+        parallel_tasks = [
+            _run_slot(idx + 2, slot) for idx, slot in enumerate(other_slots)
+        ]
+
+        parallel_results = await asyncio.gather(*parallel_tasks, return_exceptions=True)
+
+        for res in parallel_results:
+            if isinstance(res, Exception):
+                failed_slots += 1
+                results.append({
+                    "slot_id": "unknown",
+                    "slot_type": "unknown",
+                    "color": None,
+                    "status": "error",
+                    "error": str(res),
+                })
+            else:
+                res.pop("_raw", None)
+                if res.get("status") == "done":
+                    completed_slots += 1
+                else:
+                    failed_slots += 1
+                results.append(res)
 
     response = {
         "session_id": orchestrator_session,
@@ -614,14 +695,65 @@ def run_marketplace_orchestration(
             "requested_pose_flex_mode": (runtime_profile.get("requested") or {}).get("pose_flex_mode"),
         },
     }
-    _emit(
-        on_stage,
-        "done",
-        {
-            "message": "Fluxo Marketplace finalizado",
-            "completed_slots": completed_slots,
-            "failed_slots": failed_slots,
-            "total_slots": total_slots,
-        },
-    )
+    _emit(on_stage, "done", {
+        "message": "Fluxo Marketplace finalizado (async hero-first)",
+        "completed_slots": completed_slots,
+        "failed_slots": failed_slots,
+        "total_slots": total_slots,
+    })
     return response
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ██ SYNC LEGACY (mantido para compatibilidade)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def run_marketplace_orchestration(
+    *,
+    marketplace_channel: str,
+    operation: str,
+    base_images_bytes: list[bytes],
+    base_filenames: Optional[list[str]] = None,
+    color_images_bytes: Optional[list[bytes]] = None,
+    color_filenames: Optional[list[str]] = None,
+    prompt: Optional[str] = None,
+    aspect_ratio: str = "4:5",
+    resolution: str = "1K",
+    preset: Optional[str] = "marketplace_lifestyle",
+    scene_preference: str = "auto_br",
+    fidelity_mode: str = "estrita",
+    pose_flex_mode: str = "controlled",
+    on_stage: Optional[Callable[[str, dict[str, Any]], None]] = None,
+) -> dict[str, Any]:
+    """Sync version — delegates to async via asyncio.run or event loop."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    kwargs = dict(
+        marketplace_channel=marketplace_channel,
+        operation=operation,
+        base_images_bytes=base_images_bytes,
+        base_filenames=base_filenames,
+        color_images_bytes=color_images_bytes,
+        color_filenames=color_filenames,
+        prompt=prompt,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        preset=preset,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+        pose_flex_mode=pose_flex_mode,
+        on_stage=on_stage,
+    )
+
+    if loop and loop.is_running():
+        # Estamos dentro de um event loop (ex: chamado de ThreadPoolExecutor dentro do FastAPI).
+        # Não podemos usar asyncio.run(). Criamos novo loop em thread.
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(asyncio.run, run_marketplace_orchestration_async(**kwargs))
+            return future.result()
+    else:
+        return asyncio.run(run_marketplace_orchestration_async(**kwargs))

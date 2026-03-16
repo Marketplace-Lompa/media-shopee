@@ -234,6 +234,7 @@ def _build_stage1_prompt(
     angle_directive: str = "",
     look_contract: Optional[dict[str, Any]] = None,
     use_image_grounding: bool = False,
+    image_analysis: Optional[str] = None,
 ) -> str:
     """Prompt curto e reproduzivel para stage 1: base fiel da peca."""
     structure_guards = build_structure_guard_clauses(structural_contract, set_detection=set_detection)
@@ -315,10 +316,17 @@ def _build_stage1_prompt(
         if _lc_forbidden:
             parts.append(f"Avoid these lower-body types (incoherent with this garment): {', '.join(_lc_forbidden)}.")
     if use_image_grounding:
-        parts.append(
-            "Use any retrieved visual search context to improve garment pattern accuracy, "
-            "stitch geometry, color distribution, and surface texture fidelity."
-        )
+        # Construir query explícita a partir do subtype + image_analysis do triage
+        # Query explícita é necessária — hint passivo não ativa o grounding de forma confiável
+        _subtype = str((structural_contract or {}).get("garment_subtype", "") or "").strip()
+        _ia_fragment = str(image_analysis or structural_hint or "").strip()[:100].rstrip(",. ")
+        _grounding_query = f"{_subtype} {_ia_fragment}".strip() if _subtype else _ia_fragment
+        if _grounding_query:
+            parts.insert(0,
+                f"Before generating, search for images of: '{_grounding_query}' "
+                "to understand the exact silhouette, pattern geometry, and drape of this garment type. "
+                "Use the retrieved images as additional visual reference to improve pattern and texture fidelity."
+            )
     return " ".join(parts)
 
 
@@ -742,6 +750,7 @@ def run_pipeline_v2(
         angle_directive=_stage1_angle_directive,
         look_contract=look_contract,
         use_image_grounding=_use_image_grounding,
+        image_analysis=image_analysis,
     )
 
     stage1_candidate_count = _stage1_candidate_count(

@@ -105,12 +105,9 @@ if response.candidates:
             if chunks:
                 print(f"\n  📎 Sources retornados ({len(chunks)}):")
                 for j, chunk in enumerate(chunks):
-                    web = getattr(chunk, "web", None) or getattr(chunk, "retrieved_context", None)
-                    if web:
-                        uri = getattr(web, "uri", "?")
-                        title = getattr(web, "title", "?")
-                        print(f"     [{j+1}] {title}")
-                        print(f"          {uri}")
+                    # Dump completo do chunk para inspecionar estrutura real do SDK
+                    print(f"\n     [{j+1}] chunk type: {type(chunk).__name__}")
+                    print(f"          repr: {repr(chunk)[:300]}")
             else:
                 print("  ⚠️  grounding_chunks: vazio (model usou contexto internamente sem expor sources)")
 

@@ -6,9 +6,44 @@ Todas as funções são chamadas por run_agent() e pelos routers (via import dir
 """
 import re
 import json
+from io import BytesIO
 from typing import Optional, List
 
 from google.genai import types
+from PIL import Image, ImageOps
+
+# Limite conservador para imagens enviadas ao triage — evita timeout httpx com refs pesadas
+_TRIAGE_LONG_EDGE = 1024
+_TRIAGE_MAX_BYTES = 800_000
+
+
+def _compress_for_triage(image_bytes: bytes) -> bytes:
+    """Redimensiona e comprime imagem para envio ao triage. Evita timeout com refs ~4MB."""
+    try:
+        with Image.open(BytesIO(image_bytes)) as img:
+            img = ImageOps.exif_transpose(img)
+            if img.mode not in {"RGB", "L"}:
+                bg = Image.new("RGB", img.size, (255, 255, 255))
+                if "A" in img.getbands():
+                    bg.paste(img, mask=img.getchannel("A"))
+                else:
+                    bg.paste(img.convert("RGB"))
+                img = bg
+            else:
+                img = img.convert("RGB")
+            w, h = img.size
+            if max(w, h) > _TRIAGE_LONG_EDGE:
+                scale = _TRIAGE_LONG_EDGE / float(max(w, h))
+                img = img.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.Resampling.LANCZOS)
+            for quality in (85, 78, 70):
+                out = BytesIO()
+                img.save(out, format="JPEG", quality=quality, optimize=True)
+                data = out.getvalue()
+                if len(data) <= _TRIAGE_MAX_BYTES:
+                    return data
+            return data
+    except Exception:
+        return image_bytes
 
 from agent_runtime.gemini_client import (
     generate_structured_json,
@@ -78,7 +113,7 @@ def _infer_garment_hint(uploaded_images: List[bytes]) -> str:
         for img_bytes in uploaded_images:
             parts.append(
                 types.Part(
-                    inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)
+                    inline_data=types.Blob(mime_type="image/jpeg", data=_compress_for_triage(img_bytes))
                 )
             )
         parts.append(types.Part(text=(
@@ -110,7 +145,7 @@ def _infer_structural_contract_from_images(uploaded_images: List[bytes], user_pr
 
     parts: List[types.Part] = []
     for img_bytes in uploaded_images:
-        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)))
+        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=_compress_for_triage(img_bytes))))
 
     user_txt = (user_prompt or "").strip()
     instruction = (
@@ -183,7 +218,7 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
 
     parts: List[types.Part] = []
     for img_bytes in uploaded_images:
-        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)))
+        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=_compress_for_triage(img_bytes))))
 
     user_txt = (user_prompt or "").strip()
     text_instruction = (
@@ -254,7 +289,7 @@ def _infer_unified_vision_triage(
 
     parts: List[types.Part] = []
     for img_bytes in uploaded_images:
-        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=img_bytes)))
+        parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=_compress_for_triage(img_bytes))))
 
     user_txt = (user_prompt or "").strip()
     instruction = (

@@ -2,6 +2,9 @@
 Router Marketplace:
 - POST /marketplace/async
 - GET  /marketplace/jobs/{job_id}
+
+Performance: worker agora é async def, aproveitando
+asyncio.gather do orchestrator para paralelizar slots.
 """
 from __future__ import annotations
 
@@ -9,7 +12,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from agent_runtime.marketplace_orchestrator import run_marketplace_orchestration
+from agent_runtime.marketplace_orchestrator import run_marketplace_orchestration_async
 from config import DEFAULT_ASPECT_RATIO, DEFAULT_RESOLUTION, REFERENCE_GENERATION_MAX
 from job_manager import complete_job, create_job, fail_job, get_job, start_job, update_stage
 from request_validation import (
@@ -38,7 +41,6 @@ async def marketplace_async(
     try:
         normalized_channel = normalize_marketplace_channel(marketplace_channel)
         normalized_operation = normalize_marketplace_operation(operation)
-        # Cada slot roda com n_images=1 internamente; validamos parâmetros de saída aqui.
         validate_generation_params(
             aspect_ratio=aspect_ratio,
             resolution=resolution,
@@ -85,12 +87,13 @@ async def marketplace_async(
         }
     )
 
-    def _worker() -> None:
+    # 🚀 Worker agora é async — roda no event loop do FastAPI diretamente
+    async def _worker() -> None:
         def _stage_cb(stage: str, event: dict) -> None:
             update_stage(job_id, stage, event)
 
         try:
-            response = run_marketplace_orchestration(
+            response = await run_marketplace_orchestration_async(
                 marketplace_channel=normalized_channel,
                 operation=normalized_operation,
                 base_images_bytes=base_images_bytes,

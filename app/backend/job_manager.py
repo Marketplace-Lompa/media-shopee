@@ -5,30 +5,35 @@ Inclui observabilidade completa: logs visuais no terminal + meta rico.
 Proteções de produção:
   - Timeout rígido por job (JOB_TIMEOUT_S) — mata zumbis automaticamente.
   - Semáforo de concorrência (MAX_CONCURRENT) — rejeita excedente com 429.
-  - Reaper periódico — varre jobs órfãos a cada 30s.
+  - asyncio.Task nativo (sem ThreadPoolExecutor) para workers async.
+  - Fallback sync via asyncio.to_thread para workers legados (sync def).
 """
 from __future__ import annotations
 
-import json
+import asyncio
+import inspect
 import time
 import uuid
-import threading
-from concurrent.futures import ThreadPoolExecutor, Future
-from threading import Lock, Semaphore
 from typing import Any, Callable, Dict, Optional
 
 from fastapi import HTTPException
 
 # ── Configuração ───────────────────────────────────────────────────────────────
 MAX_CONCURRENT = 3          # máx. jobs rodando ao mesmo tempo
-JOB_TIMEOUT_S  = 180        # 3 minutos — nenhum job pode ultrapassar isso
-REAPER_INTERVAL_S = 30      # intervalo do varredura de órfãos
+JOB_TIMEOUT_S  = 300        # 5 minutos — tempo seguro para marketplace com 5 slots
 
-_EXECUTOR = ThreadPoolExecutor(max_workers=MAX_CONCURRENT + 1, thread_name_prefix="gen-job")
-_LOCK = Lock()
-_SEMAPHORE = Semaphore(MAX_CONCURRENT)
+_LOCK = asyncio.Lock()
+_SEMAPHORE: Optional[asyncio.Semaphore] = None
 _JOBS: Dict[str, Dict[str, Any]] = {}
-_FUTURES: Dict[str, Future] = {}   # rastreia a Future de cada job
+_TASKS: Dict[str, asyncio.Task] = {}
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    global _SEMAPHORE
+    if _SEMAPHORE is None:
+        _SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT)
+    return _SEMAPHORE
+
 
 # ── Parâmetros que aparecem no log visual do terminal ──────────────
 _LOG_META_KEYS = [
@@ -121,100 +126,89 @@ def _log_job_failed(job_id: str, started_at: Optional[int], error: str) -> None:
 
 def create_job(meta: Optional[dict] = None) -> str:
     job_id = str(uuid.uuid4())[:12]
-    with _LOCK:
-        _JOBS[job_id] = {
-            "job_id": job_id,
-            "status": "queued",  # queued | running | done | error
-            "created_at": _now_ms(),
-            "started_at": None,
-            "updated_at": _now_ms(),
-            "stage": None,
-            "event": None,
-            "response": None,
-            "error": None,
-            "meta": meta or {},
-        }
+    # Sync lock simples para create_job (chamado da route sync-safe)
+    _JOBS[job_id] = {
+        "job_id": job_id,
+        "status": "queued",  # queued | running | done | error
+        "created_at": _now_ms(),
+        "started_at": None,
+        "updated_at": _now_ms(),
+        "stage": None,
+        "event": None,
+        "response": None,
+        "error": None,
+        "meta": meta or {},
+    }
     return job_id
 
 
 def _update(job_id: str, **fields: Any) -> None:
-    with _LOCK:
-        row = _JOBS.get(job_id)
-        if not row:
-            return
-        row.update(fields)
-        row["updated_at"] = _now_ms()
+    row = _JOBS.get(job_id)
+    if not row:
+        return
+    row.update(fields)
+    row["updated_at"] = _now_ms()
 
 
 def start_job(job_id: str, worker: Callable[[], Any]) -> None:
     """
-    Submete o job ao executor com:
-      1. Semáforo — bloqueia se já há MAX_CONCURRENT rodando (evita colapso).
-      2. Timeout — se worker() não retornar em JOB_TIMEOUT_S, marca como failed.
+    Submete o job como asyncio.Task:
+      - Se worker é async def → roda direto no event loop
+      - Se worker é sync def → roda via asyncio.to_thread
+      - Semáforo controla concorrência
+      - asyncio.wait_for impõe timeout rígido
     """
+    sem = _get_semaphore()
 
-    # Checar se já temos muitos jobs em execução; rejeitar se a fila está cheia
-    # (acquire com timeout=0 = não-bloqueante)
-    if not _SEMAPHORE.acquire(blocking=False):
-        active_count = MAX_CONCURRENT  # todos os slots ocupados
-        err_msg = (
-            f"Servidor ocupado: {active_count}/{MAX_CONCURRENT} jobs simultâneos. "
-            "Aguarde um finalizar antes de submeter outro."
-        )
-        _update(job_id, status="error", error=err_msg, stage="error",
-                event={"stage": "error", "message": err_msg})
-        print(f"\n[JOB 🚫 REJECTED] {job_id} — fila cheia ({active_count}/{MAX_CONCURRENT})\n")
-        return
-
-    def _runner() -> None:
+    async def _runner() -> None:
         started_at = _now_ms()
+        row = _JOBS.get(job_id)
+        meta = (row or {}).get("meta", {})
+        if row:
+            row["started_at"] = started_at
+
+        # Log visual no terminal
         try:
-            # Registrar timestamp de início
-            with _LOCK:
-                row = _JOBS.get(job_id)
-                meta = (row or {}).get("meta", {})
-                if row:
-                    row["started_at"] = started_at
+            banner = _format_job_banner(job_id, meta)
+            print(f"\n{banner}\n")
+        except Exception:
+            print(f"\n[JOB 🚀 STARTED] {job_id}\n")
 
-            # Log visual no terminal
-            try:
-                banner = _format_job_banner(job_id, meta)
-                print(f"\n{banner}\n")
-            except Exception:
-                print(f"\n[JOB 🚀 STARTED] {job_id}\n")
+        _update(job_id, status="running")
 
-            _update(job_id, status="running")
-
-            # ── Executar worker com timeout rígido ─────────────────────
-            worker_future: Future = ThreadPoolExecutor(max_workers=1).submit(worker)
-            try:
-                worker_future.result(timeout=JOB_TIMEOUT_S)
-            except TimeoutError:
-                worker_future.cancel()
-                timeout_msg = f"Job ultrapassou o limite de {JOB_TIMEOUT_S}s e foi cancelado automaticamente."
-                _update(job_id, status="error", error=timeout_msg, stage="timeout",
-                        event={"stage": "timeout", "message": timeout_msg})
-                _log_job_failed(job_id, started_at, timeout_msg)
-                return
-            except Exception as e:
-                _update(job_id, status="error", error=str(e), stage="error",
-                        event={"stage": "error", "message": str(e)})
-                _log_job_failed(job_id, started_at, str(e))
-                return
-
+        try:
+            async with sem:
+                if inspect.iscoroutinefunction(worker):
+                    await asyncio.wait_for(worker(), timeout=JOB_TIMEOUT_S)
+                else:
+                    # Worker sync → roda em thread para não bloquear o event loop
+                    await asyncio.wait_for(
+                        asyncio.to_thread(worker),
+                        timeout=JOB_TIMEOUT_S,
+                    )
+        except asyncio.TimeoutError:
+            timeout_msg = f"Job ultrapassou o limite de {JOB_TIMEOUT_S}s e foi cancelado automaticamente."
+            _update(job_id, status="error", error=timeout_msg, stage="timeout",
+                    event={"stage": "timeout", "message": timeout_msg})
+            _log_job_failed(job_id, started_at, timeout_msg)
         except Exception as e:
-            _update(job_id, status="error", error=str(e))
+            _update(job_id, status="error", error=str(e), stage="error",
+                    event={"stage": "error", "message": str(e)})
             _log_job_failed(job_id, started_at, str(e))
         finally:
-            # Sempre liberar o semáforo — slot volta a ficar disponível
-            _SEMAPHORE.release()
-            # Limpar referência da future
-            with _LOCK:
-                _FUTURES.pop(job_id, None)
+            _TASKS.pop(job_id, None)
 
-    future = _EXECUTOR.submit(_runner)
-    with _LOCK:
-        _FUTURES[job_id] = future
+    try:
+        loop = asyncio.get_running_loop()
+        task = loop.create_task(_runner(), name=f"job-{job_id}")
+    except RuntimeError:
+        # Sem event loop ativo — fallback sync
+        import concurrent.futures
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        pool.submit(asyncio.run, _runner())
+        return
+
+    _TASKS[job_id] = task
 
 
 def update_stage(job_id: str, stage: str, event: dict) -> None:
@@ -222,75 +216,27 @@ def update_stage(job_id: str, stage: str, event: dict) -> None:
 
 
 def complete_job(job_id: str, response: dict, stage: str = "done") -> None:
-    with _LOCK:
-        row = _JOBS.get(job_id)
-        started_at = (row or {}).get("started_at") if row else None
+    row = _JOBS.get(job_id)
+    started_at = (row or {}).get("started_at") if row else None
     _update(job_id, status="done", response=response, stage=stage, event={"stage": stage})
     _log_job_done(job_id, started_at, stage)
 
 
 def fail_job(job_id: str, error: str) -> None:
-    with _LOCK:
-        row = _JOBS.get(job_id)
-        started_at = (row or {}).get("started_at") if row else None
+    row = _JOBS.get(job_id)
+    started_at = (row or {}).get("started_at") if row else None
     _update(job_id, status="error", error=error, stage="error", event={"stage": "error", "message": error})
     _log_job_failed(job_id, started_at, error)
 
 
 def get_job(job_id: str) -> dict:
-    with _LOCK:
-        row = _JOBS.get(job_id)
-        if not row:
-            raise HTTPException(status_code=404, detail=f"Job {job_id} não encontrado")
-        return dict(row)
+    row = _JOBS.get(job_id)
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} não encontrado")
+    return dict(row)
 
 
 def list_jobs(limit: int = 20) -> dict:
-    with _LOCK:
-        rows = sorted(_JOBS.values(), key=lambda x: x.get("updated_at", 0), reverse=True)
-        rows = rows[: max(1, min(100, limit))]
-        return {"items": [dict(r) for r in rows], "total": len(_JOBS)}
-
-
-# ── Reaper: varredura periódica de jobs órfãos ─────────────────────────────────
-
-def _reap_orphans() -> None:
-    """Varre jobs que estão 'running' há mais de JOB_TIMEOUT_S e os marca como failed."""
-    now = _now_ms()
-    orphans: list[tuple[str, int]] = []
-
-    with _LOCK:
-        for jid, row in _JOBS.items():
-            if row["status"] not in ("queued", "running"):
-                continue
-            started = row.get("started_at") or row.get("created_at", 0)
-            elapsed_s = (now - started) / 1000
-            if elapsed_s > JOB_TIMEOUT_S:
-                orphans.append((jid, int(elapsed_s)))
-
-    for jid, elapsed in orphans:
-        msg = f"Job órfão detectado ({elapsed}s sem resposta). Cancelado pelo reaper."
-        _update(jid, status="error", error=msg, stage="orphan_timeout",
-                event={"stage": "orphan_timeout", "message": msg})
-        print(f"\n[REAPER 💀] {jid} — rodando há {elapsed}s, marcado como failed\n")
-
-        # Tentar cancelar a future se ainda existir
-        with _LOCK:
-            future = _FUTURES.pop(jid, None)
-        if future and not future.done():
-            future.cancel()
-
-
-def _reaper_loop() -> None:
-    """Loop infinito do reaper em background daemon thread."""
-    while True:
-        try:
-            _reap_orphans()
-        except Exception as e:
-            print(f"[REAPER ⚠️] Erro no reaper: {e}")
-        time.sleep(REAPER_INTERVAL_S)
-
-
-# Iniciar reaper como daemon thread (morre junto com o processo principal)
-_reaper_thread = threading.Thread(target=_reaper_loop, daemon=True, name="job-reaper")
-_reaper_thread.start()
+    rows = sorted(_JOBS.values(), key=lambda x: x.get("updated_at", 0), reverse=True)
+    rows = rows[: max(1, min(100, limit))]
+    return {"items": [dict(r) for r in rows], "total": len(_JOBS)}

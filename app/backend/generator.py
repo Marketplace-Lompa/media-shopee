@@ -2,12 +2,19 @@
 Image Generator — Nano Banana 2 (gemini-3.1-flash-image-preview).
 
 - BLOCK_NONE em todas as categorias (moda/lingerie)
-- Gera N imagens em sequência (API não suporta batch paralelo nativo)
+- Gera N imagens em sequência (sync) OU em paralelo (async)
 - Aceita imagens do pool como contexto visual (LoRA-like)
 - Salva outputs em app/outputs/{session_id}/
+
+Async Performance:
+  - generate_images_async: dispara N candidatos em paralelo via asyncio.gather
+  - edit_image_async: chamada async sem bloquear event loop
+  - Escrita em disco usa asyncio.to_thread para não bloquear I/O
 """
+import asyncio
 import time
 import uuid
+import random
 from io import BytesIO
 from pathlib import Path
 from typing import List, Optional
@@ -29,7 +36,7 @@ from image_utils import detect_image_mime as _detect_image_mime
 
 client = genai.Client(
     api_key=GOOGLE_AI_API_KEY,
-    http_options={'timeout': 120.0}
+    http_options={'timeout': 120_000}  # SDK espera ms → 120s
 )
 
 OUTPUTS_DIR = ROOT_DIR / "app" / "outputs"
@@ -49,9 +56,15 @@ _TRANSIENT_PROVIDER_ERRORS = (
 _REFERENCE_RETRY_ATTEMPTS = 3
 _MAX_REFERENCE_IMAGES = 4
 _MAX_GROUNDED_IMAGES = 3
-_REFERENCE_LONG_EDGE = 2048
-_REFERENCE_MAX_BYTES = 1_900_000
-_REFERENCE_QUALITIES = (90, 86, 82, 78)
+_REFERENCE_LONG_EDGE = 1024
+_REFERENCE_MAX_BYTES = 900_000
+_REFERENCE_QUALITIES = (88, 82, 76, 70)
+
+# Semáforo compartilhado com gemini_client para controlar tráfego total ao Google
+try:
+    from agent_runtime.gemini_client import GOOGLE_API_SEMAPHORE as _API_SEM
+except ImportError:
+    _API_SEM = asyncio.Semaphore(10)
 
 
 def _reference_role_instruction(scope: str = "garment") -> str:
@@ -85,6 +98,11 @@ def _normalize_thinking_level(level: Optional[str], *, default: str) -> str:
 def _is_transient_provider_error(exc: Exception) -> bool:
     text = str(exc or "").strip().lower()
     return any(token in text for token in _TRANSIENT_PROVIDER_ERRORS)
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    text = str(exc or "").strip().lower()
+    return "429" in text or "quota" in text or "rate" in text or "resource exhausted" in text
 
 
 def _prepare_reference_image(image_bytes: bytes) -> bytes:
@@ -152,25 +170,356 @@ def _build_retry_reference_subset(images: List[bytes], attempt: int, *, minimum_
     return images[:keep]
 
 
+def _build_content_parts(
+    *,
+    prompt: str,
+    uploaded_images: List[bytes],
+    grounded_images: List[bytes],
+    structural_hint: Optional[str] = None,
+    scope: str = "garment",
+) -> List[types.Part]:
+    """Constrói content_parts para geração — compartilhado entre sync e async."""
+    _effective_prompt = prompt
+    if uploaded_images and not any(
+        kw in prompt.lower() for kw in ("user text to incorporate", "refine this user prompt")
+    ):
+        _role_prefix = (
+            "COPY this garment from the reference photos EXACTLY — "
+            "same design, colors, texture, stitch pattern, and drape. "
+        )
+        if structural_hint:
+            _role_prefix += f"Honor this garment identity: {structural_hint}. "
+        _role_prefix += (
+            "The references show the garment only, not a person to copy. "
+            "Never replicate any face, skin tone, body type, or hairstyle from reference people. "
+            "Treat all visible people in references as anonymous mannequins for garment transfer only. "
+            "Generate a new and unique Brazilian fashion model identity wearing this garment in a catalog-worthy editorial look: "
+        )
+        _effective_prompt = _role_prefix + prompt
+
+    content_parts = []
+    _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
+
+    if uploaded_images:
+        content_parts.append(types.Part(text=_reference_role_instruction(scope)))
+        for img_bytes in uploaded_images:
+            content_parts.append(
+                types.Part(
+                    inline_data=types.Blob(mime_type=_detect_image_mime(img_bytes), data=img_bytes),
+                    media_resolution=_hi_res,
+                )
+            )
+
+    if grounded_images:
+        content_parts.append(types.Part(text=_reference_role_instruction(scope)))
+        for img_bytes in grounded_images:
+            content_parts.append(
+                types.Part(
+                    inline_data=types.Blob(mime_type=_detect_image_mime(img_bytes), data=img_bytes),
+                    media_resolution=_hi_res,
+                )
+            )
+
+    content_parts.append(types.Part(text=_effective_prompt))
+    return content_parts
+
+
+def _build_tools(use_image_grounding: bool) -> Optional[list]:
+    if not use_image_grounding:
+        return None
+    return [
+        types.Tool(google_search=types.GoogleSearch(
+            search_types=types.SearchTypes(
+                image_search=types.ImageSearch()
+            )
+        ))
+    ]
+
+
+def _log_grounding_metadata(response: Any, *, prefix: str = "IMAGE_GROUNDING") -> None:
+    if not response or not response.candidates:
+        return
+    for cand in response.candidates:
+        gm = getattr(cand, "grounding_metadata", None)
+        if not gm:
+            continue
+        queries = (
+            getattr(gm, "image_search_queries", None)
+            or getattr(gm, "imageSearchQueries", None)
+            or getattr(gm, "web_search_queries", None)
+        )
+        chunks = getattr(gm, "grounding_chunks", None) or []
+        if queries:
+            print(f"[{prefix}] 🔍 queries: {queries}")
+        if chunks:
+            uris = []
+            for c in chunks[:3]:
+                img_chunk = getattr(c, "image", None)
+                web_chunk = getattr(c, "web", None)
+                uri = (
+                    getattr(img_chunk, "uri", None)
+                    or getattr(web_chunk, "uri", None)
+                    or ""
+                )
+                uris.append(str(uri))
+            print(f"[{prefix}] 📎 sources ({len(chunks)}): " + ", ".join(uris))
+
+
+def _extract_image_from_response(response: Any, *, session_id: str, image_index: int, session_dir: Path) -> dict:
+    """Extrai uma imagem da resposta do Nano e salva em disco. Retorna metadado."""
+    parts = response.parts if response.parts else []
+    for part in parts:
+        if (
+            getattr(part, "inline_data", None)
+            and getattr(part.inline_data, "mime_type", None)
+            and part.inline_data.mime_type.startswith("image/")
+        ):
+            ext = part.inline_data.mime_type.split("/")[-1]
+            filename = f"gen_{session_id}_{image_index}.{ext}"
+            filepath = session_dir / filename
+
+            data = getattr(part.inline_data, "data", None)
+            if data:
+                filepath.write_bytes(data)
+            size_kb = filepath.stat().st_size / 1024
+
+            mime_type_val = getattr(part.inline_data, "mime_type", "image/png")
+            return {
+                "index": image_index,
+                "filename": filename,
+                "url": f"/outputs/{session_id}/{filename}",
+                "path": str(filepath),
+                "size_kb": round(size_kb, 1),
+                "mime_type": str(mime_type_val),
+            }
+    raise RuntimeError(f"Nano retornou sem imagem na posição {image_index}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ██ ASYNC API (nova — desbloqueante, paralela)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def generate_images_async(
+    prompt: str,
+    thinking_level: str,
+    aspect_ratio: str,
+    resolution: str,
+    n_images: int,
+    pool_images: Optional[List[bytes]] = None,
+    uploaded_images: Optional[List[bytes]] = None,
+    grounded_images: Optional[List[bytes]] = None,
+    session_id: Optional[str] = None,
+    start_index: int = 1,
+    structural_hint: Optional[str] = None,
+    use_image_grounding: bool = False,
+) -> List[dict]:
+    """
+    Gera n_images imagens em PARALELO via asyncio.gather + client.aio.
+    """
+    if session_id is None:
+        session_id = str(uuid.uuid4())[:8]
+
+    session_dir = OUTPUTS_DIR / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    effective_thinking_level = _normalize_thinking_level(thinking_level, default="minimal")
+    prepared_uploaded_images = _prepare_reference_batch(uploaded_images, limit=_MAX_REFERENCE_IMAGES)
+    prepared_grounded_images = _prepare_reference_batch(grounded_images, limit=_MAX_GROUNDED_IMAGES)
+    _tools = _build_tools(use_image_grounding)
+
+    async def _generate_single(image_index: int) -> dict:
+        """Gera 1 imagem com retry."""
+        last_error: Optional[Exception] = None
+        for attempt in range(1, _REFERENCE_RETRY_ATTEMPTS + 1):
+            current_uploaded = _build_retry_reference_subset(prepared_uploaded_images, attempt, minimum_keep=2)
+            current_grounded = _build_retry_reference_subset(prepared_grounded_images, attempt, minimum_keep=1)
+
+            content_parts = _build_content_parts(
+                prompt=prompt,
+                uploaded_images=current_uploaded,
+                grounded_images=current_grounded,
+                structural_hint=structural_hint,
+                scope="garment",
+            )
+
+            try:
+                async with _API_SEM:
+                    response = await client.aio.models.generate_content(
+                        model=MODEL_IMAGE,
+                        contents=[types.Content(role="user", parts=content_parts)],
+                        config=types.GenerateContentConfig(
+                            response_modalities=["TEXT", "IMAGE"],
+                            temperature=1.0,
+                            image_config=types.ImageConfig(
+                                aspect_ratio=aspect_ratio,
+                                image_size=resolution,
+                            ),
+                            thinking_config=types.ThinkingConfig(thinking_level=effective_thinking_level),  # type: ignore[arg-type]
+                            safety_settings=SAFETY_CONFIG,
+                            tools=_tools,
+                        ),
+                    )
+
+                if use_image_grounding:
+                    _log_grounding_metadata(response)
+
+                # Escrita em disco via thread para não bloquear o event loop
+                result = await asyncio.to_thread(
+                    _extract_image_from_response,
+                    response, session_id=session_id, image_index=image_index, session_dir=session_dir,
+                )
+                return result
+
+            except Exception as exc:
+                last_error = exc
+                is_quota = _is_rate_limit_error(exc)
+                is_transient = _is_transient_provider_error(exc)
+
+                if attempt >= _REFERENCE_RETRY_ATTEMPTS or (not is_transient and not is_quota):
+                    raise
+
+                if is_quota:
+                    sleep_time = (2.0 ** attempt) + random.uniform(0.5, 2.0)
+                    print(f"[GENERATOR_ASYNC] ⚠️ Quota 429 (attempt={attempt}). Aguardando {sleep_time:.1f}s...")
+                else:
+                    sleep_time = (1.2 * attempt) + random.uniform(0.1, 0.5)
+                    print(f"[GENERATOR_ASYNC] transient failure; retrying "
+                          f"(attempt={attempt + 1}/{_REFERENCE_RETRY_ATTEMPTS}, refs={len(current_uploaded)})")
+
+                await asyncio.sleep(sleep_time)
+
+        if last_error:
+            raise last_error
+        raise RuntimeError(f"Nano retornou sem resposta na posição {image_index}")
+
+    # 🚀 Dispara todos os N candidatos em paralelo
+    tasks = [_generate_single(start_index + i) for i in range(n_images)]
+    results = await asyncio.gather(*tasks)
+    return list(results)
+
+
+async def edit_image_async(
+    source_image_bytes: bytes,
+    edit_prompt: str,
+    aspect_ratio: str = DEFAULT_ASPECT_RATIO,
+    resolution: str = DEFAULT_RESOLUTION,
+    thinking_level: str = "HIGH",
+    session_id: Optional[str] = None,
+    reference_images_bytes: Optional[List[bytes]] = None,
+    use_image_grounding: bool = False,
+) -> List[dict]:
+    """
+    Edita uma imagem existente via Nano Banana 2 — versão async.
+    """
+    if session_id is None:
+        session_id = str(uuid.uuid4())[:8]
+
+    session_dir = OUTPUTS_DIR / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    effective_thinking_level = _normalize_thinking_level(thinking_level, default="high")
+    prepared_reference_images = _prepare_reference_batch(reference_images_bytes, limit=_MAX_REFERENCE_IMAGES)
+    _tools = _build_tools(use_image_grounding)
+
+    last_error: Optional[Exception] = None
+    for attempt in range(1, _REFERENCE_RETRY_ATTEMPTS + 1):
+        current_references = _build_retry_reference_subset(prepared_reference_images, attempt, minimum_keep=2)
+        _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
+
+        content_parts = [
+            types.Part(text=(
+                "BASE IMAGE TO EDIT: The image immediately below is the source to edit. "
+                "LOCK the person in this image — their face, skin tone, hair, body proportions, "
+                "and pose must remain exactly as shown. Do not alter the person in any way."
+            )),
+            types.Part(
+                inline_data=types.Blob(mime_type=_detect_image_mime(source_image_bytes), data=source_image_bytes),
+                media_resolution=_hi_res,
+            ),
+        ]
+        if current_references:
+            content_parts.append(types.Part(text=_reference_role_instruction("edit")))
+            for ref_bytes in current_references:
+                content_parts.append(
+                    types.Part(
+                        inline_data=types.Blob(mime_type=_detect_image_mime(ref_bytes), data=ref_bytes),
+                        media_resolution=_hi_res,
+                    )
+                )
+        content_parts.append(types.Part(text=edit_prompt))
+
+        try:
+            _edit_modalities = ["IMAGE"] if EDIT_IMAGE_ONLY_MODALITY else ["TEXT", "IMAGE"]
+            async with _API_SEM:
+                response = await client.aio.models.generate_content(
+                    model=MODEL_IMAGE,
+                    contents=[types.Content(role="user", parts=content_parts)],
+                    config=types.GenerateContentConfig(
+                        response_modalities=_edit_modalities,
+                        image_config=types.ImageConfig(
+                            aspect_ratio=aspect_ratio,
+                            image_size=resolution,
+                        ),
+                        thinking_config=types.ThinkingConfig(thinking_level=effective_thinking_level),  # type: ignore[arg-type]
+                        safety_settings=SAFETY_CONFIG,
+                        tools=_tools,
+                    ),
+                )
+
+            if use_image_grounding:
+                _log_grounding_metadata(response, prefix="IMAGE_GROUNDING/EDIT")
+
+            # Extrair imagem — escrita em disco via thread
+            result = await asyncio.to_thread(
+                _extract_image_from_response,
+                response, session_id=session_id, image_index=1, session_dir=session_dir,
+            )
+            return [result]
+
+        except Exception as exc:
+            last_error = exc
+            is_quota = _is_rate_limit_error(exc)
+            is_transient = _is_transient_provider_error(exc)
+
+            if attempt >= _REFERENCE_RETRY_ATTEMPTS or (not is_transient and not is_quota):
+                raise
+
+            if is_quota:
+                sleep_time = (2.0 ** attempt) + random.uniform(0.5, 2.0)
+                print(f"[GENERATOR_ASYNC/EDIT] ⚠️ Quota 429 (attempt={attempt}). Aguardando {sleep_time:.1f}s...")
+            else:
+                sleep_time = (1.2 * attempt) + random.uniform(0.1, 0.5)
+                print(f"[GENERATOR_ASYNC/EDIT] transient edit failure; retrying "
+                      f"(attempt={attempt + 1}/{_REFERENCE_RETRY_ATTEMPTS}, refs={len(current_references)})")
+
+            await asyncio.sleep(sleep_time)
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("Nano retornou sem resposta na edição (async)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ██ SYNC LEGACY (mantido para compatibilidade com pipeline_v2.py)
+# ═══════════════════════════════════════════════════════════════════════════════
+
 def generate_images(
     prompt: str,
     thinking_level: str,
     aspect_ratio: str,
     resolution: str,
     n_images: int,
-    pool_images: Optional[List[bytes]] = None,       # compat legado (ignorado em runtime)
-    uploaded_images: Optional[List[bytes]] = None,   # imagens enviadas pelo usuário
-    grounded_images: Optional[List[bytes]] = None,   # refs visuais coletadas no grounding full
+    pool_images: Optional[List[bytes]] = None,
+    uploaded_images: Optional[List[bytes]] = None,
+    grounded_images: Optional[List[bytes]] = None,
     session_id: Optional[str] = None,
     start_index: int = 1,
-    structural_hint: Optional[str] = None,           # e.g. "poncho/ruana, cocoon silhouette, no sleeves"
-    use_image_grounding: bool = False,               # ativa Google Image Search como contexto visual extra
+    structural_hint: Optional[str] = None,
+    use_image_grounding: bool = False,
 ) -> List[dict]:
     """
-    Gera n_images imagens com o Nano Banana 2.
-
-    Retorna lista de dicts:
-    [{"filename": str, "path": str, "size_kb": float, "mime_type": str}, ...]
+    Gera n_images imagens com o Nano Banana 2 (sync — um por vez).
+    Mantido para backward-compatibility com pipeline_v2.py.
     """
     if session_id is None:
         session_id = str(uuid.uuid4())[:8]
@@ -182,33 +531,10 @@ def generate_images(
     effective_thinking_level = _normalize_thinking_level(thinking_level, default="minimal")
     prepared_uploaded_images = _prepare_reference_batch(uploaded_images, limit=_MAX_REFERENCE_IMAGES)
     prepared_grounded_images = _prepare_reference_batch(grounded_images, limit=_MAX_GROUNDED_IMAGES)
+    _tools = _build_tools(use_image_grounding)
 
     for i in range(n_images):
         image_index = start_index + i
-        # M4: Object fidelity labeling para Nano Banana.
-        # As fotos de referência são rotuladas como OBJECT REFERENCE (peça de roupa),
-        # NÃO como character reference. Isso ativa object fidelity no Nano
-        # e evita character consistency (copiar a pessoa).
-        # O Nano gera a modelo por conta própria — não precisamos descrever físico.
-        _effective_prompt = prompt
-        if prepared_uploaded_images and not any(
-            kw in prompt.lower() for kw in ("user text to incorporate", "refine this user prompt")
-        ):
-            # Referência visual continua sendo a autoridade principal.
-            # structural_hint entra só como ancora curta para reduzir drift de subtype.
-            _role_prefix = (
-                "COPY this garment from the reference photos EXACTLY — "
-                "same design, colors, texture, stitch pattern, and drape. "
-            )
-            if structural_hint:
-                _role_prefix += f"Honor this garment identity: {structural_hint}. "
-            _role_prefix += (
-                "The references show the garment only, not a person to copy. "
-                "Never replicate any face, skin tone, body type, or hairstyle from reference people. "
-                "Treat all visible people in references as anonymous mannequins for garment transfer only. "
-                "Generate a new and unique Brazilian fashion model identity wearing this garment in a catalog-worthy editorial look: "
-            )
-            _effective_prompt = _role_prefix + prompt
 
         response = None
         last_error: Optional[Exception] = None
@@ -216,51 +542,13 @@ def generate_images(
             current_uploaded = _build_retry_reference_subset(prepared_uploaded_images, attempt, minimum_keep=2)
             current_grounded = _build_retry_reference_subset(prepared_grounded_images, attempt, minimum_keep=1)
 
-            # Montar content_parts:
-            # 1. Imagens do usuário (autoridade da peça)
-            # 2. Refs visuais de grounding (silhueta/caimento)
-            # 3. Prompt textual (sempre por último — maior peso semântico)
-            content_parts = []
-
-            # Per-part media_resolution=HIGH faz o Nano Banana processar as referências
-            # com mais tokens/detalhes, melhorando fidelidade de garment.
-            # Nota: media_resolution no GenerateContentConfig causa 400 no Nano Banana —
-            # DEVE ser per-part (no objeto Part) para funcionar com image gen models.
-            _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
-
-            if current_uploaded:
-                content_parts.append(types.Part(text=_reference_role_instruction("garment")))
-                for img_bytes in current_uploaded:
-                    content_parts.append(
-                        types.Part(
-                            inline_data=types.Blob(mime_type=_detect_image_mime(img_bytes), data=img_bytes),
-                            media_resolution=_hi_res,
-                        )
-                    )
-
-            if current_grounded:
-                content_parts.append(types.Part(text=_reference_role_instruction("garment")))
-                for img_bytes in current_grounded:
-                    content_parts.append(
-                        types.Part(
-                            inline_data=types.Blob(mime_type=_detect_image_mime(img_bytes), data=img_bytes),
-                            media_resolution=_hi_res,
-                        )
-                    )
-
-            # Prompt textual (sempre por último para ter peso máximo)
-            content_parts.append(types.Part(text=_effective_prompt))
-
-            # Montar tools: image_search ativado por flag
-            _tools = None
-            if use_image_grounding:
-                _tools = [
-                    types.Tool(google_search=types.GoogleSearch(
-                        search_types=types.SearchTypes(
-                            image_search=types.ImageSearch()
-                        )
-                    ))
-                ]
+            content_parts = _build_content_parts(
+                prompt=prompt,
+                uploaded_images=current_uploaded,
+                grounded_images=current_grounded,
+                structural_hint=structural_hint,
+                scope="garment",
+            )
 
             try:
                 response = client.models.generate_content(
@@ -278,64 +566,36 @@ def generate_images(
                         tools=_tools,
                     ),
                 )
-                # Log image search grounding metadata para observabilidade
-                if use_image_grounding and response.candidates:
-                    for cand in response.candidates:
-                        gm = getattr(cand, "grounding_metadata", None)
-                        if gm:
-                            queries = getattr(gm, "image_search_queries", None) or getattr(gm, "web_search_queries", None)
-                            chunks = getattr(gm, "grounding_chunks", None) or []
-                            if queries:
-                                print(f"[IMAGE_GROUNDING] 🔍 queries: {queries}")
-                            if chunks:
-                                print(f"[IMAGE_GROUNDING] 📎 sources ({len(chunks)}): "
-                                      + ", ".join(
-                                          str(getattr(getattr(c, 'web', None) or getattr(c, 'retrieved_context', None), 'uri', ''))
-                                          for c in chunks[:3]
-                                      ))
+                if use_image_grounding:
+                    _log_grounding_metadata(response)
                 break
             except Exception as exc:
                 last_error = exc
-                if attempt >= _REFERENCE_RETRY_ATTEMPTS or not _is_transient_provider_error(exc):
+                is_quota = _is_rate_limit_error(exc)
+                is_transient = _is_transient_provider_error(exc)
+
+                if attempt >= _REFERENCE_RETRY_ATTEMPTS or (not is_transient and not is_quota):
                     raise
-                print(
-                    "[GENERATOR] transient image-generation failure; retrying "
-                    f"(attempt={attempt + 1}/{_REFERENCE_RETRY_ATTEMPTS}, refs={len(current_uploaded)})"
-                )
-                time.sleep(1.2 * attempt)
+
+                if is_quota:
+                    sleep_time = (2.0 ** attempt) + random.uniform(0.5, 2.0)
+                    print(f"[GENERATOR] ⚠️ Quota 429 (attempt={attempt}). Aguardando {sleep_time:.1f}s...")
+                else:
+                    sleep_time = (1.2 * attempt) + random.uniform(0.1, 0.5)
+                    print(f"[GENERATOR] transient failure; retrying "
+                          f"(attempt={attempt + 1}/{_REFERENCE_RETRY_ATTEMPTS}, refs={len(current_uploaded)})")
+
+                time.sleep(sleep_time)
 
         if response is None:
             if last_error:
                 raise last_error
             raise RuntimeError(f"Nano retornou sem resposta na posição {image_index}")
 
-        # Extrair imagem da resposta
-        image_found = False
-        parts = response.parts if response.parts else []
-        for part in parts:
-            if getattr(part, "inline_data", None) and getattr(part.inline_data, "mime_type", None) and part.inline_data.mime_type.startswith("image/"): # type: ignore
-                ext = part.inline_data.mime_type.split("/")[-1] # type: ignore
-                filename = f"gen_{session_id}_{image_index}.{ext}"
-                filepath = session_dir / filename
-
-                data = getattr(part.inline_data, "data", None)
-                if data:
-                    filepath.write_bytes(data)
-                size_kb = filepath.stat().st_size / 1024
-
-                mime_type_val = getattr(part.inline_data, "mime_type", "image/png")
-                results.append({
-                    "index": image_index,
-                    "filename": filename,
-                    "url": f"/outputs/{session_id}/{filename}",
-                    "path": str(filepath),
-                    "size_kb": round(size_kb, 1),
-                    "mime_type": str(mime_type_val),
-                })
-                image_found = True
-                break  # só uma imagem por chamada
-        if not image_found:
-            raise RuntimeError(f"Nano retornou sem imagem na posição {image_index}")
+        result = _extract_image_from_response(
+            response, session_id=session_id, image_index=image_index, session_dir=session_dir,
+        )
+        results.append(result)
 
     return results
 
@@ -348,14 +608,11 @@ def edit_image(
     thinking_level: str = "HIGH",
     session_id: Optional[str] = None,
     reference_images_bytes: Optional[List[bytes]] = None,
-    use_image_grounding: bool = False,               # ativa Google Image Search como contexto visual extra
+    use_image_grounding: bool = False,
 ) -> List[dict]:
     """
-    Edita uma imagem existente via Nano Banana 2.
-    Envia [imagem original + referências opcionais + prompt de edição] e retorna a imagem editada.
-
-    Returns lista com 1 dict:
-    [{"filename": str, "url": str, "path": str, "size_kb": float, "mime_type": str}]
+    Edita uma imagem existente via Nano Banana 2 (sync).
+    Mantido para backward-compatibility com pipeline_v2.py.
     """
     if session_id is None:
         session_id = str(uuid.uuid4())[:8]
@@ -363,19 +620,16 @@ def edit_image(
     session_dir = OUTPUTS_DIR / session_id
     session_dir.mkdir(parents=True, exist_ok=True)
 
-    # Montar content: imagem original + referências + prompt de edição
-    # Per-part media_resolution=HIGH para fidelidade máxima na edição
     effective_thinking_level = _normalize_thinking_level(thinking_level, default="high")
     prepared_reference_images = _prepare_reference_batch(reference_images_bytes, limit=_MAX_REFERENCE_IMAGES)
+    _tools = _build_tools(use_image_grounding)
 
     response = None
     last_error: Optional[Exception] = None
     for attempt in range(1, _REFERENCE_RETRY_ATTEMPTS + 1):
         current_references = _build_retry_reference_subset(prepared_reference_images, attempt, minimum_keep=2)
         _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
-        # Etiquetar explicitamente a imagem base ANTES de enviá-la.
-        # O modelo de imagem precisa saber qual imagem é a base a editar
-        # e quais são referências — sem rótulo, ele funde as identidades.
+
         content_parts = [
             types.Part(text=(
                 "BASE IMAGE TO EDIT: The image immediately below is the source to edit. "
@@ -387,9 +641,6 @@ def edit_image(
                 media_resolution=_hi_res,
             ),
         ]
-        # Adicionar imagens de referência COM object fidelity labeling.
-        # As referências são para ITEM/GARMENT ONLY — o Nano Banana NÃO deve
-        # copiar a pessoa que aparece nas fotos, apenas a textura e construção da peça.
         if current_references:
             content_parts.append(
                 types.Part(text=_reference_role_instruction("edit"))
@@ -403,17 +654,6 @@ def edit_image(
                 )
         content_parts.append(types.Part(text=edit_prompt))
 
-        # Montar tools: image_search ativado por flag
-        _tools = None
-        if use_image_grounding:
-            _tools = [
-                types.Tool(google_search=types.GoogleSearch(
-                    search_types=types.SearchTypes(
-                        image_search=types.ImageSearch()
-                    )
-                ))
-            ]
-
         try:
             _edit_modalities = ["IMAGE"] if EDIT_IMAGE_ONLY_MODALITY else ["TEXT", "IMAGE"]
             response = client.models.generate_content(
@@ -425,35 +665,30 @@ def edit_image(
                         aspect_ratio=aspect_ratio,
                         image_size=resolution,
                     ),
-                    thinking_config=types.ThinkingConfig(thinking_level=effective_thinking_level), # type: ignore[arg-type]
+                    thinking_config=types.ThinkingConfig(thinking_level=effective_thinking_level),  # type: ignore[arg-type]
                     safety_settings=SAFETY_CONFIG,
                     tools=_tools,
                 ),
             )
-            # Log image search grounding metadata para observabilidade
-            if use_image_grounding and response.candidates:
-                for cand in response.candidates:
-                    gm = getattr(cand, "grounding_metadata", None)
-                    if gm:
-                        queries = getattr(gm, "image_search_queries", None) or getattr(gm, "web_search_queries", None)
-                        chunks = getattr(gm, "grounding_chunks", None) or []
-                        if queries:
-                            print(f"[IMAGE_GROUNDING/EDIT] 🔍 queries: {queries}")
-                        if chunks:
-                            print(f"[IMAGE_GROUNDING/EDIT] 📎 sources ({len(chunks)}): "
-                                  + ", ".join(
-                                      str(getattr(getattr(c, 'web', None) or getattr(c, 'retrieved_context', None), 'uri', ''))
-                                      for c in chunks[:3]
-                                  ))
+            if use_image_grounding:
+                _log_grounding_metadata(response, prefix="IMAGE_GROUNDING/EDIT")
             break
         except Exception as exc:
             last_error = exc
-            if attempt >= _REFERENCE_RETRY_ATTEMPTS or not _is_transient_provider_error(exc):
+            is_quota = _is_rate_limit_error(exc)
+            is_transient = _is_transient_provider_error(exc)
+
+            if attempt >= _REFERENCE_RETRY_ATTEMPTS or (not is_transient and not is_quota):
                 raise
-            print(
-                "[GENERATOR] transient edit failure; retrying "
-                f"(attempt={attempt + 1}/{_REFERENCE_RETRY_ATTEMPTS}, refs={len(current_references)})"
-            )
+
+            if is_quota:
+                sleep_time = (2.0 ** attempt) + random.uniform(0.5, 2.0)
+                print(f"[GENERATOR/EDIT] ⚠️ Quota 429 (attempt={attempt}). Aguardando {sleep_time:.1f}s...")
+            else:
+                sleep_time = (1.2 * attempt) + random.uniform(0.1, 0.5)
+                print(f"[GENERATOR] transient edit failure; retrying "
+                      f"(attempt={attempt + 1}/{_REFERENCE_RETRY_ATTEMPTS}, refs={len(current_references)})")
+
             time.sleep(1.2 * attempt)
 
     if response is None:
@@ -461,35 +696,7 @@ def edit_image(
             raise last_error
         raise RuntimeError("Nano retornou sem resposta na edição")
 
-    results = []
-    parts = response.parts if response.parts else []
-    for part in parts:
-        if (
-            getattr(part, "inline_data", None)
-            and getattr(part.inline_data, "mime_type", None)
-            and part.inline_data.mime_type.startswith("image/")
-        ):
-            ext = part.inline_data.mime_type.split("/")[-1]
-            filename = f"edit_{session_id}_1.{ext}"
-            filepath = session_dir / filename
-
-            data = getattr(part.inline_data, "data", None)
-            if data:
-                filepath.write_bytes(data)
-            size_kb = filepath.stat().st_size / 1024
-
-            mime_type_val = getattr(part.inline_data, "mime_type", "image/png")
-            results.append({
-                "index": 1,
-                "filename": filename,
-                "url": f"/outputs/{session_id}/{filename}",
-                "path": str(filepath),
-                "size_kb": round(size_kb, 1),
-                "mime_type": str(mime_type_val),
-            })
-            break
-
-    if not results:
-        raise RuntimeError("Nano retornou sem imagem na edição")
-
-    return results
+    result = _extract_image_from_response(
+        response, session_id=session_id, image_index=1, session_dir=session_dir,
+    )
+    return [result]
