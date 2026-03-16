@@ -18,7 +18,7 @@ async def list_pool(type: Optional[str] = None):
     """Lista imagens do pool, opcionalmente filtradas por tipo."""
     if type and type not in POOL_TYPES:
         raise HTTPException(400, f"Tipo inválido. Use: {POOL_TYPES}")
-    items = list_references(ref_type=type) # type: ignore
+    items = await list_references(ref_type=type) # type: ignore
     return PoolListResponse(
         items=[PoolItem(**i) for i in items],
         total=len(items),
@@ -38,7 +38,7 @@ async def add_to_pool(
     if len(content) == 0:
         raise HTTPException(400, "Arquivo vazio.")
 
-    item = add_reference( # type: ignore
+    item = await add_reference( # type: ignore
         file_bytes=content,
         original_filename=file.filename or "unknown",
         ref_type=type,
@@ -54,7 +54,7 @@ async def add_to_pool(
 @router.delete("/{item_id}")
 async def delete_from_pool(item_id: str):
     """Remove uma referência do pool pelo ID."""
-    removed = remove_reference(item_id) # type: ignore
+    removed = await remove_reference(item_id) # type: ignore
     if not removed:
         raise HTTPException(404, f"Item '{item_id}' não encontrado no pool.")
     return {"message": f"Referência '{item_id}' removida com sucesso."}
