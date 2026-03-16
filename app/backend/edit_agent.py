@@ -18,7 +18,10 @@ from config import (
 from agent_runtime.constants import REFERENCE_KNOWLEDGE
 from image_utils import detect_image_mime
 
-client = genai.Client(api_key=GOOGLE_AI_API_KEY)
+client = genai.Client(
+    api_key=GOOGLE_AI_API_KEY,
+    http_options={'timeout': 120.0}
+)
 
 # ── Schema de saída do agente ──────────────────────────────────────────────────
 EDIT_ANALYSIS_SCHEMA = {

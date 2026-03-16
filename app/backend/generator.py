@@ -27,7 +27,10 @@ from config import (
 )
 from image_utils import detect_image_mime as _detect_image_mime
 
-client = genai.Client(api_key=GOOGLE_AI_API_KEY)
+client = genai.Client(
+    api_key=GOOGLE_AI_API_KEY,
+    http_options={'timeout': 120.0}
+)
 
 OUTPUTS_DIR = ROOT_DIR / "app" / "outputs"
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)

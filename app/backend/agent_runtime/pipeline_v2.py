@@ -233,6 +233,7 @@ def _build_stage1_prompt(
     preset: str = "",
     angle_directive: str = "",
     look_contract: Optional[dict[str, Any]] = None,
+    use_image_grounding: bool = False,
 ) -> str:
     """Prompt curto e reproduzivel para stage 1: base fiel da peca."""
     structure_guards = build_structure_guard_clauses(structural_contract, set_detection=set_detection)
@@ -313,6 +314,11 @@ def _build_stage1_prompt(
             parts.append(f"Preferred lower-body styling: {_lc_bottom}.")
         if _lc_forbidden:
             parts.append(f"Avoid these lower-body types (incoherent with this garment): {', '.join(_lc_forbidden)}.")
+    if use_image_grounding:
+        parts.append(
+            "Use any retrieved visual search context to improve garment pattern accuracy, "
+            "stitch geometry, color distribution, and surface texture fidelity."
+        )
     return " ".join(parts)
 
 
@@ -735,6 +741,7 @@ def run_pipeline_v2(
         preset=preset,
         angle_directive=_stage1_angle_directive,
         look_contract=look_contract,
+        use_image_grounding=_use_image_grounding,
     )
 
     stage1_candidate_count = _stage1_candidate_count(

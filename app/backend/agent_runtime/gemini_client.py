@@ -11,7 +11,10 @@ _GOOGLE_AI_API_KEY = os.environ.get("GOOGLE_AI_API_KEY")
 if not _GOOGLE_AI_API_KEY:
     raise ValueError("A variável de ambiente GOOGLE_AI_API_KEY não está configurada ou está vazia.")
 
-_client = genai.Client(api_key=_GOOGLE_AI_API_KEY)
+_client = genai.Client(
+    api_key=_GOOGLE_AI_API_KEY,
+    http_options={'timeout': 120.0}
+)
 _TRANSIENT_PROVIDER_ERRORS = (
     "server disconnected without sending a response",
     "remoteprotocolerror",
