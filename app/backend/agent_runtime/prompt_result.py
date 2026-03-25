@@ -15,8 +15,8 @@ from agent_runtime.garment_narrative import sanitize_garment_narrative
 # Essas funções existem apenas para LIMPAR o output do Gemini quando ele
 # vaza persona, skin texture ou menciona câmeras/lentes específicas no campo
 # camera_and_realism. Não definem templates nem tomam decisões criativas.
-# A direção de captura vem dos presets (camera_perspective, lighting_profile,
-# framing_profile) via MODE_PRESETS no system context.
+# A direção de captura vem dos presets (camera_type, capture_geometry,
+# lighting_profile, framing_profile) via MODE_PRESETS no system context.
 
 _CAMERA_REALISM_KEYWORDS = (
     "sony", "canon", "nikon", "f/", "mm", "lens", "bokeh", "depth of field",
@@ -199,17 +199,20 @@ def finalize_prompt_agent_result(
     diversity_target: Optional[dict[str, Any]],
     mode_id: str = "",
     framing_profile: str = "",
-    camera_perspective: str = "",
+    camera_type: str = "",
+    capture_geometry: str = "",
     lighting_profile: str = "",
     pose_energy: str = "",
     casting_profile: str = "",
 ) -> dict[str, Any]:
+    canonical_prompt_raw = str(result.get("prompt", "") or "").strip()
     base_prompt_raw = str(result.get("base_prompt", "") or "").strip()
-    legacy_prompt_raw = str(result.get("prompt", "") or "").strip()
-    if not base_prompt_raw:
-        base_prompt_raw = legacy_prompt_raw
-    if not base_prompt_raw:
-        base_prompt_raw = "RAW photo, polished e-commerce catalog composition with garment-first framing."
+    if pipeline_mode == "text_mode":
+        prompt_source_raw = canonical_prompt_raw or base_prompt_raw
+    else:
+        prompt_source_raw = base_prompt_raw or canonical_prompt_raw
+    if not prompt_source_raw:
+        prompt_source_raw = "RAW photo, polished e-commerce catalog composition with garment-first framing."
 
     garment_narrative = str(result.get("garment_narrative", "") or "").strip()
     if garment_narrative:
@@ -221,24 +224,29 @@ def finalize_prompt_agent_result(
         if garment_narrative:
             print(f"[AGENT] 👗 garment_narrative ({len(garment_words)}w): {garment_narrative[:120]}")
 
-    # ── Captura: sanitização pura, sem templates ─────────────────────
-    camera_realism_raw = str(result.get("camera_and_realism", "") or "").strip()
-    if not camera_realism_raw:
-        camera_realism_raw = _extract_camera_realism_block(legacy_prompt_raw)
-    if not camera_realism_raw:
-        camera_realism_raw = _extract_camera_realism_block(base_prompt_raw)
+    # ── Captura: no text_mode o prompt consolidado é a fonte canônica.
+    # O campo camera_and_realism permanece apenas para compatibilidade.
+    if pipeline_mode == "text_mode":
+        camera_realism = ""
+        camera_words = 0
+        base_budget = 220
+    else:
+        camera_realism_raw = str(result.get("camera_and_realism", "") or "").strip()
+        if not camera_realism_raw:
+            camera_realism_raw = _extract_camera_realism_block(canonical_prompt_raw)
+        if not camera_realism_raw:
+            camera_realism_raw = _extract_camera_realism_block(prompt_source_raw)
 
-    camera_realism = _sanitize_camera_block(camera_realism_raw)
-
-    camera_words = _count_words(camera_realism)
-    base_budget = max(80, 220 - camera_words)
-    if has_images and not has_prompt:
-        target_budget = 215
-        base_budget = max(80, target_budget - camera_words)
+        camera_realism = _sanitize_camera_block(camera_realism_raw)
+        camera_words = _count_words(camera_realism)
+        base_budget = max(80, 220 - camera_words)
+        if has_images and not has_prompt:
+            target_budget = 215
+            base_budget = max(80, target_budget - camera_words)
 
     lighting_hint = (diversity_target or {}).get("lighting_hint", "") or ""
     compiled_base_prompt, compiler_debug = _compile_prompt_v2(
-        prompt=base_prompt_raw,
+        prompt=prompt_source_raw,
         has_images=has_images,
         has_prompt=has_prompt,
         contract=structural_contract if has_images else None,
@@ -251,16 +259,20 @@ def finalize_prompt_agent_result(
         aspect_ratio=aspect_ratio,
         pose_hint=pose or grounding_pose_clause,
         profile_hint=profile,
-        scenario_hint=scenario if (has_images and not has_prompt) else "",
-        garment_narrative=garment_narrative if (has_images and not has_prompt) else "",
-        lighting_hint=lighting_hint if (has_images and not has_prompt) else "",
+        scenario_hint=scenario,
+        garment_narrative=garment_narrative,
+        lighting_hint=lighting_hint,
         shot_type=str(result.get("shot_type", "auto")),
         framing_profile=framing_profile,
         pose_energy=pose_energy,
         casting_profile=casting_profile,
     )
 
-    final_prompt = _compose_prompt_with_camera(compiled_base_prompt, camera_realism)
+    final_prompt = (
+        compiled_base_prompt
+        if pipeline_mode == "text_mode"
+        else _compose_prompt_with_camera(compiled_base_prompt, camera_realism)
+    )
     result["base_prompt"] = compiled_base_prompt
     result["camera_and_realism"] = camera_realism
     result["mode"] = mode_id or None

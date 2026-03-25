@@ -113,7 +113,7 @@ def test_build_generate_context_text_uses_text_only_diversity_rules_without_refe
         scenario="",
         pose="",
         diversity_target={
-            "profile_id": "natural:commercial_natural",
+            "profile_id": "natural:natural_commercial",
             "profile_hint": "features blend 'Camila' and 'Dandara Silva'",
             "presence_energy": "warm",
             "presence_tone": "commercial",
@@ -133,12 +133,63 @@ def test_build_generate_context_text_uses_text_only_diversity_rules_without_refe
     )
 
     assert "<MODE_PRESETS>" in context
-    assert "TEXT-ONLY FASHION MODE:" in context
-    assert "GARMENT-ONLY REFERENCE MODE — CRITICAL RULES:" not in context
-    assert "Discard her completely." not in context
-    # New abstract structure assertions
+    assert "GARMENT-ONLY REFERENCE MODE:" not in context
+    assert "Discard the reference model" not in context
+    # Diretivas unificadas
     assert "Model persona anchor:" in context
     assert "Presence:" in context
-    assert "MODE_PRESETS above" in context
-    assert "using your own creative voice" in context
+    assert "MODE_PRESETS" in context
+    assert "directly usable by the image generator" in context
 
+
+def test_build_generate_context_text_reference_mode_uses_mode_presets_and_name_blending() -> None:
+    """Fase 2: ref mode recebe MODE_PRESETS + Name Blending (como text_mode)."""
+    context = build_generate_context_text(
+        has_images=True,
+        has_prompt=True,
+        uploaded_images_count=3,
+        user_prompt="foto premium de cropped",
+        pool_context="pool ready",
+        aspect_ratio="4:5",
+        resolution="1536",
+        profile="features blend 'Juliana' and 'Raissa'",
+        scenario="",
+        pose="",
+        diversity_target={
+            "profile_id": "natural:natural_commercial",
+            "profile_hint": "features blend 'Juliana' and 'Raissa'",
+            "presence_energy": "confident",
+            "presence_tone": "editorial",
+        },
+        guided_enabled=False,
+        guided_brief=None,
+        guided_set_mode="unica",
+        guided_set_detection={},
+        structural_contract={
+            "enabled": True,
+            "garment_subtype": "cropped_top",
+        },
+        look_contract=None,
+        grounding_research="",
+        grounding_effective=False,
+        grounding_context_hint=None,
+        grounding_mode="off",
+        mode_defaults_text="Active visual mode: Natural.",
+        reference_knowledge="REFERENCE_KNOWLEDGE_BLOCK",
+    )
+
+    # MODE_PRESETS presente no ref mode
+    assert "<MODE_PRESETS>" in context
+    # Bloco GARMENT-ONLY com regras anti-cópia
+    assert "GARMENT-ONLY REFERENCE MODE:" in context
+    assert "Discard the reference model completely" in context
+    # Name Blending e presence axes presentes
+    assert "Juliana" in context
+    assert "Raissa" in context
+    assert "Presence: confident, editorial." in context
+    # Direção para seguir MODE_PRESETS
+    assert "MODE_PRESETS" in context
+    assert "Follow those directions" in context
+    # Sem scenario/pose literais hardcoded no ref mode
+    assert "Place new model in scenario:" not in context
+    assert "Use pose:" not in context

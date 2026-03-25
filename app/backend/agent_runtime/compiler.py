@@ -6,30 +6,20 @@ from agent_runtime.constants import (
     _OUTDOOR_URBAN_KW,
     _OUTDOOR_NATURE_KW,
     _INDOOR_KW,
-    _CATALOG_STANCE_POOL,
     _RESIDUAL_NEG_RE,
 )
 from agent_runtime.structural import (
     _neg_to_pos,
     _prune_structural_conflicts,
     _resolve_structural_conflicts,
-    _prune_cover_pose_conflicts,
     _compress_structural_facts,
     get_set_member_labels,
 )
 
-_last_stance_idx: int = -1
-_last_bottom_idx: int = -1
 _last_gaze_idx: int = -1
 _last_scene_comp_idx_by_mode: dict[str, int] = {}
 
-_BOTTOM_COMPLEMENT_POOL = [
-    "fitted dark trousers, minimal footwear",
-    "slim straight jeans, clean white sneakers",
-    "tailored neutral chinos, low-profile loafers",
-    "high-waist dark leggings, ankle boots",
-    "wide-leg cropped pants, simple flats",
-]
+
 
 _TEXT_MODE_SCENE_COMP_POOL = [
     "setting stays secondary to the garment",
@@ -177,31 +167,15 @@ def _compile_prompt_v2(
     if guided_enabled and guided_brief:
         guided_pose_style = str((guided_brief.get("pose") or {}).get("style", "")).strip().lower()
     guided_pose_creative = guided_pose_style == "criativa"
-    # reference_strict_mode: imagens de referência sem texto do usuário.
-    # Garante composição de capa catálogo neutra, sem liberdade criativa do modelo.
-    # Override permitido apenas com guided_pose=criativa (intenção explícita do usuário).
-    force_cover_defaults = has_images and not has_prompt and not guided_pose_creative
 
     # ── Strip labels from base prompt (defensive) ──────────────────
     base = prompt.strip() if prompt else ""
     base = _neg_to_pos(base)
     base = _prune_structural_conflicts(base, contract)
     base = _resolve_structural_conflicts(base, contract)
-    if force_cover_defaults:
-        base = _prune_cover_pose_conflicts(base)
-    profile_seeded_in_base = False
-    if force_cover_defaults and profile_hint:
-        # ONDA 1.2: SID principle — não re-descrever a peça visível nas referências.
-        # garment_narrative textual conflita com evidência visual e degrada fidelidade.
-        # A referência visual é autoridade sobre a peça — texto descreve TUDO MENOS a peça.
-        base = f"RAW photo, {profile_hint}. Wearing the garment from the reference photos"
-        profile_seeded_in_base = True
 
     # ── P1: Fidelidade estrutural (geometria observável compactada via MT-B) ──
-    # Em force_cover_defaults (MODE 2: imagens sem texto), SKIP structural clauses.
-    # A referência visual é autoridade sobre geometria — texto sobre construção
-    # (hem, silhouette, sleeve, subtype) conflita e faz Nano mudar a peça.
-    if has_images and contract and contract.get("enabled") and not force_cover_defaults:
+    if has_images and contract and contract.get("enabled"):
         struct_clauses, struct_discarded = _compress_structural_facts(contract)
         clauses.extend(struct_clauses)
         discarded.extend(struct_discarded)
@@ -213,33 +187,13 @@ def _compile_prompt_v2(
             1, "grounding_atypical"
         ))
 
-    # ── P2/P3/P4: Composição catálogo editorial ──
-    if force_cover_defaults:
-        # Pose: usa diversity_target (editorial) quando disponível,
-        # fallback para catalog stance pool quando não.
-        if pose_hint:
-            clauses.append((
-                f"editorial catalog shot, garment fully visible, {pose_hint}",
-                2, "diversity_pose"
-            ))
-        else:
-            global _last_stance_idx
-            _stance_candidates = [i for i in range(len(_CATALOG_STANCE_POOL)) if i != _last_stance_idx]
-            _last_stance_idx = random.choice(_stance_candidates)
-            clauses.append((
-                "catalog cover, standing pose, garment fully visible",
-                2, "auto_cover_default"
-            ))
-            clauses.append((
-                _CATALOG_STANCE_POOL[_last_stance_idx],
-                2, "auto_cover_stance"
-            ))
-        # MT-A: scenario_hint como clause P4
-        if scenario_hint:
-            clauses.append((scenario_hint, 3, "diversity_scenario"))
-        # M2/R5: lighting_hint
-        if lighting_hint:
-            clauses.append((lighting_hint, 4, "lighting_hint"))
+    # ── P2: Hints de composição (cenário, iluminação) ──
+    # No Prompt-First, o agente já resolve isso via MODE_PRESETS.
+    # Aqui apenas injetamos como fallback leve se disponíveis.
+    if scenario_hint:
+        clauses.append((scenario_hint, 3, "diversity_scenario"))
+    if lighting_hint:
+        clauses.append((lighting_hint, 4, "lighting_hint"))
 
     # ── P3: Perfil do modelo (garantia de fenótipo) ──────────────────
     # Detecta se Gemini JÁ ecoou nosso diversity profile no base_prompt.
@@ -261,43 +215,15 @@ def _compile_prompt_v2(
 
     # Lógica:
     # - Se Gemini já ecoou nosso profile ("features blend" no base) → skip (evita duplicação)
-    # - Se force_cover_defaults e Gemini NÃO ecoou → injetar (garante diversity vs espelho)
-    # - Se text_mode e fenótipo ausente → injetar
-    if profile_hint and pipeline_mode != "text_mode" and not profile_seeded_in_base and not _profile_already_in_base:
-        if force_cover_defaults or not _phenotype_in_base:
+    # - Se fenótipo ausente → injetar como guardrail de diversidade
+    if profile_hint and pipeline_mode != "text_mode" and not _profile_already_in_base:
+        if not _phenotype_in_base:
             clauses.append((profile_hint, 3, "model_profile"))
 
-    # ── P3: Bottom complement (evita vazamento de peça inferior da referência) ──────
-    # Só em force_cover_defaults (referência sem texto): o modelo clona a peça inferior
-    # da foto de referência (ex: saia verde). Injeta complemento neutro para bloquear.
-    # Quando o usuário fornece texto, ele controla a narrativa — não forçar bottom.
-    _UPPER_BODY_SUBTYPES = {
-        "standard_cardigan", "bolero", "vest", "jacket", "blazer",
-        "pullover", "t_shirt", "blouse", "ruana_wrap", "poncho", "cape", "kimono",
-    }
-    _BOTTOM_MENTIONS = ("trouser", "pant", "jeans", "skirt", "shorts", "legging", "calça", "saia")
-    if force_cover_defaults and contract and contract.get("enabled"):
-        _subtype_bc = str(contract.get("garment_subtype", "unknown")).strip().lower()
-        _length_bc = str(contract.get("garment_length", "unknown")).strip().lower()
-        _is_upper_body = (
-            _subtype_bc in _UPPER_BODY_SUBTYPES or
-            (_subtype_bc not in {"dress"} and _length_bc in {"cropped", "waist", "hip"})
-        )
-        _has_bottom = any(w in base.lower() for w in _BOTTOM_MENTIONS)
-        if _is_upper_body and not _has_bottom:
-            global _last_bottom_idx
-            _bc_candidates = [i for i in range(len(_BOTTOM_COMPLEMENT_POOL)) if i != _last_bottom_idx]
-            _last_bottom_idx = random.choice(_bc_candidates)
-            clauses.append((
-                _BOTTOM_COMPLEMENT_POOL[_last_bottom_idx],
-                4, "bottom_complement",
-            ))
+
 
     # ── P2: Fidelidade de textura ────────────────────────────────────
-    # ONDA 1.3: Em force_cover_defaults (ref sem texto), a referência visual já
-    # carrega textura — repetir em texto é SID redundante e pode distorcer.
-    # Manter apenas em text_mode ou quando usuário forneceu prompt.
-    if has_images and not force_cover_defaults:
+    if has_images:
         clauses.append(("exact texture, stitch, and fiber relief", 2, "quality_texture"))
 
     # ── P3: Composição comercial ─────────────────────────────────────
@@ -314,11 +240,11 @@ def _compile_prompt_v2(
         return _GAZE_POOL[_last_gaze_idx]
 
     model_presence_clause = "polished model, confident posture"
-    if casting_profile == "commercial_natural":
+    if casting_profile == "natural_commercial":
         model_presence_clause = "natural commercial model presence, warm and believable"
-    elif casting_profile == "casual_relational":
-        model_presence_clause = "relatable lifestyle model presence, easy and believable"
-    elif casting_profile == "agency_polished":
+    elif casting_profile == "editorial_presence":
+        model_presence_clause = "editorial model presence, elevated and fashion-aware"
+    elif casting_profile == "polished_commercial":
         model_presence_clause = "polished commercial model presence, composed and premium"
 
     gaze_clause = _pick_gaze()
@@ -326,7 +252,7 @@ def _compile_prompt_v2(
         gaze_clause = "calm direct gaze with controlled expression"
     elif pose_energy == "relaxed":
         gaze_clause = "warm near-camera look with relaxed expression"
-    elif pose_energy == "dynamic":
+    elif pose_energy == "directed":
         gaze_clause = "direct confident gaze with intentional fashion energy"
     elif pose_energy == "candid":
         gaze_clause = "natural engaged expression with slightly off-camera spontaneity"
@@ -354,9 +280,7 @@ def _compile_prompt_v2(
         clauses.append((_frame_occupancy_clause(aspect_ratio, effective_shot), 3, "frame_occupancy"))
 
     # ── P3: Pose de referência do grounding ──────────────────────────
-    # Em reference_strict_mode as P1 clauses de capa já fixam a pose estável;
-    # injetar pose_hint do grounding sobrescreveria esse gate.
-    if pose_hint and not force_cover_defaults:
+    if pose_hint:
         clauses.append((pose_hint, 3, "grounding_pose"))
 
     # ── P4: Guided (styling secundário) ─────────────────────────────
@@ -452,12 +376,9 @@ def _compile_prompt_v2(
     # MT-A: dynamic budget — 28w quando temos profile/scenario hints (diversidade precisa
     # de espaço para modelo+cenário no base); 12w default para manter frame directive apenas.
     _has_diversity_context = bool(profile_hint or scenario_hint)
-    # M3: cap aumentado de 28→50 para acomodar profile (~14w) + garment_narrative (~30w)
     _base_cap = 50 if _has_diversity_context else 12
     if has_images and base_allowed > _base_cap:
         base_allowed = _base_cap
-    if profile_seeded_in_base:
-        base_allowed = max(base_allowed, _count_words(base))
 
     if base_allowed > 0:
         base, base_was_truncated = _truncate_by_sentence(base, base_allowed)
@@ -505,10 +426,8 @@ def _compile_prompt_v2(
     residual_matches = _RESIDUAL_NEG_RE.findall(final)
     residual_negatives = list(dict.fromkeys(m.lower() for m in residual_matches))
 
-    # MT-E: tag creative/diversity clauses for debug visibility
-    _CREATIVE_SOURCES = {"auto_cover_stance", "bottom_complement", "quality_gaze",
-                         "quality_scene", "diversity_scenario", "model_profile",
-                         "lighting_hint"}
+    _CREATIVE_SOURCES = {"quality_gaze", "quality_scene", "diversity_scenario",
+                         "model_profile", "lighting_hint"}
     creative_clauses = [{"text": t, "source": s} for t, s in used if s in _CREATIVE_SOURCES]
 
     debug = {
@@ -519,7 +438,6 @@ def _compile_prompt_v2(
         "base_truncated":      base_was_truncated,
         "total_words":         _count_words(final),
         "word_budget":         word_budget,
-        "force_cover_defaults": force_cover_defaults,
         "guided_pose_creative": guided_pose_creative,
         "residual_negatives":  residual_negatives,
     }

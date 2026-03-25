@@ -5,19 +5,26 @@ import re
 # ═══════════════════════════════════════════════════════════════════════════════
 AGENT_RESPONSE_SCHEMA = {
     "type": "object",
-    "required": ["base_prompt", "camera_and_realism", "thinking_level", "shot_type", "realism_level"],
+    "required": ["prompt", "thinking_level", "shot_type", "realism_level"],
     "properties": {
+        "prompt": {
+            "type": "string",
+            "description": (
+                "Canonical final prompt for image generation. Write one consolidated English narrative paragraph, "
+                "starting with 'RAW photo,'. This field is the source of truth for generation."
+            ),
+        },
         "base_prompt": {
             "type": "string",
-            "description": "Main prompt body focused on garment, model, pose, and scene. Must start with 'RAW photo,' and should avoid camera metadata."
+            "description": (
+                "Legacy compatibility field. Optional. If present, it must stay semantically aligned with the canonical prompt."
+            ),
         },
         "camera_and_realism": {
             "type": "string",
-            "description": "Camera and realism clause only (device/lens/light/skin/fabric realism). Keep concise and affirmative."
-        },
-        "prompt": {
-            "type": "string",
-            "description": "Legacy field for backward compatibility. When present, full prompt in one string."
+            "description": (
+                "Legacy compatibility field. Optional. If present, keep it concise and aligned with the canonical prompt."
+            ),
         },
         "thinking_level": {
             "type": "string",
@@ -309,8 +316,8 @@ SYSTEM_INTRO = "\n".join(
 SYSTEM_CORE_RULES = """
 CORE RULES:
 1. Always write prompts in English, narrative paragraph, max 200 words.
-2. Always start base_prompt with "RAW photo," to trigger photorealism.
-3. Structure: shot_type framing → model description → garment (3D: Material + Construction + Behavior) → pose → scenario → lighting → realism levers.
+2. Always start the canonical final prompt with "RAW photo," to trigger photorealism.
+3. Structure the consolidated prompt as: shot_type framing → model presence → garment (3D: Material + Construction + Behavior) → pose → scenario → lighting → capture flavor.
 4. Garment is ALWAYS the visual protagonist. Describe it with physical precision: fiber type, weave/knit structure, drape behavior under gravity, light interaction.
 5. Write like a photographer directing a real shoot — continuous narrative, not keyword lists.
 """
@@ -328,10 +335,22 @@ ANTI-PATTERNS (hard forbidden):
 
 SYSTEM_OUTPUT_JSON_CONTRACT = """
 OUTPUT JSON CONTRACT:
-- base_prompt: shot framing + model persona (from DIVERSITY_TARGET) + garment narrative (3D) + pose + scene + lighting. INCLUDE the model profile from DIVERSITY_TARGET here.
+- prompt: REQUIRED. This is the single canonical final prompt for generation. Consolidate all visual direction here.
+- In text_mode, do NOT split authorship across base_prompt and camera_and_realism. Use prompt as the source of truth.
+- In reference_mode, prompt is still canonical. Legacy helper fields may be included temporarily if useful, but they must stay aligned with prompt.
 - garment_narrative: GARMENT-ONLY description (max 30 words). Color, pattern, texture, construction, drape behavior. Do NOT include model/person description or scenario. Core garment identity for consistency.
-- camera_and_realism: ONLY camera body/lens/lighting/DOF/texture realism. NEVER put model persona or beauty descriptions here — those belong in base_prompt.
-- prompt: optional legacy field; include only if needed.
+- base_prompt: optional legacy compatibility field. If present, it should reflect the main body of the canonical prompt.
+- camera_and_realism: optional legacy compatibility field. If present, keep it concise and never use it as a second prompt.
+"""
+
+SYSTEM_PROMPT_CONSOLIDATION = """
+PROMPT CONSOLIDATION:
+- Modes and presets are internal decision inputs, not separate prompt fragments.
+- Use MODE_PRESETS and DIVERSITY_TARGET as guidance, then synthesize ONE coherent final prompt in the prompt field.
+- Do not write the prompt as independent blocks that need to be glued together later.
+- The prompt field must be directly usable by the image generator without requiring additional authorial text.
+- In text_mode, process the creative brief in this priority order: garment/user locks → mode territory → framing + capture geometry → scenario + pose → lighting + camera type as finishing capture flavor.
+- Camera type and capture geometry should guide capture feel, not force technical spec-sheet language. Prefer natural photographic wording over repetitive camera-body, lens, or f-stop lists unless the brief clearly requires them.
 """
 
 SYSTEM_OPERATING_MODES = """
@@ -344,7 +363,8 @@ MODE 1 — User gave a text prompt:
   Translate casual wording into professional fashion-photography language; consult REFERENCE KNOWLEDGE when useful but do not treat it as a rigid checklist.
   The garment is always the visual protagonist — build every creative choice around showcasing it.
   When it helps, describe the garment through material, construction, and drape behavior, but do not invent details the user did not imply.
-  Choose framing, model presence, scene, and lighting with premium commercial taste.
+  Choose framing, capture geometry, model presence, scene, lighting, and camera feel with premium commercial taste.
+  If camera language helps, keep it elegant and high-level. Avoid defaulting to exact lens and f-stop specs unless the brief truly depends on them.
   Fill gaps with restraint and coherence. Deliver a complete photographic direction, never a mechanical paraphrase of the input.
 """
 
@@ -356,8 +376,8 @@ MODE 2 — User sent reference images (with or without text):
     Describe geometric structure only, ignoring literal texture pattern names (like zigzag, diamond).
   STEP 2: Write a continuous photographic description focusing ONLY on the garment: fiber texture, construction details, color, drape behavior. Max 2 sentences of text reinforcement. NEVER contradict what the image shows. NEVER add construction details not visible in the reference.
     CRITICAL: DO NOT describe the person/model in the reference (do not mention her age, ethnicity, skin color, hair, face, or body). DO NOT describe the background or pose from the reference. Focus 100% on the clothes.
-  STEP 3: In base_prompt, ALWAYS open with the DIVERSITY_TARGET new model profile BEFORE the garment.
-    The reference person MUST NOT appear in base_prompt in any form — she is replaced entirely.
+  STEP 3: In the canonical prompt, ALWAYS open with the DIVERSITY_TARGET new model profile BEFORE the garment.
+    The reference person MUST NOT appear in the canonical prompt in any form — she is replaced entirely.
     Pattern: "RAW photo, [DIVERSITY_TARGET model profile]. Wearing [garment from reference]..."
   When user adds text (e.g., "mude o cenário para café"), change ONLY what they requested. Everything else comes from the image.
 """
@@ -400,6 +420,7 @@ POLICY_SYSTEM_BLOCKS = [
 
 OUTPUT_SYSTEM_BLOCKS = [
     OUTPUT_JSON_REQUIREMENT.strip(),
+    SYSTEM_PROMPT_CONSOLIDATION.strip(),
     SYSTEM_OUTPUT_JSON_CONTRACT.strip(),
 ]
 
@@ -435,7 +456,7 @@ Jaqueta → jacket | Blazer → structured blazer | Colete → vest / waistcoat
 Renda → lace (Chantilly = delicate / guipure = heavier motif) | Crochê → crochet (hand-hook / machine)
 Alcinha → spaghetti strap | Tomara que caia → strapless | Gola alta → turtleneck
 Manga bufante → puff sleeve | Manga sino → bell sleeve | Manga raglan → raglan sleeve
-Foto profissional → Sony A7III + 85mm f/1.8 + natural light | Foto casual → phone-like capture, ambient light
+Foto profissional → clean commercial capture language | Foto casual → phone-first ambient capture language
 """
 
 # ── Seção 3: Vocabulário de peça 3D (Material + Construction + Behavior) ─────
@@ -482,13 +503,13 @@ _RK_SHOT_COMPOSITION = """
 
 WIDE (hero): Full body head-to-feet, garment fills 60-70% frame.
   Model in dynamic mid-stride or confident standing stance. Full scenario visible.
-  Camera: 50mm lens, f/2.8, eye-level or slightly below for presence. Include ambient environment.
+  Capture: wider garment-readable framing, eye-level or slightly below, with visible environment support.
 MEDIUM (detail): Waist-up or hip-up framing, focus on neckline + sleeve + texture detail.
   Model with engaged expression, natural hand placement. Soft background separation.
-  Camera: 85mm lens, f/1.8, chest-level, shallow DOF isolates garment detail.
+  Capture: medium commercial framing, chest-to-eye level, with gentle subject separation.
 CLOSE-UP (texture): 80%+ of frame is garment surface. Macro-level detail.
   Show weave/knit structure, button craftsmanship, stitch pattern, fabric grain, color depth.
-  Camera: 100mm macro lens, f/2.8, tight crop, fiber-level sharpness.
+  Capture: tight observational detail framing with tactile surface clarity.
 AUTO: Select the shot that best showcases the garment's primary selling point.
 """
 
@@ -517,7 +538,7 @@ _RK_REALISM_LEVERS = """
 ── REALISM LEVERS ──
 
 Use these as optional realism cues when they improve the brief. Do not stack them all by default.
-1. DEVICE+LENS: choose appropriate capture language when useful, using real camera vocabulary only if it strengthens the brief.
+1. CAPTURE LANGUAGE: choose appropriate photographic language when useful; use explicit camera specs only if they genuinely strengthen the brief.
 2. NATURAL LIGHT: prefer physically plausible light, e.g. "afternoon side-light filtering through sheer curtain".
 3. ORGANIC COMPOSITION: slight asymmetry or rule-of-thirds can help avoid stiffness.
 4. SURFACE TEXTURE: skin pores, fabric wear creases, or thread texture may be used selectively.
@@ -613,18 +634,6 @@ _WITHOUT_MAP: list[tuple[re.Pattern, str]] = [
     (re.compile(r'\bno\s+sleeves?\b',      re.I), "sleeveless"),
     (re.compile(r'\bno\s+hood\b',          re.I), "hoodless"),
     (re.compile(r'\bno\s+extra\s+\w+\b',   re.I), ""),
-]
-
-# MT4 — Catalog-safe micro-variation stances for force_cover_defaults mode.
-# All five keep the model standing with full garment visibility; only the body
-# angle, weight distribution, or arm position varies to break rigidity across
-# consecutive reference-mode generations.
-_CATALOG_STANCE_POOL = [
-    "balanced frontal stance, arms natural, garment front fully readable",
-    "subtle 3/4 angle toward camera, weight on back foot, front panel clear",
-    "gentle step forward, relaxed arms, confident gaze, garment fully visible",
-    "contrapposto hip shift, relaxed shoulders, catalog-clean front reveal",
-    "slight body turn with direct eye contact, clean garment silhouette",
 ]
 
 # ── Scene composition — keyword sets por tipo de cenário ─────────────────────

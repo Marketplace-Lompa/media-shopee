@@ -69,7 +69,7 @@ def run_agent(
     pipeline_mode = "reference_mode" if has_images else "text_mode"
     normalized_category = normalize_create_category(category)
     prompt_assets = get_generate_prompt_assets(normalized_category)
-    active_mode = get_mode(mode) if pipeline_mode == "text_mode" else None
+    active_mode = get_mode(mode or "natural")  # Modes ativos em AMBOS os pipelines
     effective_mode = (
         resolve_mode_with_overrides(active_mode.id, (diversity_target or {}).get("preset_defaults"))
         if active_mode
@@ -172,7 +172,7 @@ def run_agent(
         grounding_effective=bool(grounding_meta.get("effective")),
         grounding_context_hint=grounding_context_hint,
         grounding_mode=grounding_mode,
-        mode_defaults_text=describe_mode_defaults(effective_mode) if effective_mode else None,
+        mode_defaults_text=describe_mode_defaults(effective_mode) if effective_mode else None,  # Sempre injetado (text + ref)
         reference_knowledge=prompt_assets.reference_knowledge,
     )
 
@@ -254,7 +254,8 @@ def run_agent(
         diversity_target=diversity_target,
         mode_id=effective_mode.id if effective_mode else "",
         framing_profile=effective_mode.presets.framing_profile if effective_mode else "",
-        camera_perspective=effective_mode.presets.camera_perspective if effective_mode else "",
+        camera_type=effective_mode.presets.camera_type if effective_mode else "",
+        capture_geometry=effective_mode.presets.capture_geometry if effective_mode else "",
         lighting_profile=effective_mode.presets.lighting_profile if effective_mode else "",
         pose_energy=effective_mode.presets.pose_energy if effective_mode else "",
         casting_profile=effective_mode.presets.casting_profile if effective_mode else "",

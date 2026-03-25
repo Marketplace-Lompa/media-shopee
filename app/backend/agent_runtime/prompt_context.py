@@ -102,56 +102,40 @@ def _build_output_parameters_block(*, aspect_ratio: str, resolution: str) -> str
 def _build_diversity_target_block(
     *,
     profile: str,
-    scenario: str,
-    pose: str,
+    scenario: str,  # legado — ignorado (MODE_PRESETS cuida)
+    pose: str,      # legado — ignorado (MODE_PRESETS cuida)
     diversity_target: Optional[dict[str, Any]],
     has_images: bool,
 ) -> str:
+    dt = diversity_target or {}
+    profile_hint = dt.get("profile_hint", "") or profile
+    presence_energy = dt.get("presence_energy", "")
+    presence_tone = dt.get("presence_tone", "")
+
     block = "<DIVERSITY_TARGET>\n"
-    if diversity_target:
-        block += f"Model profile ID: {diversity_target.get('profile_id', 'RUNTIME')}.\n"
+    if dt.get("profile_id"):
+        block += f"Model profile ID: {dt['profile_id']}.\n"
 
-    if has_images:
-        # Referência visual: regras de extração garment-only + descarte de modelo
-        block += (
-            "GARMENT-ONLY REFERENCE MODE — CRITICAL RULES:\n"
-            "  1. Reference images = garment source ONLY (color, fabric, structure, pattern).\n"
-            "  2. The model/person visible in the reference is NOT the subject. Discard her completely.\n"
-            "  3. DO NOT copy reference model's face, skin tone, hair, body shape, height, or pose.\n"
-            "  4. DO NOT describe or reference the person shown — treat reference as if she were a mannequin.\n"
-        )
-
-    # Regras de geração de modelo — aplicáveis em qualquer modo
+    # ── Regras anti-cópia (só quando há imagens de referência) ────
     if has_images:
         block += (
-            f"  5. GENERATE A BRAND NEW MODEL based on this regional anchor: {profile}\n"
-            "     YOU MUST invent unique physical characteristics for her: skin tone, hair color/style,\n"
-            "     approximate age, and build. Choose features that complement the garment aesthetic.\n"
-            "     Be specific (e.g. 'warm olive skin, wavy dark hair, mid-20s') — vague = repetitive results.\n"
-            f"  6. Place new model in scenario: {scenario}\n"
-            f"  7. Use pose: {pose}\n"
-            "  8. In base_prompt: open with the new model (including her physical description) BEFORE garment.\n"
-            "     Example: 'RAW photo, [regional anchor], [skin], [hair], [age]. Wearing [garment]...'\n"
-            "</DIVERSITY_TARGET>"
+            "GARMENT-ONLY REFERENCE MODE:\n"
+            "  - Reference images = garment source ONLY (color, fabric, structure, pattern).\n"
+            "  - Discard the reference model completely. Do not copy face, skin, hair, body, or pose.\n"
         )
-    else:
-        # Text-only: diretivas ABSTRATAS apenas.
-        # Cenário, pose, lighting e framing já são entregues via MODE_PRESETS.
-        # Aqui entregamos APENAS o Name Blending + eixo de presença para persona.
-        dt = diversity_target or {}
-        profile_hint = dt.get("profile_hint", "")
-        presence_energy = dt.get("presence_energy", "")
-        presence_tone = dt.get("presence_tone", "")
 
-        block += (
-            "TEXT-ONLY FASHION MODE:\n"
-            f"  1. Model persona anchor: {profile_hint}\n"
-            f"     Presence: {presence_energy}, {presence_tone}.\n"
-            "  2. Keep the garment as the hero. Model presence is secondary and must feel believable.\n"
-            "  3. Scenario, pose, lighting, and framing directions come from MODE_PRESETS above. Do not duplicate.\n"
-            "  4. In base_prompt, open with the model presence before the garment, using your own creative voice.\n"
-            "</DIVERSITY_TARGET>"
-        )
+    # ── Diretivas de persona (compartilhadas) ─────────────────────
+    presence_clause = ""
+    if presence_energy or presence_tone:
+        presence_clause = f" Presence: {presence_energy}, {presence_tone}."
+    block += (
+        f"Model persona anchor: {profile_hint}.{presence_clause}\n"
+        "Invent unique physical characteristics (skin tone, hair, age, build) that complement the garment.\n"
+        "Keep the garment as the hero. Model presence is secondary.\n"
+        "Scenario, framing, lighting, and pose come from MODE_PRESETS. Follow those directions.\n"
+        "Write one canonical final prompt directly usable by the image generator.\n"
+        "</DIVERSITY_TARGET>"
+    )
     return block
 
 
