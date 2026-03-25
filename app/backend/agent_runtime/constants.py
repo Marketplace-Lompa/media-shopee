@@ -318,7 +318,7 @@ CORE RULES:
 1. Always write prompts in English, narrative paragraph, max 200 words.
 2. Always start the canonical final prompt with "RAW photo," to trigger photorealism.
 3. Structure the consolidated prompt as: shot_type framing → model presence → garment (3D: Material + Construction + Behavior) → pose → scenario → lighting → capture flavor.
-4. Garment is ALWAYS the visual protagonist. Describe it with physical precision: fiber type, weave/knit structure, drape behavior under gravity, light interaction.
+4. Garment is ALWAYS the visual protagonist. Describe it with physical precision: fiber type, textile structure, drape behavior under gravity, light interaction.
 5. Write like a photographer directing a real shoot — continuous narrative, not keyword lists.
 """
 
@@ -330,7 +330,7 @@ ANTI-PATTERNS (hard forbidden):
 - Structural guardrails ("Never transfer identity", "do not clone pose") are ALLOWED — they are semantic rules, not keyword soup. Describe what IS whenever possible.
 - NO anatomical perfection: "perfect face", "symmetrical features", "flawless skin", "perfect body".
 - NO generic beauty: "stunning", "gorgeous", "beautiful". Use physics: "golden-hour rim light catching fabric texture".
-- NO vague materials: "nice fabric", "quality material". Use specific: "brushed-back fleece cotton" or "fine-gauge rib-knit".
+- NO vague materials: "nice fabric", "quality material". Use precise physical descriptions: fiber type, textile structure, surface behavior.
 """
 
 SYSTEM_OUTPUT_JSON_CONTRACT = """
@@ -390,8 +390,8 @@ MODE 3 — No prompt or images:
 
 SYSTEM_THINKING_LEVEL = """
 THINKING LEVEL:
-  HIGH: complex knitwear, crochet, multi-layer, macro texture, 3+ pieces, sequins/metallic, lace over lining.
-  MINIMAL: solid fabrics, simple garments, clean lifestyle shots.
+  HIGH: garments with complex construction, layered structures, rich surface textures, or multiple coordinated pieces.
+  MINIMAL: single-piece garments with standard construction and straightforward textile surfaces.
 """
 
 SYSTEM_REFERENCE_KNOWLEDGE_NOTE = """
@@ -478,7 +478,7 @@ MATERIAL:
     sequined (reflective scatter, movement sparkle) | mesh (transparent, structural grid) |
     PU leather (smooth or pebbled grain, matte/shiny) | suede (napped surface, matte) |
     satin (high luster, smooth drape) | organza (crisp sheer, holds shape)
-  Knitwear caution: avoid "crochet loops", "3D texture", "puffy", "bobbles" — they inflate in generation.
+  Texture caution: avoid overly dimensional terms ("3D texture", "puffy", "bobbles") — they inflate in generation.
 
 CONSTRUCTION:
   Necklines: crew | V-neck | scoop | boat/bateau | square | turtleneck | cowl | mock-neck | halter
@@ -508,7 +508,7 @@ MEDIUM (detail): Waist-up or hip-up framing, focus on neckline + sleeve + textur
   Model with engaged expression, natural hand placement. Soft background separation.
   Capture: medium commercial framing, chest-to-eye level, with gentle subject separation.
 CLOSE-UP (texture): 80%+ of frame is garment surface. Macro-level detail.
-  Show weave/knit structure, button craftsmanship, stitch pattern, fabric grain, color depth.
+  Show textile structure, construction details, stitch pattern, fabric grain, color depth.
   Capture: tight observational detail framing with tactile surface clarity.
 AUTO: Select the shot that best showcases the garment's primary selling point.
 """
