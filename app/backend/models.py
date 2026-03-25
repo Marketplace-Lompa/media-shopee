@@ -35,6 +35,10 @@ class GenerateRequest(BaseModel):
         default=None,
         description="Brief guiado opcional para parametrização determinística do agente"
     )
+    mode: Optional[str] = Field(
+        default=None,
+        description="Mode do fluxo livre: catalog_clean | natural | lifestyle | editorial_commercial"
+    )
     preset: Optional[str] = Field(
         default=None,
         description="Preset v2: catalog_clean | marketplace_lifestyle | premium_lifestyle | ugc_real_br"
@@ -81,6 +85,7 @@ class GenerateResponse(BaseModel):
     category: Optional[CreateCategory] = Field(default=None, description="Categoria de criação efetiva")
     session_id: Optional[str] = Field(default=None, description="ID da sessão de geração")
     optimized_prompt: str = Field(description="Prompt otimizado pelo agente")
+    mode: Optional[str] = Field(default=None, description="Mode aplicado no fluxo livre")
     pipeline_mode: str = Field(default="text_mode", description="Modo aplicado: reference_mode | text_mode | reference_mode_strict")
     thinking_level: str   = Field(default="MINIMAL", description="Nível de thinking decidido pelo agente")
     thinking_reason: str  = Field(default="", description="Justificativa do thinking em pt-BR")

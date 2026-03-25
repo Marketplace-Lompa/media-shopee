@@ -3,6 +3,7 @@ export type Resolution = '1K' | '2K' | '4K';
 export type PoolType = 'modelo' | 'roupa' | 'cenario';
 export type PipelineMode = 'reference_mode' | 'reference_mode_strict' | 'text_mode';
 export type CreateCategory = 'fashion';
+export type Mode = 'catalog_clean' | 'natural' | 'lifestyle' | 'editorial_commercial';
 
 // ── V2 types ──
 export type Preset = 'catalog_clean' | 'marketplace_lifestyle' | 'premium_lifestyle' | 'ugc_real_br';
@@ -63,6 +64,7 @@ export interface GenerateRequest {
     session_id?: string;
     grounding_strategy?: GroundingStrategy;
     guided_brief?: GuidedBrief;
+    mode?: Mode;
     preset?: Preset;
     scene_preference?: ScenePreference;
     fidelity_mode?: FidelityMode;
@@ -176,6 +178,7 @@ export interface GenerateResponse {
     prompt_compiler_debug?: PromptCompilerDebug;
     user_intent?: UserIntent;
     art_direction_summary?: Record<string, string>;
+    mode?: Mode;
     preset?: Preset;
     scene_preference?: ScenePreference;
     fidelity_mode?: FidelityMode;
@@ -220,6 +223,7 @@ export interface JobReviewPayload {
     };
     context: {
         prompt?: string | null;
+        mode?: string | null;
         preset?: string | null;
         scene_preference?: string | null;
         fidelity_mode?: string | null;
@@ -266,6 +270,7 @@ export interface MediaHistoryItem {
     grounding_mode?: string;
     reason_codes?: string[];
     // Parâmetros de geração (observabilidade)
+    mode?: string;
     preset?: string;
     scene_preference?: string;
     fidelity_mode?: string;

@@ -1,3 +1,10 @@
+const MODE_LABELS: Record<string, string> = {
+  catalog_clean: 'Catálogo Clean',
+  natural: 'Natural',
+  lifestyle: 'Lifestyle',
+  editorial_commercial: 'Editorial Comercial',
+};
+
 const PRESET_LABELS: Record<string, string> = {
   catalog_clean: 'Catálogo',
   marketplace_lifestyle: 'Com contexto',
@@ -66,6 +73,10 @@ function labelFor(map: Record<string, string>, value?: string | null): string {
 
 export function humanizePreset(value?: string | null): string {
   return labelFor(PRESET_LABELS, value);
+}
+
+export function humanizeMode(value?: string | null): string {
+  return labelFor(MODE_LABELS, value);
 }
 
 export function humanizeScenePreference(value?: string | null): string {

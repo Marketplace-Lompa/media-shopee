@@ -21,7 +21,7 @@ from agent_runtime.structural import (
 _last_stance_idx: int = -1
 _last_bottom_idx: int = -1
 _last_gaze_idx: int = -1
-_last_scene_comp_idx: int = -1
+_last_scene_comp_idx_by_mode: dict[str, int] = {}
 
 _BOTTOM_COMPLEMENT_POOL = [
     "fitted dark trousers, minimal footwear",
@@ -31,11 +31,16 @@ _BOTTOM_COMPLEMENT_POOL = [
     "wide-leg cropped pants, simple flats",
 ]
 
-_SCENE_COMP_POOL = [
-    "subject sharp, background softly defocused, balanced natural light",
-    "shallow depth of field, warm backlight rim, clean negative space",
-    "even soft light, gentle bokeh background, centered composition",
-    "golden hour side light, subject crisp, environment blurred",
+_TEXT_MODE_SCENE_COMP_POOL = [
+    "setting stays secondary to the garment",
+    "environment remains commercially believable without competing",
+    "background supports the garment without pulling focus",
+]
+
+_REFERENCE_MODE_SCENE_COMP_POOL = [
+    "clean commercial scene support with garment-first readability",
+    "environment stays secondary with clear subject separation",
+    "commercial scene balance with low background interference",
 ]
 
 _GAZE_POOL = [
@@ -91,21 +96,22 @@ def _truncate_by_sentence(text: str, max_words: int) -> tuple[str, bool]:
     return " ".join(kept), True
 
 
-def _scene_composition_clause(base: str, guided_scene_type: str) -> str:
-    """MT-D: Retorna cláusula de composição de cena com rotação anti-repeat."""
-    global _last_scene_comp_idx
+def _scene_composition_clause(base: str, guided_scene_type: str, pipeline_mode: str) -> str:
+    """Retorna uma cláusula curta de suporte de cena sem impor acabamento forte."""
     base_low = base.lower()
     # Se guided_scene_type indica indoor/outdoor, adapta o texto
     _kw_outdoor = any(k in base_low for k in _OUTDOOR_URBAN_KW | _OUTDOOR_NATURE_KW) or guided_scene_type == "externo"
     _kw_indoor = any(k in base_low for k in _INDOOR_KW) or guided_scene_type == "interno"
-    # Rotação anti-repeat
-    _candidates = [i for i in range(len(_SCENE_COMP_POOL)) if i != _last_scene_comp_idx]
-    _last_scene_comp_idx = random.choice(_candidates)
-    clause = _SCENE_COMP_POOL[_last_scene_comp_idx]
+    pool = _TEXT_MODE_SCENE_COMP_POOL if pipeline_mode == "text_mode" else _REFERENCE_MODE_SCENE_COMP_POOL
+    last_idx = _last_scene_comp_idx_by_mode.get(pipeline_mode, -1)
+    _candidates = [i for i in range(len(pool)) if i != last_idx] or [0]
+    idx = random.choice(_candidates)
+    _last_scene_comp_idx_by_mode[pipeline_mode] = idx
+    clause = pool[idx]
     if _kw_indoor and not _kw_outdoor:
-        clause += ", interior setting"
+        clause += ", interior context"
     elif _kw_outdoor and not _kw_indoor:
-        clause += ", outdoor setting"
+        clause += ", outdoor context"
     return clause
 
 
@@ -146,6 +152,10 @@ def _compile_prompt_v2(
     scenario_hint: str = "",
     garment_narrative: str = "",
     lighting_hint: str = "",
+    shot_type: str = "medium",
+    framing_profile: str = "",
+    pose_energy: str = "",
+    casting_profile: str = "",
 ) -> tuple[str, dict]:
     """
     Prompt Compiler V2: converte todas as restrições de lock em frases fotográficas
@@ -253,7 +263,7 @@ def _compile_prompt_v2(
     # - Se Gemini já ecoou nosso profile ("features blend" no base) → skip (evita duplicação)
     # - Se force_cover_defaults e Gemini NÃO ecoou → injetar (garante diversity vs espelho)
     # - Se text_mode e fenótipo ausente → injetar
-    if profile_hint and not profile_seeded_in_base and not _profile_already_in_base:
+    if profile_hint and pipeline_mode != "text_mode" and not profile_seeded_in_base and not _profile_already_in_base:
         if force_cover_defaults or not _phenotype_in_base:
             clauses.append((profile_hint, 3, "model_profile"))
 
@@ -303,17 +313,45 @@ def _compile_prompt_v2(
         _last_gaze_idx = random.choice(_g_candidates)
         return _GAZE_POOL[_last_gaze_idx]
 
+    model_presence_clause = "polished model, confident posture"
+    if casting_profile == "commercial_natural":
+        model_presence_clause = "natural commercial model presence, warm and believable"
+    elif casting_profile == "casual_relational":
+        model_presence_clause = "relatable lifestyle model presence, easy and believable"
+    elif casting_profile == "agency_polished":
+        model_presence_clause = "polished commercial model presence, composed and premium"
+
+    gaze_clause = _pick_gaze()
+    if pose_energy == "static":
+        gaze_clause = "calm direct gaze with controlled expression"
+    elif pose_energy == "relaxed":
+        gaze_clause = "warm near-camera look with relaxed expression"
+    elif pose_energy == "dynamic":
+        gaze_clause = "direct confident gaze with intentional fashion energy"
+    elif pose_energy == "candid":
+        gaze_clause = "natural engaged expression with slightly off-camera spontaneity"
+
+    effective_shot = shot_type
+    if effective_shot == "auto":
+        if framing_profile == "full_body":
+            effective_shot = "wide"
+        elif framing_profile == "detail_crop":
+            effective_shot = "close-up"
+        else:
+            effective_shot = "medium"
+
     if has_images:
-        clauses.append(("polished model, natural expression", 3, "quality_model"))
+        clauses.append((model_presence_clause, 3, "quality_model"))
         if not (has_images and not has_prompt and guided_pose_creative):
-            clauses.append((_pick_gaze(), 3, "quality_gaze"))
-        clauses.append((_scene_composition_clause(base, _guided_scene_type), 4, "quality_scene"))
-        clauses.append((_frame_occupancy_clause(aspect_ratio, "medium"), 3, "frame_occupancy"))
+            clauses.append((gaze_clause, 3, "quality_gaze"))
+        clauses.append((_scene_composition_clause(base, _guided_scene_type, pipeline_mode), 4, "quality_scene"))
+        clauses.append((_frame_occupancy_clause(aspect_ratio, effective_shot), 3, "frame_occupancy"))
     elif pipeline_mode == "text_mode":
-        clauses.append(("polished model, confident posture", 3, "quality_model"))
-        clauses.append((_pick_gaze(), 3, "quality_gaze"))
-        clauses.append((_scene_composition_clause(base, _guided_scene_type), 4, "quality_scene"))
-        clauses.append((_frame_occupancy_clause(aspect_ratio, "medium"), 3, "frame_occupancy"))
+        if not profile_hint:
+            clauses.append((model_presence_clause, 3, "quality_model"))
+        clauses.append((gaze_clause, 3, "quality_gaze"))
+        clauses.append((_scene_composition_clause(base, _guided_scene_type, pipeline_mode), 4, "quality_scene"))
+        clauses.append((_frame_occupancy_clause(aspect_ratio, effective_shot), 3, "frame_occupancy"))
 
     # ── P3: Pose de referência do grounding ──────────────────────────
     # Em reference_strict_mode as P1 clauses de capa já fixam a pose estável;

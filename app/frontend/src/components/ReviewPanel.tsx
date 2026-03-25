@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, ClipboardList, Eye, RefreshCw, RotateCcw, SearchCode } from 'lucide-react';
 import type { JobReviewPayload } from '../types';
 import { imageUrl } from '../lib/api';
-import { humanizeFidelityMode, humanizePoseFlexMode, humanizePreset } from '../lib/humanize';
+import { humanizeFidelityMode, humanizeMode, humanizePoseFlexMode, humanizePreset } from '../lib/humanize';
 import './ReviewPanel.css';
 
 interface Props {
@@ -109,6 +109,7 @@ export function ReviewPanel({ data, loading, error, onRefresh, onUseInCreate, on
                 </div>
                 <p className="t-sm text-secondary">{data.review.summary}</p>
                 <div className="review-meta-row">
+                    {data.context.mode && <span className="badge badge--sm badge--accent" title={data.context.mode}>{humanizeMode(data.context.mode)}</span>}
                     {data.context.preset && <span className="badge badge--sm" title={data.context.preset}>{humanizePreset(data.context.preset)}</span>}
                     {data.context.fidelity_mode && <span className="badge badge--sm" title={data.context.fidelity_mode}>{humanizeFidelityMode(data.context.fidelity_mode)}</span>}
                     {data.context.pose_flex_mode && <span className="badge badge--sm" title={data.context.pose_flex_mode}>{humanizePoseFlexMode(data.context.pose_flex_mode)}</span>}

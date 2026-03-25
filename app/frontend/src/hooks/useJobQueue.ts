@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { submitGenerateAsync, submitEditAsync, submitMarketplaceAsync } from '../lib/api';
-import type { JobEntry, JobType, JobStatus, EditTarget, AspectRatio, Resolution, Preset, ScenePreference, FidelityMode, PoseFlexMode, MarketplaceChannel, MarketplaceOperation, CreateCategory } from '../types';
+import type { JobEntry, JobType, JobStatus, EditTarget, AspectRatio, Resolution, Mode, MarketplaceChannel, MarketplaceOperation, CreateCategory } from '../types';
 
 // Adaptive polling: ajusta taxa baseado no estágio atual do job
 const POLL_DEFAULT_MS = 1200;       // queued / desconhecido
@@ -94,10 +94,7 @@ export interface GeneratePayload {
     n_images: number;
     aspect_ratio: AspectRatio;
     resolution: Resolution;
-    preset: Preset;
-    scene_preference: ScenePreference;
-    fidelity_mode: FidelityMode;
-    pose_flex_mode: PoseFlexMode;
+    mode: Mode;
 }
 
 export interface EditPayload {
@@ -370,10 +367,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
             fd.append('n_images', String(payload.n_images));
             fd.append('aspect_ratio', payload.aspect_ratio);
             fd.append('resolution', payload.resolution);
-            fd.append('preset', payload.preset);
-            fd.append('scene_preference', payload.scene_preference);
-            fd.append('fidelity_mode', payload.fidelity_mode);
-            fd.append('pose_flex_mode', payload.pose_flex_mode);
+            fd.append('mode', payload.mode);
             payload.files.forEach(f => fd.append('images', f));
 
             const { job_id } = await submitGenerateAsync(fd);

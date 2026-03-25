@@ -43,10 +43,12 @@ def test_build_generate_context_text_preserves_core_block_order() -> None:
         grounding_effective=True,
         grounding_context_hint="cardigan",
         grounding_mode="full",
+        mode_defaults_text="Active visual mode: Natural.",
         reference_knowledge="REFERENCE_KNOWLEDGE_BLOCK",
     )
 
     mode_index = context.index("<MODE>")
+    mode_presets_index = context.index("<MODE_PRESETS>")
     pool_index = context.index("<POOL_CONTEXT>")
     output_index = context.index("<OUTPUT_PARAMETERS>")
     diversity_index = context.index("<DIVERSITY_TARGET>")
@@ -56,7 +58,7 @@ def test_build_generate_context_text_preserves_core_block_order() -> None:
     reference_index = context.index("REFERENCE_KNOWLEDGE_BLOCK")
     final_instruction_index = context.index("Return ONLY valid JSON matching the schema. No markdown, no explanation.")
 
-    assert mode_index < pool_index < output_index < diversity_index
+    assert mode_index < mode_presets_index < pool_index < output_index < diversity_index
     assert diversity_index < grounding_index < triage_hint_index < grounding_constraints_index
     assert grounding_constraints_index < reference_index < final_instruction_index
 
@@ -84,9 +86,11 @@ def test_build_generate_context_text_skips_optional_blocks_when_inputs_are_empty
         grounding_effective=False,
         grounding_context_hint=None,
         grounding_mode="off",
+        mode_defaults_text=None,
         reference_knowledge="REFERENCE_KNOWLEDGE_BLOCK",
     )
 
+    assert "<MODE_PRESETS>" not in context
     assert "<POOL_CONTEXT>" not in context
     assert "<GUIDED_BRIEF>" not in context
     assert "<STRUCTURAL_CONTRACT>" not in context
@@ -105,10 +109,15 @@ def test_build_generate_context_text_uses_text_only_diversity_rules_without_refe
         pool_context="",
         aspect_ratio="4:5",
         resolution="1536",
-        profile="contemporary Brazilian fashion model",
-        scenario="clean boutique interior",
-        pose="relaxed editorial stance",
-        diversity_target={"profile_id": "runtime-profile"},
+        profile="features blend 'Camila' and 'Dandara Silva'",
+        scenario="",
+        pose="",
+        diversity_target={
+            "profile_id": "natural:commercial_natural",
+            "profile_hint": "features blend 'Camila' and 'Dandara Silva'",
+            "presence_energy": "warm",
+            "presence_tone": "commercial",
+        },
         guided_enabled=False,
         guided_brief=None,
         guided_set_mode="unica",
@@ -119,9 +128,17 @@ def test_build_generate_context_text_uses_text_only_diversity_rules_without_refe
         grounding_effective=False,
         grounding_context_hint=None,
         grounding_mode="off",
+        mode_defaults_text="Active visual mode: Natural.",
         reference_knowledge="REFERENCE_KNOWLEDGE_BLOCK",
     )
 
+    assert "<MODE_PRESETS>" in context
     assert "TEXT-ONLY FASHION MODE:" in context
     assert "GARMENT-ONLY REFERENCE MODE — CRITICAL RULES:" not in context
     assert "Discard her completely." not in context
+    # New abstract structure assertions
+    assert "Model persona anchor:" in context
+    assert "Presence:" in context
+    assert "MODE_PRESETS above" in context
+    assert "using your own creative voice" in context
+

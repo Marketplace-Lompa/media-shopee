@@ -11,10 +11,7 @@ import type {
     CreateCategory,
     Resolution,
     EditTarget,
-    Preset,
-    ScenePreference,
-    FidelityMode,
-    PoseFlexMode,
+    Mode,
     MarketplaceChannel,
     MarketplaceOperation,
 } from '../types';
@@ -29,10 +26,7 @@ interface Props {
         n_images: number;
         aspect_ratio: AspectRatio;
         resolution: Resolution;
-        preset: Preset;
-        scene_preference: ScenePreference;
-        fidelity_mode: FidelityMode;
-        pose_flex_mode: PoseFlexMode;
+        mode: Mode;
     }) => void;
     externalData?: {
         prompt?: string;
@@ -55,25 +49,11 @@ interface Props {
 const AR_OPTIONS: AspectRatio[] = ['4:5', '1:1', '9:16', '16:9', '4:3', '3:4'];
 const RES_OPTIONS: Resolution[] = ['1K', '2K', '4K'];
 const N_OPTIONS = [1, 2, 3, 4];
-const PRESET_OPTIONS: Array<{ value: Preset; label: string }> = [
-    { value: 'catalog_clean', label: 'Catálogo' },
-    { value: 'premium_lifestyle', label: 'Premium' },
-    { value: 'ugc_real_br', label: 'Conteúdo real' },
-];
-const SCENE_PREF_OPTIONS: Array<{ value: ScenePreference; label: string }> = [
-    { value: 'auto_br', label: 'Cena sugerida' },
-    { value: 'indoor_br', label: 'Ambiente interno' },
-    { value: 'outdoor_br', label: 'Ambiente externo' },
-];
-const FIDELITY_OPTIONS: Array<{ value: FidelityMode; label: string }> = [
-    { value: 'balanceada', label: 'Balanceada' },
-    { value: 'estrita', label: 'Estrita' },
-];
-const POSE_FLEX_OPTIONS: Array<{ value: PoseFlexMode; label: string }> = [
-    { value: 'auto', label: 'Auto' },
-    { value: 'controlled', label: 'Controlada' },
-    { value: 'balanced', label: 'Balanceada' },
-    { value: 'dynamic', label: 'Dinâmica' },
+const MODE_OPTIONS: Array<{ value: Mode; label: string; description: string }> = [
+    { value: 'catalog_clean', label: 'Catálogo Clean', description: 'Mais limpo, estável e focado na peça.' },
+    { value: 'natural', label: 'Natural', description: 'Comercial e humano, com clima leve.' },
+    { value: 'lifestyle', label: 'Lifestyle', description: 'Mais contexto, movimento e desejo.' },
+    { value: 'editorial_commercial', label: 'Editorial Comercial', description: 'Mais direção, presença e sofisticação.' },
 ];
 interface HistoryDragPayload {
     url: string;
@@ -104,10 +84,7 @@ export function ChatInput({
     const [ar, setAr] = useState<AspectRatio>('4:5');
     const [res, setRes] = useState<Resolution>('1K');
     const [n, setN] = useState(1);
-    const [preset, setPreset] = useState<Preset>('catalog_clean');
-    const [scenePreference, setScenePreference] = useState<ScenePreference>('auto_br');
-    const [fidelityMode, setFidelityMode] = useState<FidelityMode>('balanceada');
-    const [poseFlexMode, setPoseFlexMode] = useState<PoseFlexMode>('auto');
+    const [mode, setMode] = useState<Mode>('natural');
     const [dragOver, setDragOver] = useState(false);
     const [dropMessage, setDropMessage] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -205,10 +182,7 @@ export function ChatInput({
             n_images: n,
             aspect_ratio: ar,
             resolution: res,
-            preset,
-            scene_preference: scenePreference,
-            fidelity_mode: fidelityMode,
-            pose_flex_mode: poseFlexMode,
+            mode,
         });
         setPrompt('');
         setFiles([]);
@@ -457,35 +431,20 @@ export function ChatInput({
                 </section>
             )}
 
-            {/* Preset e Cena — modo padrão */}
+            {/* Modes — modo livre */}
             {!editTarget && !isMarketplaceMode && (
-                <div className="preset-row">
+                <div className="mode-selector-row">
                     <fieldset className="param-group">
-                        <legend className="t-label text-tertiary">Estilo</legend>
+                        <legend className="t-label text-tertiary">Modo</legend>
                         <div className="param-chips">
-                            {PRESET_OPTIONS.map(option => (
+                            {MODE_OPTIONS.map(option => (
                                 <button
                                     key={option.value}
-                                    className={`chip chip--preset ${preset === option.value ? 'chip--active' : ''}`}
-                                    onClick={() => setPreset(option.value)}
+                                    className={`chip chip--mode ${mode === option.value ? 'chip--active' : ''}`}
+                                    onClick={() => setMode(option.value)}
                                     type="button"
-                                    aria-pressed={preset === option.value}
-                                    data-preset={option.value}
-                                >{option.label}</button>
-                            ))}
-                        </div>
-                    </fieldset>
-
-                    <fieldset className="param-group">
-                        <legend className="t-label text-tertiary">Cena</legend>
-                        <div className="param-chips">
-                            {SCENE_PREF_OPTIONS.map(option => (
-                                <button
-                                    key={option.value}
-                                    className={`chip ${scenePreference === option.value ? 'chip--active' : ''}`}
-                                    onClick={() => setScenePreference(option.value)}
-                                    type="button"
-                                    aria-pressed={scenePreference === option.value}
+                                    aria-pressed={mode === option.value}
+                                    title={option.description}
                                 >{option.label}</button>
                             ))}
                         </div>
@@ -504,39 +463,6 @@ export function ChatInput({
                         transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                         <div className="params-row">
-                            <fieldset className="param-group">
-                                <legend className="t-label text-tertiary">Fidelidade</legend>
-                                <div className="param-chips">
-                                    {FIDELITY_OPTIONS.map(option => (
-                                        <button
-                                            key={option.value}
-                                            className={`chip ${fidelityMode === option.value ? 'chip--active' : ''}`}
-                                            onClick={() => setFidelityMode(option.value)}
-                                            type="button"
-                                            aria-pressed={fidelityMode === option.value}
-                                        >{option.label}</button>
-                                    ))}
-                                </div>
-                            </fieldset>
-
-                            <fieldset className="param-group">
-                                <legend className="t-label text-tertiary">Pose</legend>
-                                <div className="param-chips">
-                                    {POSE_FLEX_OPTIONS.map(option => (
-                                        <button
-                                            key={option.value}
-                                            className={`chip ${poseFlexMode === option.value ? 'chip--active' : ''}`}
-                                            onClick={() => setPoseFlexMode(option.value)}
-                                            type="button"
-                                            aria-pressed={poseFlexMode === option.value}
-                                        >{option.label}</button>
-                                    ))}
-                                </div>
-                                <p className="t-xs text-tertiary param-help">
-                                    Auto analisa as referências e decide a pose no momento do job.
-                                </p>
-                            </fieldset>
-
                             <fieldset className="param-group">
                                 <legend className="t-label text-tertiary">Aspecto</legend>
                                 <div className="param-chips">

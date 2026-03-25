@@ -64,6 +64,7 @@ def add_entry(
     pose_flex_mode: Optional[str] = None,
     pipeline_mode: Optional[str] = None,
     optimized_prompt: Optional[str] = None,
+    mode: Optional[str] = None,
     # ── Marketplace ───────────────────────────────────────────────
     marketplace_channel: Optional[str] = None,
     marketplace_operation: Optional[str] = None,
@@ -99,6 +100,7 @@ def add_entry(
         "pose_flex_mode": pose_flex_mode or None,
         "pipeline_mode": pipeline_mode or None,
         "optimized_prompt": optimized_prompt or None,
+        "mode": mode or None,
         # Marketplace
         "marketplace_channel": marketplace_channel or None,
         "marketplace_operation": marketplace_operation or None,

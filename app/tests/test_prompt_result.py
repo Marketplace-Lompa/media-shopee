@@ -38,8 +38,49 @@ def test_finalize_prompt_agent_result_enriches_prompt_fields() -> None:
 
     assert result["prompt"]
     assert result["camera_and_realism"]
-    assert result["camera_profile"]
     assert result["prompt_compiler_debug"]["final_words"] > 0
+
+
+def test_finalize_prompt_agent_result_does_not_duplicate_model_presence_when_profile_hint_exists() -> None:
+    result = finalize_prompt_agent_result(
+        result={
+            "base_prompt": "RAW photo, a Brazilian fashion model with a warm commercial presence wearing an olive green linen dress.",
+            "camera_and_realism": "Sony A7III, 85mm lens, soft natural light, visible pores.",
+            "shot_type": "medium",
+        },
+        has_images=False,
+        has_prompt=True,
+        user_prompt="vestido verde para ecommerce",
+        structural_contract={},
+        guided_brief=None,
+        guided_enabled=False,
+        guided_set_mode="unica",
+        guided_set_detection={},
+        grounding_mode="off",
+        pipeline_mode="text_mode",
+        aspect_ratio="4:5",
+        pose="relaxed stance",
+        grounding_pose_clause="",
+        profile="A Brazilian fashion model with a warm, naturally commercial presence; features blend 'Ana' and 'Lia Costa'.",
+        scenario="residential interior",
+        diversity_target={"profile_id": "natural:commercial_natural"},
+        mode_id="natural",
+        framing_profile="three_quarter",
+        camera_perspective="standard_prime",
+        lighting_profile="natural_soft",
+        pose_energy="relaxed",
+        casting_profile="commercial_natural",
+    )
+
+    used_sources = {item["source"] for item in result["prompt_compiler_debug"]["used_clauses"]}
+    assert "quality_model" not in used_sources
+    assert "model_profile" not in used_sources
+    assert "quality_gaze" in used_sources
+    assert "quality_scene" in used_sources
+    assert "sony" not in result["camera_and_realism"].lower()
+    assert "85mm" not in result["camera_and_realism"].lower()
+    assert "golden hour side light" not in result["prompt"].lower()
+    assert "gentle bokeh background" not in result["prompt"].lower()
 
 
 def test_finalize_prompt_agent_result_sanitizes_draped_wrap_narrative() -> None:
@@ -74,5 +115,4 @@ def test_finalize_prompt_agent_result_sanitizes_draped_wrap_narrative() -> None:
     )
 
     assert result["prompt"]
-    assert result["prompt_compiler_debug"]["camera_profile"]
     assert result["prompt_compiler_debug"]["base_budget"] > 0

@@ -26,6 +26,13 @@ from agent_runtime.triage import (
 )
 from agent_runtime.diversity import _sample_diversity_target
 from agent_runtime.constants import AGENT_RESPONSE_SCHEMA
+from agent_runtime.modes import (
+    describe_mode_defaults,
+    get_mode,
+    preferred_shot_type_for_framing,
+    preferred_shot_type_for_mode,
+    resolve_mode_with_overrides,
+)
 from agent_runtime.normalize_user_intent import normalize_user_intent
 
 from guided_mode import guided_capture_to_shot, guided_summary
@@ -45,6 +52,7 @@ def run_agent(
     guided_brief: Optional[dict] = None,
     structural_contract_hint: Optional[dict] = None,
     unified_vision_triage_result: Optional[dict] = None,
+    mode: Optional[str] = None,
 ) -> dict:
     """
     Executa o Prompt Agent e retorna:
@@ -61,6 +69,12 @@ def run_agent(
     pipeline_mode = "reference_mode" if has_images else "text_mode"
     normalized_category = normalize_create_category(category)
     prompt_assets = get_generate_prompt_assets(normalized_category)
+    active_mode = get_mode(mode) if pipeline_mode == "text_mode" else None
+    effective_mode = (
+        resolve_mode_with_overrides(active_mode.id, (diversity_target or {}).get("preset_defaults"))
+        if active_mode
+        else None
+    )
     guided_enabled = bool(guided_brief and guided_brief.get("enabled"))
     guided_set_mode = str((((guided_brief or {}).get("garment") or {}).get("set_mode") or "")).strip().lower()
     triage_result = resolve_prompt_agent_visual_triage(
@@ -77,17 +91,21 @@ def run_agent(
     image_analysis = str(triage_result["image_analysis"] or "")
     look_contract = triage_result["look_contract"] or {}
 
-    # Profile: SEMPRE gera dinamicamente via name blending (ignora _PROFILE_POOL estático
-    # que produz AI Face com anatomia explícita). Scenario/pose: usa diversity_target
-    # para preservar lógica anti-repeat do select_diversity_target.
-    fallback_profile, fallback_scenario, fallback_pose = _sample_diversity_target()
-    profile = (diversity_target or {}).get("profile_prompt", "") or fallback_profile
-    if diversity_target:
-        scenario = diversity_target.get("scenario_prompt", "") or fallback_scenario
-        pose = diversity_target.get("pose_prompt", "") or fallback_pose
+    # Profile via Name Blending — persona anchor para o Gemini.
+    # Cenário e pose: no text-only mode, as direções vêm dos presets
+    # via MODE_PRESETS (describe_mode_defaults). Não injetamos frases prontas.
+    if effective_mode:
+        fallback_hint, _, _ = _sample_diversity_target(
+            casting_profile=effective_mode.presets.casting_profile,
+        )
     else:
-        scenario = fallback_scenario
-        pose = fallback_pose
+        fallback_hint, _, _ = _sample_diversity_target()
+
+    profile = (diversity_target or {}).get("profile_hint", "") or fallback_hint
+    # No text-only mode, cenário e pose são guiados pelos presets (MODE_PRESETS),
+    # não por frases literais injetadas aqui. Strings vazias = sem override literal.
+    scenario = ""
+    pose = ""
 
     # Grounding: chamada separada de pesquisa antes do agente
     grounding_research = ""
@@ -154,6 +172,7 @@ def run_agent(
         grounding_effective=bool(grounding_meta.get("effective")),
         grounding_context_hint=grounding_context_hint,
         grounding_mode=grounding_mode,
+        mode_defaults_text=describe_mode_defaults(effective_mode) if effective_mode else None,
         reference_knowledge=prompt_assets.reference_knowledge,
     )
 
@@ -206,7 +225,11 @@ def run_agent(
         result["shot_type"] = guided_shot
     # Permite variabilidade baseada no contexto no lugar de lock "wide"
     elif pipeline_mode == "text_mode" and result.get("shot_type") == "auto":
-        result["shot_type"] = _infer_text_mode_shot(user_prompt)
+        result["shot_type"] = (
+            preferred_shot_type_for_framing(effective_mode.presets.framing_profile)
+            if effective_mode
+            else _infer_text_mode_shot(user_prompt)
+        )
 
     if result.get("realism_level") not in [1, 2, 3]:
         result["realism_level"] = 2
@@ -229,11 +252,20 @@ def run_agent(
         profile=profile,
         scenario=scenario,
         diversity_target=diversity_target,
+        mode_id=effective_mode.id if effective_mode else "",
+        framing_profile=effective_mode.presets.framing_profile if effective_mode else "",
+        camera_perspective=effective_mode.presets.camera_perspective if effective_mode else "",
+        lighting_profile=effective_mode.presets.lighting_profile if effective_mode else "",
+        pose_energy=effective_mode.presets.pose_energy if effective_mode else "",
+        casting_profile=effective_mode.presets.casting_profile if effective_mode else "",
     )
 
     result["grounding"] = grounding_meta
     result["pipeline_mode"] = pipeline_mode
     result["category"] = normalized_category
+    result["mode"] = effective_mode.id if effective_mode else None
+    result["mode_label"] = effective_mode.label if effective_mode else None
+    result["preset_defaults"] = effective_mode.presets.__dict__ if effective_mode else None
     result["model_profile_id"] = diversity_target.get("profile_id") if diversity_target else None
     result["diversity_target"] = diversity_target or {}
     result["image_analysis"] = image_analysis

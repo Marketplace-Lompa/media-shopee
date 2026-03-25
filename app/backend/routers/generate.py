@@ -12,6 +12,8 @@ from typing import Any, Callable, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from agent import run_agent
+from agent_runtime.diversity import build_mode_diversity_target
+from agent_runtime.modes import DEFAULT_TEXT_MODE, get_mode
 from agent_runtime.pipeline_v2 import run_pipeline_v2
 from agent_runtime.pipeline_v2_support import (
     build_v2_generate_response,
@@ -126,6 +128,7 @@ def _run_generate_pipeline(
     *,
     category: str,
     prompt: Optional[str],
+    mode: Optional[str],
     aspect_ratio: str,
     resolution: str,
     n_images: int,
@@ -192,16 +195,18 @@ def _run_generate_pipeline(
             print(f"Erro na triagem visual unificada antecipada: {e}")
 
     # Diversidade garment-aware: usa estética da peça para casting inteligente
-    diversity_target = (
-        {}
-        if strict_reference_mode
-        else select_diversity_target(
+    if strict_reference_mode:
+        diversity_target = {}
+    elif not uploaded_bytes:
+        active_mode = get_mode(mode or DEFAULT_TEXT_MODE)
+        diversity_target = build_mode_diversity_target(active_mode)
+    else:
+        diversity_target = select_diversity_target(
             seed_hint=prompt or "",
             guided_brief=normalized_guided,
             garment_aesthetic=garment_aesthetic,
             structural_contract=structural_contract_for_diversity,
         )
-    )
 
     emit(
         "mode_selected",
@@ -349,6 +354,7 @@ def _run_generate_pipeline(
                     diversity_target=diversity_target,
                     guided_brief=normalized_guided,
                     unified_vision_triage_result=unified_triage_result,
+                    mode=mode,
                 )
             except Exception as e:
                 if applied_mode != "off":
@@ -365,6 +371,7 @@ def _run_generate_pipeline(
                         diversity_target=diversity_target,
                         guided_brief=normalized_guided,
                         unified_vision_triage_result=unified_triage_result,
+                        mode=mode,
                     )
                 else:
                     raise
@@ -530,6 +537,7 @@ def _run_generate_pipeline(
                 camera_profile=_camera_profile,
                 grounding_mode=_grounding_mode,
                 reason_codes=_reason_codes,
+                mode=agent_result.get("mode") or mode or None,
             )
         except Exception as hist_err:
             print(f"[HISTORY] ⚠️ Falha ao persistir: {hist_err}")
@@ -554,6 +562,7 @@ def _run_generate_pipeline(
         category=category,
         session_id=session_id,
         optimized_prompt=optimized_prompt,
+        mode=agent_result.get("mode") or mode or None,
         pipeline_mode=pipeline_mode,
         thinking_level=thinking_level,
         thinking_reason=thinking_reason,
@@ -592,6 +601,7 @@ def _run_generate_pipeline(
 async def generate(
     category: Optional[str] = Form(default=None),
     prompt: Optional[str] = Form(default=None),
+    mode: Optional[str] = Form(default=None),
     aspect_ratio: str = Form(default=DEFAULT_ASPECT_RATIO),
     resolution: str = Form(default=DEFAULT_RESOLUTION),
     n_images: int = Form(default=DEFAULT_N_IMAGES),
@@ -646,6 +656,7 @@ async def generate(
             _run_generate_pipeline,
             category=normalized_category,
             prompt=prompt,
+            mode=mode,
             aspect_ratio=aspect_ratio,
             resolution=resolution,
             n_images=n_images,
@@ -714,6 +725,7 @@ def _run_v2_pipeline_and_persist(
 async def generate_async(
     category: Optional[str] = Form(default=None),
     prompt: Optional[str] = Form(default=None),
+    mode: Optional[str] = Form(default=None),
     aspect_ratio: str = Form(default=DEFAULT_ASPECT_RATIO),
     resolution: str = Form(default=DEFAULT_RESOLUTION),
     n_images: int = Form(default=DEFAULT_N_IMAGES),
@@ -753,6 +765,7 @@ async def generate_async(
             "n_images": n_images,
             "aspect_ratio": aspect_ratio,
             "resolution": resolution,
+            "mode": mode,
             # ── Preset & modos (v2) ──
             "preset": preset,
             "scene_preference": scene_preference,
@@ -800,6 +813,7 @@ async def generate_async(
                 response = _run_generate_pipeline(
                     category=normalized_category,
                     prompt=prompt,
+                    mode=mode,
                     aspect_ratio=aspect_ratio,
                     resolution=resolution,
                     n_images=n_images,

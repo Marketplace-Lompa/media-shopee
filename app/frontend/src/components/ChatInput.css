@@ -24,8 +24,8 @@
     box-shadow: 0 0 24px rgba(255, 255, 255, 0.1);
 }
 
-/* Preset row — always visible above input */
-.preset-row {
+/* Mode row — always visible above input */
+.mode-selector-row {
     display: flex;
     flex-wrap: wrap;
     gap: var(--sp-4);
@@ -492,8 +492,8 @@
     color: var(--text-primary);
 }
 
-/* ── Preset chips — sem swatches coloridos ───────────────── */
-.chip--preset {
+/* ── Mode chips — sem ruído visual extra ───────────────── */
+.chip--mode {
     display: inline-flex;
     align-items: center;
     gap: 6px;

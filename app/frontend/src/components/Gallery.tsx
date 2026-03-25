@@ -8,6 +8,7 @@ import type {
 } from '../types';
 import { imageUrl } from '../lib/api';
 import {
+    humanizeMode,
     humanizeFidelityMode,
     humanizeMarketplaceChannel,
     humanizeMarketplaceOperation,
@@ -196,6 +197,7 @@ function JobCard({ job, onDismiss }: { job: JobEntry; onDismiss?: () => void }) 
     if (job.status === 'error') {
         const m = job.meta;
         const metaItems = m ? [
+            m.mode && humanizeMode(String(m.mode)),
             m.marketplace_channel && humanizeMarketplaceChannel(String(m.marketplace_channel)),
             m.marketplace_operation && humanizeMarketplaceOperation(String(m.marketplace_operation)),
             m.preset && humanizePreset(String(m.preset)),
@@ -585,6 +587,7 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
         generation_time?: number;
         pipeline_version?: string;
         failed_indices?: number[] | null;
+        mode?: string;
         preset?: string;
         scene_preference?: string;
         fidelity_mode?: string;
@@ -601,6 +604,7 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
             generation_time: resp.generation_time,
             pipeline_version: resp.pipeline_version,
             failed_indices: resp.failed_indices,
+            mode: resp.mode,
             preset: resp.preset,
             scene_preference: resp.scene_preference,
             fidelity_mode: resp.fidelity_mode,
@@ -661,8 +665,9 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
                             </p>
                         </div>
                     ) : null}
-                    {(promptInfo.preset || promptInfo.scene_preference || promptInfo.fidelity_mode || promptInfo.pose_flex_mode) && (
+                    {(promptInfo.mode || promptInfo.preset || promptInfo.scene_preference || promptInfo.fidelity_mode || promptInfo.pose_flex_mode) && (
                         <div className="prompt-meta-badges">
+                            {promptInfo.mode && <span className="badge badge--sm badge--accent" title={promptInfo.mode}>{humanizeMode(promptInfo.mode)}</span>}
                             {promptInfo.preset && <span className="badge badge--sm" title={promptInfo.preset}>{humanizePreset(promptInfo.preset)}</span>}
                             {promptInfo.scene_preference && <span className="badge badge--sm" title={promptInfo.scene_preference}>{humanizeScenePreference(promptInfo.scene_preference)}</span>}
                             {promptInfo.fidelity_mode && <span className="badge badge--sm" title={promptInfo.fidelity_mode}>{humanizeFidelityMode(promptInfo.fidelity_mode)}</span>}

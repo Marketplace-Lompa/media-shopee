@@ -89,6 +89,12 @@ def _build_mode_block(
     return f"<MODE>\n{mode_info}\n</MODE>"
 
 
+def _build_mode_presets_block(mode_defaults_text: Optional[str]) -> Optional[str]:
+    if not mode_defaults_text:
+        return None
+    return f"<MODE_PRESETS>\n{mode_defaults_text}\n</MODE_PRESETS>"
+
+
 def _build_output_parameters_block(*, aspect_ratio: str, resolution: str) -> str:
     return f"<OUTPUT_PARAMETERS>\naspect_ratio={aspect_ratio}\nresolution={resolution}\n</OUTPUT_PARAMETERS>"
 
@@ -129,14 +135,21 @@ def _build_diversity_target_block(
             "</DIVERSITY_TARGET>"
         )
     else:
+        # Text-only: diretivas ABSTRATAS apenas.
+        # Cenário, pose, lighting e framing já são entregues via MODE_PRESETS.
+        # Aqui entregamos APENAS o Name Blending + eixo de presença para persona.
+        dt = diversity_target or {}
+        profile_hint = dt.get("profile_hint", "")
+        presence_energy = dt.get("presence_energy", "")
+        presence_tone = dt.get("presence_tone", "")
+
         block += (
-            f"TEXT-ONLY FASHION MODE:\n"
-            f"  1. Use this regional/commercial anchor as inspiration for model presence: {profile}\n"
-            "  2. Add only the minimum model detail needed to create a fresh, believable fashion subject.\n"
-            "     Avoid over-describing physical traits unless they help the garment direction.\n"
-            f"  3. Treat this scenario as an optional anchor, not a mandatory literal set: {scenario}\n"
-            f"  4. Treat this pose as a soft suggestion when it helps: {pose}\n"
-            "  5. In base_prompt, open with the model presence before the garment, but keep the garment as the hero.\n"
+            "TEXT-ONLY FASHION MODE:\n"
+            f"  1. Model persona anchor: {profile_hint}\n"
+            f"     Presence: {presence_energy}, {presence_tone}.\n"
+            "  2. Keep the garment as the hero. Model presence is secondary and must feel believable.\n"
+            "  3. Scenario, pose, lighting, and framing directions come from MODE_PRESETS above. Do not duplicate.\n"
+            "  4. In base_prompt, open with the model presence before the garment, using your own creative voice.\n"
             "</DIVERSITY_TARGET>"
         )
     return block
@@ -318,6 +331,7 @@ def build_generate_context_text(
     grounding_effective: bool,
     grounding_context_hint: Optional[str],
     grounding_mode: str,
+    mode_defaults_text: Optional[str],
     reference_knowledge: str,
 ) -> str:
     # A ordem dos blocos e deliberada: primeiro tarefa/constraints de alto nivel,
@@ -331,6 +345,10 @@ def build_generate_context_text(
             uploaded_images_count=uploaded_images_count,
         )
     ]
+
+    mode_presets_block = _build_mode_presets_block(mode_defaults_text)
+    if mode_presets_block:
+        blocks.append(mode_presets_block)
 
     if pool_context.strip():
         blocks.append(f"<POOL_CONTEXT>\n{pool_context}\n</POOL_CONTEXT>")

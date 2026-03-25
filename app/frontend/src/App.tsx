@@ -10,6 +10,7 @@ import { ReviewPanel } from './components/ReviewPanel';
 import { DEFAULT_CREATE_CATEGORY } from './config/createCategories';
 import { listPool, listHistory, deleteHistoryEntry, getLatestReview, getReviewBySession } from './lib/api';
 import {
+  humanizeMode,
   humanizeFidelityMode,
   humanizeMarketplaceChannel,
   humanizeMarketplaceOperation,
@@ -120,6 +121,7 @@ export default function App() {
         camera_profile: e.camera_profile as string | undefined,
         grounding_mode: e.grounding_mode as string | undefined,
         reason_codes: e.reason_codes as string[] | undefined,
+        mode: e.mode as string | undefined,
         preset: e.preset as string | undefined,
         scene_preference: e.scene_preference as string | undefined,
         fidelity_mode: e.fidelity_mode as string | undefined,
@@ -424,6 +426,7 @@ export default function App() {
                   <div className="lightbox-badges">
                     {lightbox.item.aspect_ratio && <span className="badge">{lightbox.item.aspect_ratio}</span>}
                     {lightbox.item.resolution && <span className="badge">{lightbox.item.resolution}</span>}
+                    {lightbox.item.mode && <span className="badge badge--accent" title={lightbox.item.mode}>{humanizeMode(lightbox.item.mode)}</span>}
                     {lightbox.item.preset && <span className="badge badge--accent" title={lightbox.item.preset}>{humanizePreset(lightbox.item.preset)}</span>}
                     {lightbox.item.fidelity_mode && <span className="badge" title={lightbox.item.fidelity_mode}>{humanizeFidelityMode(lightbox.item.fidelity_mode)}</span>}
                     {lightbox.item.scene_preference && <span className="badge" title={lightbox.item.scene_preference}>{humanizeScenePreference(lightbox.item.scene_preference)}</span>}
