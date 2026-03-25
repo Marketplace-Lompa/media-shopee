@@ -37,3 +37,24 @@ app/outputs/
 *.webp
 *.mp4
 *.zip
+*.gif
+*.mov
+*.avi
+*.mkv
+*.webm
+*.ico
+*.pdf
+*.tar.gz
+*.rar
+*.7z
+
+# Bancos de Dados locais e Grandes Dados
+*.sqlite3
+*.db
+*.csv
+
+# Logs globais
+*.log
+
+# Relatorios de outputs gerados
+docs/reports/*.json
