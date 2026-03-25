@@ -14,7 +14,7 @@ Arquivos principais:
 
 - `/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/backend/agent_runtime/casting_engine.py`
 - `/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/backend/agent_runtime/two_pass_flow.py`
-- `/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/backend/casting_engine_validation.py`
+- `/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/scripts/backend/validation/casting_engine_validation.py`
 
 ## Como o engine funciona
 

@@ -20,7 +20,7 @@ No contexto do projeto MEDIA-SHOPEE, os testes internos já convergem com esse p
 1. [docs/guias/prompts-shopee.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/guias/prompts-shopee.md)
 2. [docs/learnings/validacao-prompt-only-marketplace.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/learnings/validacao-prompt-only-marketplace.md)
 3. [docs/learnings/diagnostico-pratico-fidelidade-roupa-referencia.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/learnings/diagnostico-pratico-fidelidade-roupa-referencia.md)
-4. [docs/pipeline-v2-prod-readiness.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/pipeline-v2-prod-readiness.md)
+4. [docs/reports/pipeline-v2-prod-readiness.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/reports/pipeline-v2-prod-readiness.md)
 5. [prompts/blusa-tricot-gola-alta.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/prompts/blusa-tricot-gola-alta.md)
 
 ## 3. Regras oficiais Shopee mais relevantes para fotos (base para regra de negócio)
@@ -114,7 +114,7 @@ Score sugerido:
 
 - [docs/learnings/validacao-prompt-only-marketplace.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/learnings/validacao-prompt-only-marketplace.md): variante “Shopee” teve melhor equilíbrio impacto + legibilidade.
 - [docs/learnings/diagnostico-pratico-fidelidade-roupa-referencia.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/learnings/diagnostico-pratico-fidelidade-roupa-referencia.md): `MINIMAL` ganhou em fidelidade de textura em benchmark controlado.
-- [docs/pipeline-v2-prod-readiness.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/pipeline-v2-prod-readiness.md): `fidelity_mode=estrita` + pose legível + gate visual reduzem drift estrutural.
+- [docs/reports/pipeline-v2-prod-readiness.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/reports/pipeline-v2-prod-readiness.md): `fidelity_mode=estrita` + pose legível + gate visual reduzem drift estrutural.
 - [docs/guias/prompts-shopee.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/guias/prompts-shopee.md): framework de HERO/MEDIUM/MACRO já alinhado ao comportamento de conversão em moda.
 
 ## 8. Limitações e nível de confiança

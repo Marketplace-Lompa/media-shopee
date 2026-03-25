@@ -7,7 +7,10 @@ import uuid
 from pathlib import Path
 from datetime import datetime
 
-sys.path.insert(0, str(Path(__file__).parent))
+ROOT = Path(__file__).resolve().parents[3]
+BACKEND_DIR = ROOT / "app" / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from google import genai
 from google.genai import types
@@ -17,7 +20,7 @@ client = genai.Client(api_key=GOOGLE_AI_API_KEY)
 
 # ── Referências curadas para CONJUNTO ──
 # Prioridade: fotos que mostram cachecol + ruana juntos
-REF_DIR = Path(__file__).parent.parent / "tests" / "output" / "poncho-teste"
+REF_DIR = ROOT / "app" / "tests" / "output" / "poncho-teste"
 REFS = [
     # Mostra cachecol enrolado no pescoço + ruana nos ombros — melhor ref do set
     REF_DIR / "WhatsApp Image 2026-03-06 at 14.52.15 (3).jpeg",

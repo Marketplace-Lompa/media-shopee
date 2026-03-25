@@ -8,8 +8,10 @@ import uuid
 from pathlib import Path
 from datetime import datetime
 
-# Adicionar backend ao path
-sys.path.insert(0, str(Path(__file__).parent))
+ROOT = Path(__file__).resolve().parents[3]
+BACKEND_DIR = ROOT / "app" / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from google import genai
 from google.genai import types
@@ -18,7 +20,7 @@ from config import GOOGLE_AI_API_KEY, MODEL_IMAGE, SAFETY_CONFIG, OUTPUTS_DIR
 client = genai.Client(api_key=GOOGLE_AI_API_KEY)
 
 # ── Referências curadas (2 worn front + 1 worn detail/back) ──
-REF_DIR = Path(__file__).parent.parent / "tests" / "output" / "poncho-teste"
+REF_DIR = ROOT / "app" / "tests" / "output" / "poncho-teste"
 REFS = [
     REF_DIR / "IMG_3321.jpg",       # worn front, frontal, full garment visible
     REF_DIR / "IMG_3328.jpg",       # worn 3/4, arms out, drape visible

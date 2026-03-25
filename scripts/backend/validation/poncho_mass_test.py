@@ -8,7 +8,7 @@ Objetivo:
 - Consolidar diagnóstico em JSON + Markdown.
 
 Uso:
-  PYTHONPATH=app/backend app/.venv/bin/python app/backend/poncho_mass_test.py --runs 3
+  app/.venv/bin/python scripts/backend/validation/poncho_mass_test.py --runs 3
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from typing import Any, List
 
 from google.genai import types
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 BACKEND_DIR = ROOT / "app" / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))

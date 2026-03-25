@@ -2,7 +2,7 @@
 Validation harness do art direction sampler experimental.
 
 Uso:
-  PYTHONPATH=app/backend app/.venv/bin/python app/backend/art_direction_validation.py \
+  app/.venv/bin/python scripts/backend/validation/art_direction_validation.py \
     --folder docs/roupa-referencia-teste \
     --base-image app/outputs/castbase_20260311_192658/gen_castbase_20260311_192658_1.png
 """
@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 BACKEND_DIR = ROOT / "app" / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))

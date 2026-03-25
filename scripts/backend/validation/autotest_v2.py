@@ -6,8 +6,7 @@ direcao artistica, avalia cada resultado via Gemini Vision, e se autocorrige
 entre iteracoes.
 
 Uso:
-  cd app/backend
-  python autotest_v2.py --refs ../tests/output/poncho-teste --runs 8
+  app/.venv/bin/python scripts/backend/validation/autotest_v2.py --refs app/tests/output/poncho-teste --runs 8
 """
 from __future__ import annotations
 
@@ -21,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Optional
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 BACKEND_DIR = ROOT / "app" / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))

@@ -1,15 +1,17 @@
 """Diagnóstico isolado de grounding: testa Google Search + DuckDuckGo separadamente."""
 import os, sys, pathlib
 
-ROOT = pathlib.Path(__file__).resolve().parent
-ENV_FILE = ROOT.parent.parent / ".env"
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+BACKEND_DIR = ROOT / "app" / "backend"
+ENV_FILE = ROOT / ".env"
 if ENV_FILE.exists():
     for line in ENV_FILE.read_text().splitlines():
         if "=" in line and not line.strip().startswith("#"):
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip())
 
-sys.path.insert(0, str(ROOT))
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from google import genai
 from google.genai import types

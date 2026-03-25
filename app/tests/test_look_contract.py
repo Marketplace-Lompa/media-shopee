@@ -189,7 +189,7 @@ def main():
     print(f"{BOLD}[1/5] Verificando servidor...{RESET}")
     if not check_server():
         fail(f"Servidor não está rodando em {BASE_URL}")
-        fail("Rode: ./start-dev.sh ou /restart")
+        fail("Rode: ./scripts/dev/start-dev.sh ou o workflow de restart")
         sys.exit(1)
     ok(f"Servidor OK ({BASE_URL})")
     sep()

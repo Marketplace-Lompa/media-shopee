@@ -10,15 +10,17 @@ Roda MODE 2 (referência sem texto) e avalia:
 """
 import os, sys, pathlib, json, traceback
 
-ROOT = pathlib.Path(__file__).resolve().parent
-ENV_FILE = ROOT.parent.parent / ".env"
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+BACKEND_DIR = ROOT / "app" / "backend"
+ENV_FILE = ROOT / ".env"
 if ENV_FILE.exists():
     for line in ENV_FILE.read_text().splitlines():
         if "=" in line and not line.strip().startswith("#"):
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip())
 
-sys.path.insert(0, str(ROOT))
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from agent import run_agent
 from grounding_policy import compute_grounding_triage
@@ -33,7 +35,7 @@ BOLD  = "\033[1m"
 RESET = "\033[0m"
 
 # ── Carregar 2 imagens de referência ──
-img_dir = ROOT.parent / "tests" / "output" / "poncho-teste"
+img_dir = ROOT / "app" / "tests" / "output" / "poncho-teste"
 img_files = sorted(img_dir.glob("*.jpg"))[:2]
 if not img_files:
     print(f"{RED}  Nenhuma imagem de teste encontrada em {img_dir}{RESET}")

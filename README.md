@@ -29,13 +29,19 @@ MEDIA-SHOPEE/
 ├── app/                        # Studio Local (frontend + backend)
 │   ├── backend/
 │   └── frontend/
+├── scripts/                    # Operação local e diagnósticos rápidos
+│   ├── dev/
+│   ├── diagnostics/
+│   └── backend/
 ├── docs/
 │   ├── decisoes/
 │   ├── guias/
-│   └── learnings/
+│   ├── learnings/
+│   ├── planos/
+│   └── reports/
 ├── prompts/                    # Prompts salvos
-├── input/ output/              # Entrada/saída de mídia (não versionado)
-└── shopee_downloads/ relatorios/
+├── input/                      # Entrada local de mídia (não versionado)
+└── shopee_downloads/           # Downloads locais (não versionado)
 ```
 
 ---
@@ -82,14 +88,21 @@ npm -C app/frontend run dev
 
 Acesse `http://localhost:5173`.
 
+Ou suba tudo junto:
+```bash
+./scripts/dev/start-dev.sh
+```
+
 ---
 
 ## Documentação chave
 
 - Arquitetura de modos: [`docs/guias/modos-do-projeto.md`](docs/guias/modos-do-projeto.md)
+- Índice da documentação: [`docs/README.md`](docs/README.md)
 - Guia de prompts: [`docs/guias/prompts-shopee.md`](docs/guias/prompts-shopee.md)
 - Decisão de modelo padrão: [`docs/decisoes/modelo-padrao.md`](docs/decisoes/modelo-padrao.md)
 - API scripts: [`api/README.md`](api/README.md)
+- Índice de scripts: [`scripts/README.md`](scripts/README.md)
 - Preços (snapshot): [`api/docs/precos.md`](api/docs/precos.md)
 - Veo: [`api/docs/veo.md`](api/docs/veo.md)
 

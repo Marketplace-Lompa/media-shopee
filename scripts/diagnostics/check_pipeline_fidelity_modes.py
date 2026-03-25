@@ -1,12 +1,18 @@
+"""Valida rapidamente o impacto de `fidelity_mode` no pipeline V2."""
+
 import asyncio
-from pathlib import Path
-from agent_runtime.pipeline_v2 import run_pipeline_v2
+import sys
 import uuid
-import os
+from pathlib import Path
 
-from config import ROOT_DIR
+ROOT = Path(__file__).resolve().parents[2]
+BACKEND_DIR = ROOT / "app" / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
-script_dir = ROOT_DIR / "app" / "tests"
+from agent_runtime.pipeline_v2 import run_pipeline_v2
+
+script_dir = ROOT / "app" / "tests"
 sample_dir = script_dir / "samples"
 sample_dir.mkdir(parents=True, exist_ok=True)
 
@@ -22,7 +28,7 @@ if not ref_image_path:
 
 ref_bytes = ref_image_path[0].read_bytes()
 
-async def test_modes():
+async def main():
     session_id = f"fid_test_{uuid.uuid4().hex[:6]}"
     
     modes = ["balanceada", "estrita"]
@@ -42,4 +48,4 @@ async def test_modes():
             print(f"Erro no modo {mode}: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(test_modes())
+    asyncio.run(main())

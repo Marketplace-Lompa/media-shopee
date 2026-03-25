@@ -1,0 +1,4 @@
+interface:
+  display_name: "Restart Local Studio"
+  short_description: "Reinicia o Studio local com portas deterministicas"
+  default_prompt: "Use $restart-local-studio para reiniciar o frontend e o backend locais do MEDIA-SHOPEE com portas explicitas."

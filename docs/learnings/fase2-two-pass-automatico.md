@@ -18,7 +18,7 @@ A meta desta fase foi:
 Arquivos novos:
 
 - `app/backend/agent_runtime/two_pass_flow.py`
-- `app/backend/two_pass_validation.py`
+- `scripts/backend/validation/two_pass_validation.py`
 
 Ajuste importante:
 
@@ -83,7 +83,7 @@ Prompt da edicao:
 ## Comando de validacao
 
 ```bash
-PYTHONPATH=app/backend app/.venv/bin/python app/backend/two_pass_validation.py \
+app/.venv/bin/python scripts/backend/validation/two_pass_validation.py \
   --folder docs/roupa-referencia-teste
 ```
 

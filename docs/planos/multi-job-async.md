@@ -107,7 +107,7 @@ Adicionar interface `Job` e `JobManager` exports. `GenerationStatus` permanece i
 
 ---
 
-#### [MODIFY] `start-dev.sh` — Workers uvicorn
+#### [MODIFY] `scripts/dev/start-dev.sh` — Workers uvicorn
 
 ```diff
 -uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level info --limit-concurrency 10 &
@@ -136,7 +136,7 @@ O `stream.py` já usa `async def event_generator()` + `asyncio.to_thread()` para
 | `ChatInput.tsx` | **MODIFY** | `status` → `busy: boolean` |
 | `Gallery.tsx` | **MODIFY** | Stepper singleton → multi-job cards + grid sempre visível |
 | `types/index.ts` | **MODIFY** | Adicionar `Job`, `JobManager` |
-| `start-dev.sh` | **SEM MUDANÇA** | Backend já suporta |
+| `scripts/dev/start-dev.sh` | **SEM MUDANÇA** | Backend já suporta |
 | `stream.py` | **SEM MUDANÇA** | Já é async |
 
 ---

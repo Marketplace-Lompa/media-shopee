@@ -1,17 +1,20 @@
+"""Inspeciona se `fidelity_mode=estrita` trava pose no prompt final."""
+
 import sys
 from pathlib import Path
 
-backend_dir = Path(__file__).parent / "app" / "backend"
-sys.path.insert(0, str(backend_dir))
+ROOT = Path(__file__).resolve().parents[2]
+BACKEND_DIR = ROOT / "app" / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from agent_runtime.pipeline_v2 import run_pipeline_v2
-import uuid
 
 def mock_image():
     dummy = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
     return dummy
 
-def test_fidelity_impact():
+def main():
     modes = ["balanceada", "estrita"]
     for mode in modes:
         try:
@@ -36,4 +39,5 @@ def test_fidelity_impact():
                 pass
             print(f"Gerador mock estourou, mas podemos checar logs manuais se precisar. {type(e)}")
 
-test_fidelity_impact()
+if __name__ == "__main__":
+    main()

@@ -20,7 +20,7 @@ from fastapi import HTTPException
 
 # ── Configuração ───────────────────────────────────────────────────────────────
 MAX_CONCURRENT = 3          # máx. jobs rodando ao mesmo tempo
-JOB_TIMEOUT_S  = 300        # 5 minutos — tempo seguro para marketplace com 5 slots
+JOB_TIMEOUT_S  = 600        # 10 minutos — pipeline_v2 roda triage completo por slot
 
 _LOCK = asyncio.Lock()
 _SEMAPHORE: Optional[asyncio.Semaphore] = None

@@ -2,7 +2,7 @@
 Loop continuo de validacao autocorretiva em cima do pipeline_v2.
 
 Uso:
-  PYTHONPATH=app/backend app/.venv/bin/python app/backend/pipeline_v2_validation_loop.py \
+  app/.venv/bin/python scripts/backend/validation/pipeline_v2_validation_loop.py \
     --folder docs/roupa-referencia-teste \
     --target-accepted 2 \
     --max-attempts 4 \
@@ -19,7 +19,7 @@ from typing import Any, Optional
 
 from google.genai import types
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 BACKEND_DIR = ROOT / "app" / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))

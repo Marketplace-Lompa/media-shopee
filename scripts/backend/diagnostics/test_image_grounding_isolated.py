@@ -4,15 +4,17 @@ Roda com imagem de ref do poncho-ruana e loga queries + sources do grounding.
 """
 import os, sys, pathlib
 
-ROOT = pathlib.Path(__file__).resolve().parent
-ENV_FILE = ROOT.parent.parent / ".env"
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+BACKEND_DIR = ROOT / "app" / "backend"
+ENV_FILE = ROOT / ".env"
 if ENV_FILE.exists():
     for line in ENV_FILE.read_text().splitlines():
         if "=" in line and not line.strip().startswith("#"):
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip())
 
-sys.path.insert(0, str(ROOT))
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from google import genai
 from google.genai import types
@@ -21,8 +23,8 @@ from image_utils import detect_image_mime as _detect_image_mime
 
 client = genai.Client(api_key=GOOGLE_AI_API_KEY)
 
-SAMPLES_DIR = ROOT.parent / "tests" / "samples" / "poncho-ruana-listras"
-OUTPUT_DIR = ROOT.parent / "outputs" / "test_img_grounding_v2"
+SAMPLES_DIR = ROOT / "app" / "tests" / "samples" / "poncho-ruana-listras"
+OUTPUT_DIR = ROOT / "app" / "outputs" / "test_img_grounding_v2"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Carregar 1 ref do poncho

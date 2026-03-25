@@ -26,7 +26,7 @@ Arquivos:
 
 - `/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/backend/agent_runtime/art_direction_sampler.py`
 - `/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/backend/agent_runtime/two_pass_flow.py`
-- `/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/app/backend/art_direction_validation.py`
+- `/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/scripts/backend/validation/art_direction_validation.py`
 
 O sampler retorna um objeto pequeno, pronto para o prompt da etapa 2:
 

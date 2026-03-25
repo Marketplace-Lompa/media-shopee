@@ -18,7 +18,7 @@ Implicação direta: não existe uma única regra visual de moda para todo o ML.
 1. [docs/guias/estudo-foto-moda-shopee-brasil-2026.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/guias/estudo-foto-moda-shopee-brasil-2026.md)
 2. [docs/guias/prompts-shopee.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/guias/prompts-shopee.md)
 3. [docs/learnings/validacao-prompt-only-marketplace.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/learnings/validacao-prompt-only-marketplace.md)
-4. [docs/pipeline-v2-prod-readiness.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/pipeline-v2-prod-readiness.md)
+4. [docs/reports/pipeline-v2-prod-readiness.md](/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/docs/reports/pipeline-v2-prod-readiness.md)
 
 Observação: o repositório tem muito material técnico de fidelidade visual e pouco conteúdo formal de regra de imagem do ML, então este documento fecha essa lacuna.
 

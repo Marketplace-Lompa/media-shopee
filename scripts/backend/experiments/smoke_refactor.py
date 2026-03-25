@@ -10,15 +10,17 @@ Valida contrato de retorno: prompt, base_prompt, camera_and_realism, grounding, 
 import os, sys, json, pathlib, traceback
 
 # ── env ──
-ROOT = pathlib.Path(__file__).resolve().parent
-ENV_FILE = ROOT.parent.parent / ".env"
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+BACKEND_DIR = ROOT / "app" / "backend"
+ENV_FILE = ROOT / ".env"
 if ENV_FILE.exists():
     for line in ENV_FILE.read_text().splitlines():
         if "=" in line and not line.strip().startswith("#"):
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip())
 
-sys.path.insert(0, str(ROOT))
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from agent import run_agent, normalize_prompt_text
 from grounding_policy import compute_grounding_triage
@@ -124,7 +126,7 @@ print(f"\n{BOLD}{'='*70}")
 print(f"SMOKE 1: Referência sem prompt (MODE 2 + grounding auto)")
 print(f"{'='*70}{RESET}")
 
-img_dir = ROOT.parent / "tests" / "output" / "poncho-teste"
+img_dir = ROOT / "app" / "tests" / "output" / "poncho-teste"
 img_files = sorted(img_dir.glob("*.jpg"))[:2]
 if not img_files:
     print(f"{RED}  ❌ Nenhuma imagem de teste encontrada em {img_dir}{RESET}")
@@ -230,6 +232,6 @@ for k, v in results.items():
     safe = {rk: rv for rk, rv in v.items() if rk != "_grounded_images"}
     report_data[k] = safe
 
-out_path = ROOT / "smoke_refactor_results.json"
+out_path = ROOT / "docs" / "reports" / "smoke-refactor-results.json"
 out_path.write_text(json.dumps(report_data, indent=2, ensure_ascii=False, default=str))
 print(f"\n  📄 Resultados salvos em {out_path}")

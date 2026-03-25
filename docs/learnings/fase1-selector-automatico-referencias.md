@@ -48,7 +48,7 @@ Subsets produzidos:
 
 Arquivo:
 
-- `app/backend/reference_selector_validation.py`
+- `scripts/backend/validation/reference_selector_validation.py`
 
 Responsabilidades:
 
@@ -113,7 +113,7 @@ Objetivo:
 Comando usado:
 
 ```bash
-PYTHONPATH=app/backend app/.venv/bin/python app/backend/reference_selector_validation.py --folder docs/roupa-referencia-teste
+app/.venv/bin/python scripts/backend/validation/reference_selector_validation.py --folder docs/roupa-referencia-teste
 ```
 
 Relatorio gerado:

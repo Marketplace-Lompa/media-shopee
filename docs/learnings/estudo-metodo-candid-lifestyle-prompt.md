@@ -271,8 +271,8 @@ app/outputs/conjunto_20260311_192453/         # Teste 2: Conjunto
   conjunto_metro_paulista_2.png               (2.7 MB)
   conjunto_varanda_manha_3.png                (2.6 MB)
 
-app/backend/art_director_candid_test.py       # Script teste peca unica
-app/backend/art_director_candid_conjunto.py   # Script teste conjunto
+scripts/backend/experiments/art_director_candid_test.py       # Script teste peca unica
+scripts/backend/experiments/art_director_candid_conjunto.py   # Script teste conjunto
 ```
 
 ---

@@ -5,11 +5,14 @@ Testa se o profile de modelo (diversity target / name blend) aparece
 no prompt final compilado pelo run_agent.
 
 Execução:
-    cd app/backend
-    python test_profile_injection.py
+    app/.venv/bin/python scripts/backend/experiments/test_profile_injection.py
 """
 import sys, os, textwrap, json
-sys.path.insert(0, os.path.dirname(__file__))
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+BACKEND_DIR = os.path.join(ROOT, "app", "backend")
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 # ─── Cores ANSI ────────────────────────────────────────────────────────────────
 GREEN  = "\033[92m"
@@ -135,7 +138,7 @@ hdr("═══ TESTE 3: run_agent() com imagem real ═══")
 from pathlib import Path
 
 # Fixture estável: app/tests/output/poncho-teste (ruana/poncho crochet de ~3-5 MB)
-ref_dir = Path(__file__).resolve().parent.parent / "tests" / "output" / "poncho-teste"
+ref_dir = Path(ROOT) / "app" / "tests" / "output" / "poncho-teste"
 ref_images = sorted(ref_dir.glob("IMG_*.jpg"))[:2]
 
 if not ref_images:

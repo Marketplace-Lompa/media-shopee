@@ -1,8 +1,12 @@
+"""Valida os locks gerados pelo prompt builder do fluxo two-pass."""
+
 import sys
 from pathlib import Path
 
-backend_dir = Path(__file__).parent / "app" / "backend"
-sys.path.insert(0, str(backend_dir))
+ROOT = Path(__file__).resolve().parents[2]
+BACKEND_DIR = ROOT / "app" / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from agent_runtime.two_pass_flow import build_art_direction_two_pass_edit_prompt
 
@@ -40,5 +44,10 @@ def check_mode(mode):
     else:
          print(f"[v] ✅ SAFE ('{mode}'): Pose não está listada entre os locks obrigatórios! Ângulo livre para girar.")
 
-check_mode("balanceada")
-check_mode("estrita")
+def main():
+    check_mode("balanceada")
+    check_mode("estrita")
+
+
+if __name__ == "__main__":
+    main()

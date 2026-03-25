@@ -33,6 +33,8 @@ Use este modo quando você quer:
 
 ### Componentes principais
 - `api/scripts/*` (CLI direta de imagem, vídeo, compressão e publicação)
+- `scripts/dev/*` (subida local do Studio e operação rápida)
+- `scripts/diagnostics/*` (checks manuais e investigações curtas)
 - `api/docs/*` (referência técnica da API)
 - `app/backend/*` + `app/frontend/*` (Studio Local)
 
