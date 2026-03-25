@@ -17,7 +17,7 @@ from create_categories import DEFAULT_CREATE_CATEGORY, normalize_create_category
 from agent_runtime.gemini_client import generate_with_system_instruction
 from agent_runtime.grounding import _run_grounding_research
 from agent_runtime.prompt_assets_registry import get_generate_prompt_assets
-from agent_runtime.prompt_context import build_generate_context_text
+from agent_runtime.prompt_context import build_generate_context_text, build_system_instruction
 from agent_runtime.prompt_result import finalize_prompt_agent_result
 from agent_runtime.prompt_response import decode_prompt_agent_response
 from agent_runtime.triage import (
@@ -169,10 +169,15 @@ def run_agent(
         parts.append(types.Part(text=context))
         return parts
 
+    system_instruction = build_system_instruction(
+        has_images=has_images,
+        has_prompt=has_prompt,
+    )
+
     def _call_prompt_model(context: str, temperature: float) -> Any:
         return generate_with_system_instruction(
             parts=_build_parts(context),
-            system_instruction=prompt_assets.system_instruction,
+            system_instruction=system_instruction,
             schema=AGENT_RESPONSE_SCHEMA,
             temperature=temperature,
             max_tokens=8192

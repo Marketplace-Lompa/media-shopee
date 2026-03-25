@@ -94,3 +94,34 @@ def test_build_generate_context_text_skips_optional_blocks_when_inputs_are_empty
     assert "<GROUNDING_RESULTS>" not in context
     assert "<TRIAGE_HINT>" not in context
     assert "<GROUNDING_CONSTRAINTS>" not in context
+
+
+def test_build_generate_context_text_uses_text_only_diversity_rules_without_reference_leak() -> None:
+    context = build_generate_context_text(
+        has_images=False,
+        has_prompt=True,
+        uploaded_images_count=0,
+        user_prompt="vestido premium para ecommerce",
+        pool_context="",
+        aspect_ratio="4:5",
+        resolution="1536",
+        profile="contemporary Brazilian fashion model",
+        scenario="clean boutique interior",
+        pose="relaxed editorial stance",
+        diversity_target={"profile_id": "runtime-profile"},
+        guided_enabled=False,
+        guided_brief=None,
+        guided_set_mode="unica",
+        guided_set_detection={},
+        structural_contract={},
+        look_contract=None,
+        grounding_research="",
+        grounding_effective=False,
+        grounding_context_hint=None,
+        grounding_mode="off",
+        reference_knowledge="REFERENCE_KNOWLEDGE_BLOCK",
+    )
+
+    assert "TEXT-ONLY FASHION MODE:" in context
+    assert "GARMENT-ONLY REFERENCE MODE — CRITICAL RULES:" not in context
+    assert "Discard her completely." not in context

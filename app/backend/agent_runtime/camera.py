@@ -10,18 +10,17 @@ _CAMERA_REALISM_KEYWORDS = (
 
 _CAMERA_REALISM_PROFILE_DEFAULTS: dict[str, str] = {
     "catalog_clean": (
-        "Captured with a full-frame digital camera and 85mm prime lens, clean daylight-balanced lighting, "
-        "controlled shallow depth of field, {framing}, true-to-life skin texture with visible pores, "
-        "accurate textile detail, and subtle sensor grain."
+        "Captured with a full-frame digital camera, clean daylight-balanced lighting, "
+        "controlled depth of field, {framing}, accurate textile detail, and a polished commercial finish."
     ),
     "catalog_natural": (
-        "Captured with a full-frame digital camera and 50mm prime lens, natural available light, gentle depth of field, "
-        "{framing}, authentic skin texture, soft flyaway hairs, and realistic garment drape with natural fabric creases."
+        "Captured with a full-frame digital camera, natural available light, gentle depth of field, "
+        "{framing}, believable garment drape, and a natural commercial finish."
     ),
     "editorial_analog": (
         "Captured on Fujifilm GFX 100S medium format with Kodak Portra 400 film rendering, soft natural light, "
-        "controlled shallow depth of field, {framing}, unretouched skin texture, subtle film grain, mild lens halation, "
-        "and realistic textile micro-creases."
+        "controlled shallow depth of field, {framing}, subtle film grain, mild lens halation, "
+        "and realistic textile detail."
     ),
 }
 
@@ -66,6 +65,19 @@ _CAMERA_PERSONA_STRIP_SIGNALS = (
     "lookbook model",
     "new face",             # "Ford Models Brazil new face"
     "casting aesthetic",
+)
+
+_SKIN_TEXTURE_CLEANUPS = (
+    (re.compile(r"(?i)\bvisible\s+natural\s+skin\s+pores\b"), ""),
+    (re.compile(r"(?i)\bvisible\s+pores\b"), ""),
+    (re.compile(r"(?i)\bsubtle\s+skin\s+texture\b"), ""),
+    (re.compile(r"(?i)\bauthentic\s+skin\s+texture\b"), ""),
+    (re.compile(r"(?i)\bunretouched\s+skin\s+texture\b"), ""),
+    (re.compile(r"(?i)\btrue-to-life\s+skin\s+texture\b"), ""),
+    (re.compile(r"(?i)\bskin\s+texture\b"), ""),
+    (re.compile(r"(?i)\bsoft\s+flyaway\s+hairs\b"), ""),
+    (re.compile(r"(?i)\bsubtle\s+peach\s+fuzz\b"), ""),
+    (re.compile(r"(?i)\bpeach\s+fuzz\b"), ""),
 )
 
 
@@ -186,6 +198,16 @@ def _normalize_camera_realism_block(
     if _persona_clean:                      # at least one real camera sentence survived
         text = " ".join(_persona_clean)
     # else: keep text as-is to avoid total loss; word-cap below will trim
+
+    # ─── Pass 4: strip skin-surface treatment from the base camera block ───────
+    # Skin texture is a secondary finish decision, not a base capture requirement.
+    for pattern, replacement in _SKIN_TEXTURE_CLEANUPS:
+        text = pattern.sub(replacement, text)
+    text = re.sub(r"(?i)\b(and|with)\s*(?:,)?\s*(?=[,.])", "", text)
+    text = re.sub(r"\s*,\s*,+", ", ", text)
+    text = re.sub(r"\s{2,}", " ", text)
+    text = re.sub(r"\s+([,.])", r"\1", text)
+    text = re.sub(r",\s*(and\s*)?(?=[.!?]|$)", "", text)
 
     # Protege concisão sem cortar o bloco em fragmentos quebrados.
     if _count_words(text) > 52:

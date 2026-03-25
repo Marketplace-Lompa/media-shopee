@@ -1,14 +1,14 @@
 const PRESET_LABELS: Record<string, string> = {
-  catalog_clean: 'Foto limpa de catálogo',
-  marketplace_lifestyle: 'Marketplace com contexto',
-  premium_lifestyle: 'Editorial premium',
-  ugc_real_br: 'UGC real Brasil',
+  catalog_clean: 'Catálogo',
+  marketplace_lifestyle: 'Com contexto',
+  premium_lifestyle: 'Premium',
+  ugc_real_br: 'Conteúdo real',
 };
 
 const SCENE_LABELS: Record<string, string> = {
-  auto_br: 'Cena automática BR',
-  indoor_br: 'Ambiente interno BR',
-  outdoor_br: 'Ambiente externo BR',
+  auto_br: 'Cena sugerida',
+  indoor_br: 'Ambiente interno',
+  outdoor_br: 'Ambiente externo',
 };
 
 const FIDELITY_LABELS: Record<string, string> = {

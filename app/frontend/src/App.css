@@ -11,7 +11,10 @@
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  background: radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.08) 0%, transparent 60%), var(--surface-bg);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.035), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 18%),
+    var(--surface-bg);
 }
 
 /* ============================================================
@@ -25,18 +28,31 @@
 }
 
 .generate-header {
-  padding: var(--sp-6) var(--sp-8) var(--sp-4);
-  border-bottom: 1px solid var(--surface-border-subtle);
+  padding: var(--sp-8) var(--sp-8) var(--sp-5);
   flex-shrink: 0;
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: var(--sp-4);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 100%);
 }
 
 .generate-header h1 {
   color: var(--text-primary);
   font-weight: 700;
   letter-spacing: -0.03em;
+}
+
+.generate-header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 720px;
+}
+
+.generate-header-kicker {
+  color: rgba(244, 244, 245, 0.72);
+  letter-spacing: 0.12em;
 }
 
 .generate-content {

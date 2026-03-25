@@ -9,6 +9,46 @@ from __future__ import annotations
 from typing import Any, Optional
 
 
+def build_system_instruction(*, has_images: bool, has_prompt: bool) -> str:
+    """Monta a system instruction filtrando modos irrelevantes ao cenário atual.
+
+    No text-only (has_images=False, has_prompt=True):
+      - Remove SYSTEM_MODE_2_RULES (referência visual) → ~150 tokens economizados
+      - Remove SYSTEM_MODE_3_RULES (sem prompt) → ~50 tokens economizados
+    Com imagens, envia tudo.
+    """
+    from agent_runtime.constants import (
+        BASE_SYSTEM_BLOCKS,
+        OUTPUT_SYSTEM_BLOCKS,
+        POLICY_SYSTEM_BLOCKS,
+        SYSTEM_OPERATING_MODES,
+        SYSTEM_MODE_1_RULES,
+        SYSTEM_MODE_2_RULES,
+        SYSTEM_MODE_3_RULES,
+    )
+
+    # Seleciona apenas os modos relevantes ao cenário atual
+    scenario_blocks = [SYSTEM_OPERATING_MODES.strip()]
+    if has_prompt and not has_images:
+        # Text-only: apenas MODE 1
+        scenario_blocks.append(SYSTEM_MODE_1_RULES.strip())
+    elif has_images:
+        # Com imagem: MODE 1 (se tiver texto) + MODE 2 (sempre)
+        if has_prompt:
+            scenario_blocks.append(SYSTEM_MODE_1_RULES.strip())
+        scenario_blocks.append(SYSTEM_MODE_2_RULES.strip())
+    else:
+        # Sem nada: MODE 3
+        scenario_blocks.append(SYSTEM_MODE_3_RULES.strip())
+
+    return "\n\n".join(
+        BASE_SYSTEM_BLOCKS
+        + OUTPUT_SYSTEM_BLOCKS
+        + scenario_blocks
+        + POLICY_SYSTEM_BLOCKS
+    )
+
+
 def _build_mode_block(
     *,
     has_images: bool,
@@ -34,11 +74,10 @@ def _build_mode_block(
         )
     elif has_prompt:
         mode_info = (
-            f'MODE 1 — TRANSLATE this user intent into a technically precise photographic prompt: "{user_prompt}". '
-            "The user may write in Portuguese or use casual terms. Map every term to technical English "
-            "using REFERENCE KNOWLEDGE (especially the BRAZILIAN TERM MAPPING section). "
-            "Apply 3D garment description, select appropriate realism levers, and choose a scenario "
-            "that complements the garment aesthetic. Output a complete photographic direction."
+            f'MODE 1 — Interpret this user text as a fashion/e-commerce creative brief: "{user_prompt}". '
+            "Translate informal wording into professional fashion and photographic language when useful. "
+            "Keep the garment as the protagonist, choose framing and scenario with commercial judgment, "
+            "and complete missing gaps with taste and restraint. Output a complete photographic direction."
         )
     else:
         mode_info = (
@@ -60,26 +99,46 @@ def _build_diversity_target_block(
     scenario: str,
     pose: str,
     diversity_target: Optional[dict[str, Any]],
+    has_images: bool,
 ) -> str:
     block = "<DIVERSITY_TARGET>\n"
     if diversity_target:
         block += f"Model profile ID: {diversity_target.get('profile_id', 'RUNTIME')}.\n"
-    block += (
-        "GARMENT-ONLY REFERENCE MODE — CRITICAL RULES:\n"
-        "  1. Reference images = garment source ONLY (color, fabric, structure, pattern).\n"
-        "  2. The model/person visible in the reference is NOT the subject. Discard her completely.\n"
-        "  3. DO NOT copy reference model's face, skin tone, hair, body shape, height, or pose.\n"
-        "  4. DO NOT describe or reference the person shown — treat reference as if she were a mannequin.\n"
-        f"  5. GENERATE A BRAND NEW MODEL based on this regional anchor: {profile}\n"
-        "     YOU MUST invent unique physical characteristics for her: skin tone, hair color/style,\n"
-        "     approximate age, and build. Choose features that complement the garment aesthetic.\n"
-        "     Be specific (e.g. 'warm olive skin, wavy dark hair, mid-20s') — vague = repetitive results.\n"
-        f"  6. Place new model in scenario: {scenario}\n"
-        f"  7. Use pose: {pose}\n"
-        "  8. In base_prompt: open with the new model (including her physical description) BEFORE garment.\n"
-        "     Example: 'RAW photo, [regional anchor], [skin], [hair], [age]. Wearing [garment]...'\n"
-        "</DIVERSITY_TARGET>"
-    )
+
+    if has_images:
+        # Referência visual: regras de extração garment-only + descarte de modelo
+        block += (
+            "GARMENT-ONLY REFERENCE MODE — CRITICAL RULES:\n"
+            "  1. Reference images = garment source ONLY (color, fabric, structure, pattern).\n"
+            "  2. The model/person visible in the reference is NOT the subject. Discard her completely.\n"
+            "  3. DO NOT copy reference model's face, skin tone, hair, body shape, height, or pose.\n"
+            "  4. DO NOT describe or reference the person shown — treat reference as if she were a mannequin.\n"
+        )
+
+    # Regras de geração de modelo — aplicáveis em qualquer modo
+    if has_images:
+        block += (
+            f"  5. GENERATE A BRAND NEW MODEL based on this regional anchor: {profile}\n"
+            "     YOU MUST invent unique physical characteristics for her: skin tone, hair color/style,\n"
+            "     approximate age, and build. Choose features that complement the garment aesthetic.\n"
+            "     Be specific (e.g. 'warm olive skin, wavy dark hair, mid-20s') — vague = repetitive results.\n"
+            f"  6. Place new model in scenario: {scenario}\n"
+            f"  7. Use pose: {pose}\n"
+            "  8. In base_prompt: open with the new model (including her physical description) BEFORE garment.\n"
+            "     Example: 'RAW photo, [regional anchor], [skin], [hair], [age]. Wearing [garment]...'\n"
+            "</DIVERSITY_TARGET>"
+        )
+    else:
+        block += (
+            f"TEXT-ONLY FASHION MODE:\n"
+            f"  1. Use this regional/commercial anchor as inspiration for model presence: {profile}\n"
+            "  2. Add only the minimum model detail needed to create a fresh, believable fashion subject.\n"
+            "     Avoid over-describing physical traits unless they help the garment direction.\n"
+            f"  3. Treat this scenario as an optional anchor, not a mandatory literal set: {scenario}\n"
+            f"  4. Treat this pose as a soft suggestion when it helps: {pose}\n"
+            "  5. In base_prompt, open with the model presence before the garment, but keep the garment as the hero.\n"
+            "</DIVERSITY_TARGET>"
+        )
     return block
 
 
@@ -283,6 +342,7 @@ def build_generate_context_text(
             scenario=scenario,
             pose=pose,
             diversity_target=diversity_target,
+            has_images=has_images,
         )
     )
 

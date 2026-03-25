@@ -87,12 +87,12 @@
    ============================================================ */
 :root {
   /* Background scale: deep, cinematic space levels */
-  --surface-bg:       #020202; /* Quase puro absoluto */
-  --surface-base:     #080808; 
-  --surface-raised:   #0e0e0e;
-  --surface-overlay:  rgba(15, 15, 15, 0.7); /* Glassmorphism ready */
+  --surface-bg:       #0e0e0e;
+  --surface-base:     #131313;
+  --surface-raised:   #1c1b1b;
+  --surface-overlay:  rgba(28, 27, 27, 0.72);
   --surface-border:   rgba(255, 255, 255, 0.08);
-  --surface-border-subtle: rgba(255, 255, 255, 0.04);
+  --surface-border-subtle: rgba(255, 255, 255, 0.03);
 
   /* Typography scale */
   --text-primary:     #f4f4f5; /* Off-white crisp */
@@ -141,7 +141,9 @@ body {
   line-height: 1.6;
   color: var(--text-primary);
   background-color: var(--surface-bg);
-  background-image: radial-gradient(circle at 50% 0%, var(--surface-base), var(--surface-bg) 60%);
+  background-image:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.035), transparent 26%),
+    linear-gradient(180deg, var(--surface-base), var(--surface-bg) 18%, #0b0b0b 100%);
   background-attachment: fixed;
   min-height: 100vh;
   overflow-x: hidden;

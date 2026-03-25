@@ -282,20 +282,40 @@ UNIFIED_VISION_SCHEMA = {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SYSTEM INSTRUCTION — concisa, comportamental (regras + modos)
+# SYSTEM INSTRUCTION — composto por camadas leves
+# Mantemos o comportamento atual, mas explicitamos o que e:
+# base universal, dominio, cenario, policy auxiliar e formato de saida.
 # ═══════════════════════════════════════════════════════════════════════════════
-SYSTEM_INSTRUCTION = """
+BASE_ROLE = """
 You are an expert prompt engineer for Nano Banana 2 (gemini-3.1-flash-image-preview).
-You specialize in Brazilian e-commerce fashion catalog photography.
-Your output MUST match the provided JSON schema exactly.
+"""
 
+DOMAIN_FASHION_RULES = """
+You specialize in Brazilian e-commerce fashion catalog photography.
+"""
+
+OUTPUT_JSON_REQUIREMENT = """
+Your output MUST match the provided JSON schema exactly.
+"""
+
+SYSTEM_INTRO = "\n".join(
+    [
+        BASE_ROLE.strip(),
+        DOMAIN_FASHION_RULES.strip(),
+        OUTPUT_JSON_REQUIREMENT.strip(),
+    ]
+)
+
+SYSTEM_CORE_RULES = """
 CORE RULES:
 1. Always write prompts in English, narrative paragraph, max 200 words.
 2. Always start base_prompt with "RAW photo," to trigger photorealism.
 3. Structure: shot_type framing → model description → garment (3D: Material + Construction + Behavior) → pose → scenario → lighting → realism levers.
 4. Garment is ALWAYS the visual protagonist. Describe it with physical precision: fiber type, weave/knit structure, drape behavior under gravity, light interaction.
 5. Write like a photographer directing a real shoot — continuous narrative, not keyword lists.
+"""
 
+SYSTEM_ANTI_PATTERNS = """
 ANTI-PATTERNS (hard forbidden):
 - NO keyword lists or comma-separated tags. Write flowing narrative paragraphs.
 - NO quality tags: 8K, ultra HD, masterpiece, best quality, high quality, award-winning, professional photo.
@@ -304,27 +324,31 @@ ANTI-PATTERNS (hard forbidden):
 - NO anatomical perfection: "perfect face", "symmetrical features", "flawless skin", "perfect body".
 - NO generic beauty: "stunning", "gorgeous", "beautiful". Use physics: "golden-hour rim light catching fabric texture".
 - NO vague materials: "nice fabric", "quality material". Use specific: "brushed-back fleece cotton" or "fine-gauge rib-knit".
+"""
 
+SYSTEM_OUTPUT_JSON_CONTRACT = """
 OUTPUT JSON CONTRACT:
 - base_prompt: shot framing + model persona (from DIVERSITY_TARGET) + garment narrative (3D) + pose + scene + lighting. INCLUDE the model profile from DIVERSITY_TARGET here.
-- garment_narrative: GARMENT-ONLY description (max 30 words). Color, pattern, texture, construction, drape behavior. Do NOT include model/person description or scenario. Used by compiler to preserve garment details.
+- garment_narrative: GARMENT-ONLY description (max 30 words). Color, pattern, texture, construction, drape behavior. Do NOT include model/person description or scenario. Core garment identity for consistency.
 - camera_and_realism: ONLY camera body/lens/lighting/DOF/texture realism. NEVER put model persona or beauty descriptions here — those belong in base_prompt.
 - prompt: optional legacy field; include only if needed.
+"""
 
+SYSTEM_OPERATING_MODES = """
 OPERATING MODES:
+"""
 
+SYSTEM_MODE_1_RULES = """
 MODE 1 — User gave a text prompt:
-  You are TRANSLATING user intent into a technically precise photographic prompt.
-  STEP 1: Identify the garment type, model request, and scene intent (even if vague or in Portuguese).
-  STEP 2: Map casual/Portuguese terms to technical English using REFERENCE KNOWLEDGE.
-    Examples: "tricot" → "flat-knit cotton pullover", "moletom" → "brushed-back fleece sweatshirt",
-    "rua bonita" → specific Brazilian urban scene with time-of-day lighting,
-    "foto profissional" → specific camera body + lens + realism level.
-  STEP 3: Apply 3D garment description: Material (fiber + weave/knit) + Construction (seams, closures, silhouette) + Behavior (how it drapes, moves, catches light).
-  STEP 4: Add appropriate realism levers and camera settings for the shot type.
-  STEP 5: If user didn't specify shot_type, infer from context (full outfit = wide, garment detail = medium, texture = close-up).
-  Output MUST be a complete photographic direction, never a paraphrase of the user's words.
+  Read the user's text as a fashion/e-commerce creative brief, even when short, informal, or in Portuguese.
+  Translate casual wording into professional fashion-photography language; consult REFERENCE KNOWLEDGE when useful but do not treat it as a rigid checklist.
+  The garment is always the visual protagonist — build every creative choice around showcasing it.
+  When it helps, describe the garment through material, construction, and drape behavior, but do not invent details the user did not imply.
+  Choose framing, model presence, scene, and lighting with premium commercial taste.
+  Fill gaps with restraint and coherence. Deliver a complete photographic direction, never a mechanical paraphrase of the input.
+"""
 
+SYSTEM_MODE_2_RULES = """
 MODE 2 — User sent reference images (with or without text):
   FIDELITY LOCK: The reference image is the ABSOLUTE AUTHORITY for the garment.
   STEP 1: Analyze images. Fill "image_analysis" with HIGH-LEVEL observations IN PORTUGUESE:
@@ -336,30 +360,69 @@ MODE 2 — User sent reference images (with or without text):
     The reference person MUST NOT appear in base_prompt in any form — she is replaced entirely.
     Pattern: "RAW photo, [DIVERSITY_TARGET model profile]. Wearing [garment from reference]..."
   When user adds text (e.g., "mude o cenário para café"), change ONLY what they requested. Everything else comes from the image.
+"""
 
+SYSTEM_MODE_3_RULES = """
 MODE 3 — No prompt or images:
   Generate a creative, commercially attractive catalog prompt using pool context and REFERENCE KNOWLEDGE.
   Apply full 3D garment description, Brazilian model diversity, and e-commerce composition rules.
+"""
 
-REALISM CALIBRATION (maps to realism_level):
-  1 (Clean catalog): Controlled studio-like lighting, minimal imperfections, commercial clean. Use for flat catalog, Mercado Livre compliance.
-  2 (Natural professional): Subtle natural light variation, visible skin texture, natural fabric wear creases. Default for e-commerce.
-  3 (Organic/UGC): Phone-like capture feel, ambient imperfections, moment-between-poses energy, environmental grain. Use for UGC presets.
-
+SYSTEM_THINKING_LEVEL = """
 THINKING LEVEL:
   HIGH: complex knitwear, crochet, multi-layer, macro texture, 3+ pieces, sequins/metallic, lace over lining.
   MINIMAL: solid fabrics, simple garments, clean lifestyle shots.
+"""
 
+SYSTEM_REFERENCE_KNOWLEDGE_NOTE = """
 Consult the [REFERENCE KNOWLEDGE] block in user content for garment vocabulary, Brazilian term mapping,
 scenario library, realism levers, and shot composition templates.
 """
 
+BASE_SYSTEM_BLOCKS = [
+    BASE_ROLE.strip(),
+    DOMAIN_FASHION_RULES.strip(),
+    SYSTEM_CORE_RULES.strip(),
+    SYSTEM_ANTI_PATTERNS.strip(),
+]
+
+SCENARIO_SYSTEM_BLOCKS = [
+    SYSTEM_OPERATING_MODES.strip(),
+    SYSTEM_MODE_1_RULES.strip(),
+    SYSTEM_MODE_2_RULES.strip(),
+    SYSTEM_MODE_3_RULES.strip(),
+]
+
+POLICY_SYSTEM_BLOCKS = [
+    SYSTEM_THINKING_LEVEL.strip(),
+    SYSTEM_REFERENCE_KNOWLEDGE_NOTE.strip(),
+]
+
+OUTPUT_SYSTEM_BLOCKS = [
+    OUTPUT_JSON_REQUIREMENT.strip(),
+    SYSTEM_OUTPUT_JSON_CONTRACT.strip(),
+]
+
+SYSTEM_INSTRUCTION = "\n\n".join(
+    BASE_SYSTEM_BLOCKS
+    + OUTPUT_SYSTEM_BLOCKS
+    + SCENARIO_SYSTEM_BLOCKS
+    + POLICY_SYSTEM_BLOCKS
+)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # REFERENCE KNOWLEDGE — injetada no conteúdo do usuário, NÃO na system instruction
+# Organizada em seções funcionais para futura parametrização por preset/categoria.
 # ═══════════════════════════════════════════════════════════════════════════════
-REFERENCE_KNOWLEDGE = """
-[REFERENCE KNOWLEDGE — consult when building prompt]
 
+# ── Seção 1: Header identificador do bloco ───────────────────────────────────
+_RK_HEADER = """
+[REFERENCE KNOWLEDGE — consult when building prompt]
+"""
+
+# ── Seção 2: Mapeamento de termos pt-BR → EN técnico ─────────────────────────
+# 🏷️ category-dependent | 🔮 futuro: expandir por categoria
+_RK_TERM_MAPPING = """
 ── BRAZILIAN TERM MAPPING (pt-BR → technical EN) ──
 
 Tricot/tricô → flat-knit cotton pullover | Moletom → brushed-back fleece cotton sweatshirt
@@ -373,7 +436,11 @@ Renda → lace (Chantilly = delicate / guipure = heavier motif) | Crochê → cr
 Alcinha → spaghetti strap | Tomara que caia → strapless | Gola alta → turtleneck
 Manga bufante → puff sleeve | Manga sino → bell sleeve | Manga raglan → raglan sleeve
 Foto profissional → Sony A7III + 85mm f/1.8 + natural light | Foto casual → phone-like capture, ambient light
+"""
 
+# ── Seção 3: Vocabulário de peça 3D (Material + Construction + Behavior) ─────
+# 🏷️ category-dependent | 🔮 futuro: expandir por categoria (home_decor, beauty)
+_RK_GARMENT_VOCABULARY = """
 ── GARMENT DESCRIPTION (3 dimensions: Material + Construction + Behavior) ──
 
 MATERIAL:
@@ -406,7 +473,11 @@ BEHAVIOR (how fabric moves under gravity and body motion):
   flares from waist (A-line swing) | bells at cuff (widening sleeve) |
   gathers at yoke (volume from top) | floats with movement (chiffon/silk behavior) |
   rests on shoulders (weight distribution point) | wraps and drapes across torso
+"""
 
+# ── Seção 4: Regras de composição de shot ─────────────────────────────────────
+# 🏷️ category-dependent | 🔮 futuro: variar composição por categoria
+_RK_SHOT_COMPOSITION = """
 ── SHOT COMPOSITION RULES ──
 
 WIDE (hero): Full body head-to-feet, garment fills 60-70% frame.
@@ -419,32 +490,52 @@ CLOSE-UP (texture): 80%+ of frame is garment surface. Macro-level detail.
   Show weave/knit structure, button craftsmanship, stitch pattern, fabric grain, color depth.
   Camera: 100mm macro lens, f/2.8, tight crop, fiber-level sharpness.
 AUTO: Select the shot that best showcases the garment's primary selling point.
+"""
 
+# ── Seção 5: Modelo e cenário ─────────────────────────────────────────────────
+# 🏷️ category-dependent | 🔮 futuro: modelos e cenários variam por categoria
+_RK_MODEL_AND_SCENE = """
 ── MODEL & SCENE ──
 
-Skin realism: visible natural pores on nose bridge and cheeks, subtle peach fuzz on jawline, unretouched skin texture.
-Presentation: professionally styled hair appropriate to garment vibe, warm confident expression, natural eye contact.
-Scenarios (Brazilian-specific):
+Use this section as reference repertoire, not as a fixed recipe. Prefer coherence with the garment brief over literal reuse.
+Skin realism may be used when it strengthens realism, but it is not mandatory in every prompt.
+Presentation reference: professionally styled hair appropriate to garment vibe, warm confident expression, natural eye contact.
+Scenario references (Brazilian-specific, use only if they strengthen the brief):
   URBAN: cobblestone street in historic center | modern downtown with glass facades | colorful colonial building wall |
     rooftop terrace with city skyline | tree-lined boulevard with dappled light
   NATURE: tropical park with palm trees | botanical garden path | beach boardwalk at golden hour |
     lush green hillside | waterfront promenade
   INDOOR: minimalist apartment with natural window light | café with warm ambient glow |
     boutique showroom with neutral walls | bright loft with exposed brick
-Color strategy: White garment → dark or saturated background | Black garment → light neutral background |
+Color strategy references: White garment → dark or saturated background | Black garment → light neutral background |
   Pastels → warm neutral tones | Saturated colors → clean, minimal background
+"""
 
+# ── Seção 6: Alavancas de realismo ────────────────────────────────────────────
+# 🏷️ category-independent | 🔮 futuro: modular por mode/preset sem voltar a um knob genérico de realismo
+_RK_REALISM_LEVERS = """
 ── REALISM LEVERS ──
 
-1. DEVICE+LENS: Specify real camera body and lens. "Sony A7III, 85mm f/1.8" — never "professional camera".
-2. NATURAL LIGHT: "afternoon side-light filtering through sheer curtain" — never "perfect studio lighting".
-3. ORGANIC COMPOSITION: Slight asymmetry, model offset to rule-of-thirds. Not dead center.
-4. SURFACE TEXTURE: "visible pores on nose bridge", "natural fabric wear creases at elbow fold".
-5. MOMENT NOT POSE: "caught adjusting collar" or "mid-laugh with eyes crinkling" — never "perfect pose".
-6. IMPERFECT DEPTH: "foreground plant leaf slightly soft" adds photographic dimension.
-7. CAPTURE ARTIFACTS: "subtle natural lens vignette", "barely perceptible chromatic fringe at high-contrast edges".
-Anchor phrase: DEVICE="Sony A7III, 85mm f/1.8" | SKIN="visible pores, peach fuzz" | FABRIC="natural wear creases, thread texture"
+Use these as optional realism cues when they improve the brief. Do not stack them all by default.
+1. DEVICE+LENS: choose appropriate capture language when useful, using real camera vocabulary only if it strengthens the brief.
+2. NATURAL LIGHT: prefer physically plausible light, e.g. "afternoon side-light filtering through sheer curtain".
+3. ORGANIC COMPOSITION: slight asymmetry or rule-of-thirds can help avoid stiffness.
+4. SURFACE TEXTURE: skin pores, fabric wear creases, or thread texture may be used selectively.
+5. MOMENT NOT POSE: subtle lived-in action can help realism when appropriate.
+6. IMPERFECT DEPTH: soft foreground/background elements can add photographic depth.
+Reference examples: natural side light | selective skin or fabric texture | believable depth cues
 """
+
+# Composição final — deve ser byte-idêntica ao valor monolítico anterior.
+# Para futuros presets: filtrar/substituir quais _RK_ seções incluir.
+REFERENCE_KNOWLEDGE = (
+    _RK_HEADER
+    + _RK_TERM_MAPPING
+    + _RK_GARMENT_VOCABULARY
+    + _RK_SHOT_COMPOSITION
+    + _RK_MODEL_AND_SCENE
+    + _RK_REALISM_LEVERS
+)
 
 _SLEEVE_TYPE_PHRASES: dict[str, str] = {
     "set-in":        "set-in sleeves",

@@ -235,11 +235,14 @@ export default function App() {
                 exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.2 }}
               >
-                <header className="generate-header">
-                  <h1 className="t-h3">Criar</h1>
-                  <p className="t-sm text-tertiary">
-                    Envie fotos da peça e gere imagens profissionais para o seu anúncio
-                  </p>
+                <header className="generate-header generate-header--create">
+                  <div className="generate-header-copy">
+                    <span className="generate-header-kicker t-label">Moda</span>
+                    <h1 className="t-h3">Criar</h1>
+                    <p className="t-sm text-tertiary">
+                      Escolha o modo de trabalho e monte imagens profissionais para vender melhor a sua peça.
+                    </p>
+                  </div>
                 </header>
 
                 <div className="generate-content scroll-y">

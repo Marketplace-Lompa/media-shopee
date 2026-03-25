@@ -16,7 +16,7 @@ import type {
     FidelityMode,
     PoseFlexMode,
     MarketplaceChannel,
-    MarketplaceOperation
+    MarketplaceOperation,
 } from '../types';
 import './ChatInput.css';
 
@@ -56,14 +56,14 @@ const AR_OPTIONS: AspectRatio[] = ['4:5', '1:1', '9:16', '16:9', '4:3', '3:4'];
 const RES_OPTIONS: Resolution[] = ['1K', '2K', '4K'];
 const N_OPTIONS = [1, 2, 3, 4];
 const PRESET_OPTIONS: Array<{ value: Preset; label: string }> = [
-    { value: 'catalog_clean', label: 'Catálogo clean' },
+    { value: 'catalog_clean', label: 'Catálogo' },
     { value: 'premium_lifestyle', label: 'Premium' },
-    { value: 'ugc_real_br', label: 'UGC real BR' },
+    { value: 'ugc_real_br', label: 'Conteúdo real' },
 ];
 const SCENE_PREF_OPTIONS: Array<{ value: ScenePreference; label: string }> = [
-    { value: 'auto_br', label: 'Auto BR' },
-    { value: 'indoor_br', label: 'Indoor BR' },
-    { value: 'outdoor_br', label: 'Outdoor BR' },
+    { value: 'auto_br', label: 'Cena sugerida' },
+    { value: 'indoor_br', label: 'Ambiente interno' },
+    { value: 'outdoor_br', label: 'Ambiente externo' },
 ];
 const FIDELITY_OPTIONS: Array<{ value: FidelityMode; label: string }> = [
     { value: 'balanceada', label: 'Balanceada' },
