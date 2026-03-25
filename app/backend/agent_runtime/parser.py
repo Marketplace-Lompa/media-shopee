@@ -103,3 +103,28 @@ def _decode_agent_response(response: Any) -> dict:
         return parsed
     raw = _extract_response_text(response)
     return _parse_json(raw)
+
+
+def try_repair_truncated_json(err_msg: str) -> Optional[dict]:
+    """
+    Tenta reparar JSON truncado extraindo o fragmento da mensagem de erro.
+
+    Padrão: mensagens de erro contêm 'raw={...fragmento truncado'.
+    Tenta fechar o JSON com sufixos comuns.
+    Retorna None se não conseguir reparar.
+    """
+    if "raw=" not in err_msg:
+        return None
+    try:
+        raw_start = err_msg.find("raw=") + 4
+        fragment = err_msg[raw_start:].replace("\\n", "\n").replace('\\"', '"')
+        for suffix in ("}", '"}'  , '"]}'  , "]}", '"}]}'):
+            try:
+                parsed = json.loads(fragment + suffix)
+                print(f"[PARSER] 🔧 JSON repaired from truncated response (suffix={suffix!r})")
+                return parsed
+            except json.JSONDecodeError:
+                continue
+    except Exception:
+        pass
+    return None

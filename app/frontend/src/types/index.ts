@@ -2,6 +2,7 @@ export type AspectRatio = '1:1' | '9:16' | '16:9' | '4:3' | '3:4' | '4:5';
 export type Resolution = '1K' | '2K' | '4K';
 export type PoolType = 'modelo' | 'roupa' | 'cenario';
 export type PipelineMode = 'reference_mode' | 'reference_mode_strict' | 'text_mode';
+export type CreateCategory = 'fashion';
 
 // ── V2 types ──
 export type Preset = 'catalog_clean' | 'marketplace_lifestyle' | 'premium_lifestyle' | 'ugc_real_br';
@@ -54,6 +55,7 @@ export interface GuidedSummary {
 }
 
 export interface GenerateRequest {
+    category?: CreateCategory;
     prompt?: string;
     n_images?: number;
     aspect_ratio?: AspectRatio;
@@ -146,6 +148,7 @@ export interface UserIntent {
 }
 
 export interface GenerateResponse {
+    category?: CreateCategory;
     session_id: string;
     optimized_prompt: string;
     pipeline_mode?: PipelineMode;
@@ -241,6 +244,7 @@ export interface JobReviewPayload {
 }
 
 export interface MediaHistoryItem {
+    category?: CreateCategory;
     id: string;
     session_id?: string;
     filename: string;

@@ -19,6 +19,7 @@ from agent_runtime.pipeline_v2_support import (
     persist_v2_history,
     should_use_v2,
 )
+from create_categories import normalize_create_category
 from config import (
     DEFAULT_ASPECT_RATIO,
     DEFAULT_N_IMAGES,
@@ -123,6 +124,7 @@ def _build_strict_reference_prompt(
 
 def _run_generate_pipeline(
     *,
+    category: str,
     prompt: Optional[str],
     aspect_ratio: str,
     resolution: str,
@@ -340,6 +342,7 @@ def _run_generate_pipeline(
                     pool_context=pool_context,
                     aspect_ratio=aspect_ratio,
                     resolution=resolution,
+                    category=category,
                     use_grounding=(applied_mode != "off"),
                     grounding_mode=applied_mode,
                     grounding_context_hint=triage.get("garment_hypothesis") if applied_mode != "off" else None,
@@ -357,6 +360,7 @@ def _run_generate_pipeline(
                         pool_context=pool_context,
                         aspect_ratio=aspect_ratio,
                         resolution=resolution,
+                        category=category,
                         use_grounding=False,
                         diversity_target=diversity_target,
                         guided_brief=normalized_guided,
@@ -547,6 +551,7 @@ def _run_generate_pipeline(
     )
 
     response = GenerateResponse(
+        category=category,
         session_id=session_id,
         optimized_prompt=optimized_prompt,
         pipeline_mode=pipeline_mode,
@@ -585,6 +590,7 @@ def _run_generate_pipeline(
 
 @router.post("", response_model=GenerateResponse)
 async def generate(
+    category: Optional[str] = Form(default=None),
     prompt: Optional[str] = Form(default=None),
     aspect_ratio: str = Form(default=DEFAULT_ASPECT_RATIO),
     resolution: str = Form(default=DEFAULT_RESOLUTION),
@@ -599,6 +605,7 @@ async def generate(
     images: List[UploadFile] = File(default=[]),
 ):
     try:
+        normalized_category = normalize_create_category(category)
         validate_generation_params(
             aspect_ratio=aspect_ratio,
             resolution=resolution,
@@ -622,6 +629,7 @@ async def generate(
             )
             return await asyncio.to_thread(
                 _run_v2_pipeline_and_persist,
+                category=normalized_category,
                 uploaded_bytes=uploaded_bytes,
                 uploaded_filenames=uploaded_filenames,
                 prompt=prompt,
@@ -636,6 +644,7 @@ async def generate(
             )
         return await asyncio.to_thread(
             _run_generate_pipeline,
+            category=normalized_category,
             prompt=prompt,
             aspect_ratio=aspect_ratio,
             resolution=resolution,
@@ -654,6 +663,7 @@ async def generate(
 
 def _run_v2_pipeline_and_persist(
     *,
+    category: str,
     uploaded_bytes: List[bytes],
     uploaded_filenames: Optional[List[str]],
     prompt: Optional[str],
@@ -697,11 +707,12 @@ def _run_v2_pipeline_and_persist(
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
         pose_flex_mode=pose_flex_mode,
-    )
+    ).model_copy(update={"category": category})
 
 
 @router.post("/async")
 async def generate_async(
+    category: Optional[str] = Form(default=None),
     prompt: Optional[str] = Form(default=None),
     aspect_ratio: str = Form(default=DEFAULT_ASPECT_RATIO),
     resolution: str = Form(default=DEFAULT_RESOLUTION),
@@ -716,6 +727,7 @@ async def generate_async(
     images: List[UploadFile] = File(default=[]),
 ):
     try:
+        normalized_category = normalize_create_category(category)
         validate_generation_params(
             aspect_ratio=aspect_ratio,
             resolution=resolution,
@@ -734,6 +746,7 @@ async def generate_async(
         meta={
             # ── Identificação do pipeline ──
             "pipeline_version": "v2" if use_v2 else "v1",
+            "category": normalized_category,
             # ── Parâmetros de geração ──
             "prompt": _prompt_short,
             "prompt_full": (prompt or "").strip() or None,
@@ -770,6 +783,7 @@ async def generate_async(
                     pose_flex_mode=pose_flex_mode,
                 )
                 response = _run_v2_pipeline_and_persist(
+                    category=normalized_category,
                     uploaded_bytes=uploaded_bytes,
                     uploaded_filenames=uploaded_filenames,
                     prompt=prompt,
@@ -784,6 +798,7 @@ async def generate_async(
                 )
             else:
                 response = _run_generate_pipeline(
+                    category=normalized_category,
                     prompt=prompt,
                     aspect_ratio=aspect_ratio,
                     resolution=resolution,

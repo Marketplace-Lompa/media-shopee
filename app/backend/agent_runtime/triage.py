@@ -7,7 +7,7 @@ Todas as funções são chamadas por run_agent() e pelos routers (via import dir
 import re
 import json
 from io import BytesIO
-from typing import Optional, List
+from typing import Any, Optional, List
 
 from google.genai import types
 from PIL import Image, ImageOps
@@ -52,6 +52,7 @@ from agent_runtime.gemini_client import (
 from agent_runtime.parser import (
     _extract_response_text,
     _decode_agent_response,
+    try_repair_truncated_json,
 )
 from agent_runtime.structural import (
     _normalize_structural_contract,
@@ -102,6 +103,87 @@ def _infer_text_mode_shot(user_prompt: Optional[str]) -> str:
     if any(k in text for k in ["medium", "waist", "cintura", "busto", "meio corpo"]):
         return "medium"
     return "wide"
+
+
+def resolve_prompt_agent_visual_triage(
+    *,
+    uploaded_images: List[bytes],
+    user_prompt: Optional[str],
+    guided_enabled: bool,
+    guided_set_mode: str,
+    structural_contract_hint: Optional[dict] = None,
+    unified_vision_triage_result: Optional[dict] = None,
+) -> dict[str, Any]:
+    """
+    Resolve a triagem visual consumida pelo Prompt Agent.
+
+    Mantém a lógica atual em um ponto único, sem deixar run_agent() decidir
+    entre contrato externo, triagem unificada ou fallback manual.
+    """
+    guided_set_detection = {
+        "is_garment_set": False,
+        "set_pattern_score": 0.0,
+        "detected_garment_roles": [],
+        "set_pattern_cues": [],
+        "set_lock_mode": "off",
+    }
+    structural_contract = {
+        "enabled": False,
+        "confidence": 0.0,
+        "sleeve_type": "unknown",
+        "sleeve_length": "unknown",
+        "front_opening": "unknown",
+        "hem_shape": "unknown",
+        "garment_length": "unknown",
+        "silhouette_volume": "unknown",
+        "must_keep": [],
+    }
+    garment_hint = ""
+    image_analysis = ""
+    look_contract: dict[str, Any] = {}
+
+    if uploaded_images:
+        unified: Optional[dict[str, Any]] = None
+        has_external_contract = isinstance(structural_contract_hint, dict) and bool(structural_contract_hint)
+
+        if has_external_contract:
+            structural_contract = structural_contract_hint or {}
+            garment_hint = _infer_garment_hint(uploaded_images)
+            print("[AGENT] unified_vision_triage: skipped (external structural_contract_hint provided)")
+        elif isinstance(unified_vision_triage_result, dict) and unified_vision_triage_result:
+            unified = unified_vision_triage_result
+            print("[AGENT] unified_vision_triage: using pre-computed result")
+        else:
+            unified = _infer_unified_vision_triage(uploaded_images, user_prompt)
+
+        if unified:
+            structural_contract = unified["structural_contract"]
+            garment_hint = unified["garment_hint"]
+            image_analysis = unified.get("image_analysis", "")
+            look_contract = unified.get("look_contract", {})
+            set_detection = unified["set_detection"]
+            if guided_enabled and guided_set_mode == "conjunto":
+                if set_detection.get("set_lock_mode") == "off":
+                    set_detection["set_lock_mode"] = "generic"
+                guided_set_detection = set_detection
+        elif not has_external_contract:
+            print("[AGENT] unified_vision_triage: fallback")
+            structural_contract = _infer_structural_contract_from_images(uploaded_images, user_prompt)
+            if guided_enabled and guided_set_mode == "conjunto":
+                guided_set_detection = _infer_set_pattern_from_images(uploaded_images, user_prompt)
+                if guided_set_detection.get("set_lock_mode") == "off":
+                    guided_set_detection["set_lock_mode"] = "generic"
+            garment_hint = _infer_garment_hint(uploaded_images)
+    elif guided_enabled and guided_set_mode == "conjunto":
+        guided_set_detection = _infer_set_pattern_from_images([], user_prompt)
+
+    return {
+        "structural_contract": structural_contract,
+        "guided_set_detection": guided_set_detection,
+        "garment_hint": garment_hint,
+        "image_analysis": image_analysis,
+        "look_contract": look_contract,
+    }
 
 
 # ── Garment hint (curto, para montar queries de grounding) ───────────────────
@@ -182,24 +264,11 @@ def _infer_structural_contract_from_images(uploaded_images: List[bytes], user_pr
     except Exception as e:
         err_msg = str(e)
         print(f"[AGENT] ⚠️ Structural contract inference failed: {err_msg}")
-        # Fallback: tentar extrair campos parciais de JSON truncado
-        if "raw=" in err_msg or "raw={" in err_msg:
-            try:
-                raw_start = err_msg.find("raw=") + 4
-                raw_fragment = err_msg[raw_start:].replace("\\n", "\n").replace('\\"', '"')
-                for suffix in ("}", '"}', '"]}'):
-                    try:
-                        parsed = json.loads(raw_fragment + suffix)
-                        print(f"[AGENT] 🔧 Structural contract repaired from truncated JSON (suffix={suffix})")
-                        break
-                    except json.JSONDecodeError:
-                        continue
-                else:
-                    return _empty
-            except Exception:
-                return _empty
-        else:
-            return _empty
+        repaired = try_repair_truncated_json(err_msg)
+        if repaired is not None:
+            print(f"[AGENT] 🔧 Structural contract repaired from truncated JSON")
+            return _normalize_structural_contract(repaired)
+        return _empty
 
     # Reutiliza a mesma normalizer da triagem unificada — single source of truth
     # para validação de campos, has_pockets, confidence, enabled, etc.
@@ -252,20 +321,7 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
     except Exception as e:
         err_msg = str(e)
         print(f"[GUIDED] ⚠️ set-pattern inference failed: {err_msg}")
-        repaired: Optional[dict] = None
-        if "raw=" in err_msg:
-            try:
-                raw_start = err_msg.find("raw=") + 4
-                fragment = err_msg[raw_start:].replace("\\n", "\n").replace('\\"', '"')
-                for suffix in ("}", '"}', '"]}', "]}", '"}]}'):
-                    try:
-                        repaired = json.loads(fragment + suffix)
-                        print(f"[GUIDED] 🔧 set-pattern JSON repaired (suffix={suffix!r})")
-                        break
-                    except json.JSONDecodeError:
-                        continue
-            except Exception:
-                pass
+        repaired = try_repair_truncated_json(err_msg)
         if repaired is not None:
             return _normalize_set_detection(repaired)
         return _normalize_set_detection({})

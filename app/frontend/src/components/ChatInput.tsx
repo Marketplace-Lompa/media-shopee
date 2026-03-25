@@ -5,8 +5,10 @@ import {
     Send, ImagePlus, X,
     SlidersHorizontal, ChevronDown, ChevronUp, Pencil
 } from 'lucide-react';
+import { DEFAULT_CREATE_CATEGORY } from '../config/createCategories';
 import type {
     AspectRatio,
+    CreateCategory,
     Resolution,
     EditTarget,
     Preset,
@@ -19,7 +21,9 @@ import type {
 import './ChatInput.css';
 
 interface Props {
+    category?: CreateCategory;
     onSubmit: (payload: {
+        category: CreateCategory;
         prompt: string;
         files: File[];
         n_images: number;
@@ -39,6 +43,7 @@ interface Props {
     onEditSubmit?: (editInstruction: string, files?: File[]) => void;
     onEditCancel?: () => void;
     onMarketplaceSubmit?: (payload: {
+        category: CreateCategory;
         channel: MarketplaceChannel;
         operation: MarketplaceOperation;
         baseFiles: File[];
@@ -76,7 +81,16 @@ interface HistoryDragPayload {
     prompt?: string;
 }
 
-export function ChatInput({ onSubmit, onMarketplaceSubmit, externalData, onClearExternalData, editTarget, onEditSubmit, onEditCancel }: Props) {
+export function ChatInput({
+    category = DEFAULT_CREATE_CATEGORY,
+    onSubmit,
+    onMarketplaceSubmit,
+    externalData,
+    onClearExternalData,
+    editTarget,
+    onEditSubmit,
+    onEditCancel,
+}: Props) {
     const [prompt, setPrompt] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     
@@ -170,6 +184,7 @@ export function ChatInput({ onSubmit, onMarketplaceSubmit, externalData, onClear
             if (files.length === 0) return;
             if (requiresColorFiles && colorFiles.length === 0) return;
             onMarketplaceSubmit({
+                category,
                 channel: marketplaceChannel,
                 operation: marketplaceOperation,
                 baseFiles: files,
@@ -184,6 +199,7 @@ export function ChatInput({ onSubmit, onMarketplaceSubmit, externalData, onClear
 
         if (!editTarget && !prompt.trim() && files.length === 0) return;
         onSubmit({
+            category,
             prompt,
             files,
             n_images: n,

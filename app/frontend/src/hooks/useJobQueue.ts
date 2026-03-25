@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { submitGenerateAsync, submitEditAsync, submitMarketplaceAsync } from '../lib/api';
-import type { JobEntry, JobType, JobStatus, EditTarget, AspectRatio, Resolution, Preset, ScenePreference, FidelityMode, PoseFlexMode, MarketplaceChannel, MarketplaceOperation } from '../types';
+import type { JobEntry, JobType, JobStatus, EditTarget, AspectRatio, Resolution, Preset, ScenePreference, FidelityMode, PoseFlexMode, MarketplaceChannel, MarketplaceOperation, CreateCategory } from '../types';
 
 // Adaptive polling: ajusta taxa baseado no estágio atual do job
 const POLL_DEFAULT_MS = 1200;       // queued / desconhecido
@@ -88,6 +88,7 @@ function removePersistedJob(id: string) {
 // ── Payload types ─────────────────────────────────────────────────────────────
 
 export interface GeneratePayload {
+    category: CreateCategory;
     prompt: string;
     files: File[];
     n_images: number;
@@ -106,6 +107,7 @@ export interface EditPayload {
 }
 
 export interface MarketplacePayload {
+    category: CreateCategory;
     channel: MarketplaceChannel;
     operation: MarketplaceOperation;
     baseFiles: File[];
@@ -363,6 +365,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
 
         try {
             const fd = new FormData();
+            fd.append('category', payload.category);
             if (payload.prompt) fd.append('prompt', payload.prompt);
             fd.append('n_images', String(payload.n_images));
             fd.append('aspect_ratio', payload.aspect_ratio);
@@ -431,6 +434,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
 
         try {
             const fd = new FormData();
+            fd.append('category', payload.category);
             fd.append('marketplace_channel', payload.channel);
             fd.append('operation', payload.operation);
             if (payload.prompt) {

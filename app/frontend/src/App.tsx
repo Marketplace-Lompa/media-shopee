@@ -7,6 +7,7 @@ import { ChatInput } from './components/ChatInput';
 import { Gallery } from './components/Gallery';
 import { PoolPanel } from './components/PoolPanel';
 import { ReviewPanel } from './components/ReviewPanel';
+import { DEFAULT_CREATE_CATEGORY } from './config/createCategories';
 import { listPool, listHistory, deleteHistoryEntry, getLatestReview, getReviewBySession } from './lib/api';
 import {
   humanizeFidelityMode,
@@ -25,6 +26,7 @@ import type {
   MediaHistoryItem,
   EditTarget,
   JobReviewPayload,
+  CreateCategory,
 } from './types';
 import './App.css';
 
@@ -67,6 +69,7 @@ function LightboxMeta({ item }: { item: MediaHistoryItem }) {
 
 /* ── App ──────────────────────────────────────────────────── */
 export default function App() {
+  const createCategory: CreateCategory = DEFAULT_CREATE_CATEGORY;
   const [tab, setTab] = useState<Tab>('criar');
   const [pool, setPool] = useState<PoolItem[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
@@ -98,6 +101,7 @@ export default function App() {
       const data = await listHistory();
       const items: MediaHistoryItem[] = (data.items ?? []).map((e: Record<string, unknown>) => ({
         id: e.id as string,
+        category: e.category as CreateCategory | undefined,
         session_id: e.session_id as string | undefined,
         filename: e.filename as string,
         url: e.url as string,
@@ -251,6 +255,7 @@ export default function App() {
                 </div>
 
                 <ChatInput
+                  category={createCategory}
                   onSubmit={handleGenerate}
                   onMarketplaceSubmit={handleMarketplaceSubmit}
                   externalData={reuseData}

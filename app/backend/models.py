@@ -4,9 +4,15 @@ Schemas Pydantic para request/response da API.
 from typing import Optional, List, Literal
 from pydantic import BaseModel, Field
 
+from create_categories import CreateCategory
+
 
 class GenerateRequest(BaseModel):
     """Payload do POST /generate"""
+    category: Optional[CreateCategory] = Field(
+        default=None,
+        description="Categoria de criação: fashion"
+    )
     prompt: Optional[str] = Field(
         default=None,
         description="Descrição em pt-BR (opcional — agente age mesmo sem prompt)"
@@ -72,6 +78,7 @@ class PromptCompilerDebug(BaseModel):
 
 class GenerateResponse(BaseModel):
     """Resposta do POST /generate"""
+    category: Optional[CreateCategory] = Field(default=None, description="Categoria de criação efetiva")
     session_id: Optional[str] = Field(default=None, description="ID da sessão de geração")
     optimized_prompt: str = Field(description="Prompt otimizado pelo agente")
     pipeline_mode: str = Field(default="text_mode", description="Modo aplicado: reference_mode | text_mode | reference_mode_strict")
@@ -168,6 +175,7 @@ class MarketplaceSummary(BaseModel):
 
 class MarketplaceGenerateResponse(BaseModel):
     """Payload consolidado do fluxo Marketplace."""
+    category: Optional[CreateCategory] = Field(default=None, description="Categoria de criação efetiva")
     session_id: str
     pipeline_version: str = "marketplace_v1"
     marketplace_channel: Literal["shopee", "mercado_livre"]

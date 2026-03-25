@@ -13,6 +13,7 @@ from typing import List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from agent_runtime.marketplace_orchestrator import run_marketplace_orchestration_async
+from create_categories import normalize_create_category
 from config import DEFAULT_ASPECT_RATIO, DEFAULT_RESOLUTION, REFERENCE_GENERATION_MAX
 from job_manager import complete_job, create_job, fail_job, get_job, start_job, update_stage
 from request_validation import (
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
 @router.post("/async")
 async def marketplace_async(
+    category: Optional[str] = Form(default=None),
     marketplace_channel: str = Form(...),
     operation: str = Form(...),
     prompt: Optional[str] = Form(default=None),
@@ -39,6 +41,7 @@ async def marketplace_async(
     color_images: List[UploadFile] = File(default=[]),
 ):
     try:
+        normalized_category = normalize_create_category(category)
         normalized_channel = normalize_marketplace_channel(marketplace_channel)
         normalized_operation = normalize_marketplace_operation(operation)
         validate_generation_params(
@@ -67,6 +70,7 @@ async def marketplace_async(
 
     job_id = create_job(
         meta={
+            "category": normalized_category,
             "pipeline_version": "marketplace_v1",
             "marketplace_channel": normalized_channel,
             "marketplace_operation": normalized_operation,
@@ -109,6 +113,7 @@ async def marketplace_async(
                 pose_flex_mode=pose_flex_mode,
                 on_stage=_stage_cb,
             )
+            response["category"] = normalized_category
             summary = response.get("summary") or {}
             completed_slots = int(summary.get("completed_slots", 0) or 0)
             failed_slots = int(summary.get("failed_slots", 0) or 0)

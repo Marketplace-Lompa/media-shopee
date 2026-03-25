@@ -10,12 +10,13 @@ from typing import Optional
 from google import genai
 from google.genai import types
 
+from create_categories import DEFAULT_CREATE_CATEGORY
+from agent_runtime.prompt_assets_registry import get_generate_prompt_assets
 from config import (
     GOOGLE_AI_API_KEY,
     MODEL_AGENT,
     SAFETY_CONFIG,
 )
-from agent_runtime.constants import REFERENCE_KNOWLEDGE
 from image_utils import detect_image_mime
 
 client = genai.Client(
@@ -226,10 +227,12 @@ def refine_edit_instruction(
     source_image_bytes: bytes,
     source_prompt: Optional[str] = None,
     reference_images_bytes: Optional[list] = None,
+    category: str = DEFAULT_CREATE_CATEGORY,
 ) -> dict:
     """
     Analisa instrução de edição do usuário + imagem e retorna prompt refinado.
     """
+    prompt_assets = get_generate_prompt_assets(category)
     _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
     parts = [
         types.Part(
@@ -264,7 +267,7 @@ def refine_edit_instruction(
         )
 
     # Injetar REFERENCE KNOWLEDGE completo para curadoria com vocabulário técnico
-    context += f'\n\n{REFERENCE_KNOWLEDGE}'
+    context += f'\n\n{prompt_assets.reference_knowledge}'
 
     parts.append(types.Part(text=context))
 
