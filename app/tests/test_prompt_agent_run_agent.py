@@ -269,3 +269,68 @@ def test_run_agent_reference_mode_upgrades_legacy_diversity_target_to_latent_sta
     assert "STYLING LATENT STATE" in context
     assert result["diversity_target"]["casting_state"]["age"] == "late 20s to early 30s"
     assert result["diversity_target"]["legacy_profile_id"] == "legacy_profile_1"
+
+
+def test_run_agent_reference_mode_without_prompt_auto_builds_modern_diversity_target() -> None:
+    captured: dict = {}
+
+    def fake_generate_with_system_instruction(*, parts, system_instruction, schema, temperature, max_tokens):
+        captured["parts"] = parts
+        return _FakeResponse(
+            {
+                "prompt": "RAW photo, a commercially believable Brazilian woman wearing the referenced garment in a refined clean setting.",
+                "thinking_level": "HIGH",
+                "shot_type": "medium",
+                "realism_level": 2,
+            }
+        )
+
+    precomputed_triage = {
+        "garment_hint": "olive knit cardigan",
+        "image_analysis": "Olive knit cardigan with visible texture and soft drape.",
+        "structural_contract": {
+            "enabled": True,
+            "confidence": 0.91,
+            "garment_subtype": "standard_cardigan",
+            "sleeve_type": "set-in",
+            "sleeve_length": "long",
+            "front_opening": "open",
+            "hem_shape": "straight",
+            "garment_length": "hip",
+            "silhouette_volume": "regular",
+            "must_keep": ["front opening", "long sleeves"],
+        },
+        "set_detection": {
+            "is_garment_set": False,
+            "set_pattern_score": 0.0,
+            "detected_garment_roles": [],
+            "set_pattern_cues": [],
+            "set_lock_mode": "off",
+        },
+        "look_contract": {},
+    }
+
+    original_generate = agent.generate_with_system_instruction
+    try:
+        agent.generate_with_system_instruction = fake_generate_with_system_instruction
+        result = agent.run_agent(
+            user_prompt=None,
+            uploaded_images=[b"fake-image-bytes"],
+            pool_context="",
+            aspect_ratio="4:5",
+            resolution="1536",
+            category="fashion",
+            unified_vision_triage_result=precomputed_triage,
+            mode="natural",
+        )
+    finally:
+        agent.generate_with_system_instruction = original_generate
+
+    context = captured["parts"][-1].text
+    assert "GARMENT-ONLY REFERENCE MODE:" in context
+    assert "CASTING LATENT STATE" in context
+    assert "SCENE LATENT STATE" in context
+    assert "POSE LATENT STATE" in context
+    assert result["diversity_target"]["profile_hint"]
+    assert result["diversity_target"]["casting_state"]["age"]
+    assert result["diversity_target"]["scene_state"]["world_family"]
