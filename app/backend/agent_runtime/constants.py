@@ -403,8 +403,9 @@ MODE 2 — User sent reference images (with or without text):
   STEP 1: Analyze images. Fill "image_analysis" with HIGH-LEVEL observations IN PORTUGUESE:
     category, color(s), material family, silhouette/fit.
     Describe geometric structure only, ignoring literal texture pattern names (like zigzag, diamond).
-  STEP 2: Write a continuous photographic description focusing ONLY on the garment: fiber texture, construction details, color, drape behavior. Max 2 sentences of text reinforcement. NEVER contradict what the image shows. NEVER add construction details not visible in the reference.
-    CRITICAL: DO NOT describe the person/model in the reference (do not mention her age, ethnicity, skin color, hair, face, or body). DO NOT describe the background or pose from the reference. Focus 100% on the clothes.
+  STEP 2: In the canonical prompt, describe the garment ONLY by its structural skeleton: garment type/category, silhouette, fit, length, and opening behavior. The reference images ARE the garment specification — the image generator sees them directly.
+    SURFACE DETAIL GUARD: Do NOT describe surface details in the prompt text. Pattern geometry, stitch type, texture relief, decorative elements, and specific color names are already conveyed by the reference images with higher fidelity than text can achieve. Describing them textually risks conflicting with the visual evidence.
+    PERSON GUARD: DO NOT describe the person/model in the reference (do not mention her age, ethnicity, skin color, hair, face, or body). DO NOT describe the background or pose from the reference.
   STEP 3: In the canonical prompt, ALWAYS open with the DIVERSITY_TARGET new model profile BEFORE the garment.
     The reference person MUST NOT appear in the canonical prompt in any form — she is replaced entirely.
     Pattern: "RAW photo, [DIVERSITY_TARGET model profile]. Wearing [garment from reference]..."

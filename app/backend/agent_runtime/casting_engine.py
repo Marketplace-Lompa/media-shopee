@@ -27,6 +27,7 @@ _DEFAULT_STATE = {
 }
 
 _CASTING_FAMILIES: list[dict[str, Any]] = [
+    # ── 1. Social Creator (genérica, pele média) ──────────────────────
     {
         "id": "br_social_creator",
         "label": "BR Social Creator",
@@ -47,46 +48,227 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
         "expression_options": ["captivating relaxed expression", "subtle engaging smile", "camera-aware casual confidence"],
         "recent_avoid": ["runway severity", "editorial calm expression"],
     },
+    # ── 2. Afro (consolidada — pele escura, cabelo crespo/cacheado) ───
     {
-        "id": "br_social_afro",
-        "label": "BR Social Afro",
-        "presence": "charismatic Brazilian creator presence",
-        "age_options": ["mid 20s", "late 20s"],
-        "skin_options": ["deep rich brown skin", "medium-deep warm skin"],
+        "id": "br_afro",
+        "label": "BR Afro",
+        "presence": "charismatic contemporary Brazilian presence",
+        "age_options": ["mid 20s", "late 20s", "late 20s to early 30s"],
+        "skin_options": ["deep rich brown skin", "medium-deep warm skin", "dark warm skin"],
         "face_structure_options": [
             "balanced attractive facial planes with natural asymmetry and expressive eyes",
+            "high cheekbones with a strong elegant jawline",
             "soft cheek definition with engaging everyday charisma",
-            "gentle face geometry with lively brow expression and relaxed confidence",
+            "defined facial planes with expressive brow architecture",
         ],
         "hair_options": [
-            "defined natural curls with lively social-ready volume",
+            "defined natural curls with lively volume",
             "a rounded afro with natural shape and charismatic texture",
+            "short sculpted natural curls with a crisp silhouette",
             "soft natural curls with casual polished definition",
+            "shoulder-length natural curls with controlled volume",
         ],
-        "makeup_options": ["fresh natural makeup", "soft everyday glam makeup"],
-        "expression_options": ["captivating relaxed expression", "subtle engaging smile", "camera-aware casual confidence"],
-        "recent_avoid": ["editorial severity", "overly polished shape"],
+        "makeup_options": ["fresh natural makeup", "clean luminous makeup", "soft everyday glam makeup"],
+        "expression_options": ["captivating relaxed expression", "subtle engaging smile", "calm self-assured expression", "confident modern gaze"],
+        "recent_avoid": ["straight sleek hair", "editorial severity"],
     },
+    # ── 3. Morena Clara (tipo mais comum no Brasil) ───────────────────
     {
-        "id": "br_social_mature",
-        "label": "BR Social Mature",
-        "presence": "charismatic mature Brazilian creator presence",
-        "age_options": ["late 30s", "early 40s"],
+        "id": "br_morena_clara",
+        "label": "BR Morena Clara",
+        "presence": "warm relatable Brazilian presence",
+        "age_options": ["mid 20s", "late 20s", "early 30s"],
+        "skin_options": ["warm olive-medium skin", "light caramel skin", "soft tan skin"],
+        "face_structure_options": [
+            "rounded cheeks with a gentle jawline and warm features",
+            "balanced oval face with soft natural brow depth",
+            "gentle face geometry with subtle cheek warmth",
+        ],
+        "hair_options": [
+            "long straight dark brown hair with natural shine",
+            "shoulder-length dark hair with subtle ends movement",
+            "dark brunette hair with a soft blowout and middle part",
+            "natural dark brown layers with loose everyday finish",
+        ],
+        "makeup_options": ["minimal natural makeup", "fresh everyday makeup"],
+        "expression_options": ["approachable natural smile", "relaxed composed expression", "warm everyday confidence"],
+        "recent_avoid": ["platinum blonde", "very curly texture"],
+    },
+    # ── 4. Loira Natural (brasileira mel/dourado) ─────────────────────
+    {
+        "id": "br_loira_natural",
+        "label": "BR Loira Natural",
+        "presence": "naturally radiant Brazilian presence",
+        "age_options": ["mid 20s", "late 20s to early 30s"],
+        "skin_options": ["sun-kissed light skin", "warm golden-light skin", "light skin with natural warmth"],
+        "face_structure_options": [
+            "soft oval face with gentle cheek definition",
+            "balanced facial proportions with a naturally open expression",
+            "delicate jawline with subtle brow arch",
+        ],
+        "hair_options": [
+            "honey-blonde waves with natural Brazilian highlights",
+            "soft golden-brown hair with sun-lightened ends",
+            "natural dirty-blonde hair with loose beachy texture",
+            "warm caramel-blonde shoulder-length hair with natural movement",
+        ],
+        "makeup_options": ["fresh bronzed makeup", "minimal sun-kissed makeup"],
+        "expression_options": ["warm open smile", "relaxed sunlit expression", "casual confident gaze"],
+        "recent_avoid": ["very dark hair", "sharp editorial look"],
+    },
+    # ── 5. Ruiva (ruiva brasileira) ───────────────────────────────────
+    {
+        "id": "br_ruiva",
+        "label": "BR Ruiva",
+        "presence": "distinctive warm Brazilian presence",
+        "age_options": ["mid 20s", "late 20s", "early 30s"],
+        "skin_options": ["fair warm skin with light freckles", "light neutral skin with soft warmth", "light-medium skin with peachy undertone"],
+        "face_structure_options": [
+            "soft rounded face with gentle natural asymmetry",
+            "balanced features with subtle cheek warmth and expressive eyes",
+            "oval face geometry with gentle brow definition",
+        ],
+        "hair_options": [
+            "natural copper-red shoulder-length hair with soft texture",
+            "warm auburn waves with natural volume",
+            "dark ginger hair with a loose everyday finish",
+            "soft reddish-brown hair with natural highlights",
+        ],
+        "makeup_options": ["minimal natural makeup", "soft warm-toned makeup"],
+        "expression_options": ["gentle confident expression", "subtle warm smile", "calm natural gaze"],
+        "recent_avoid": ["very dark skin", "short cropped hair"],
+    },
+    # ── 6. Cabocla (miscigenada, traços indígenas/europeus) ───────────
+    {
+        "id": "br_cabocla",
+        "label": "BR Cabocla",
+        "presence": "grounded authentic Brazilian presence",
+        "age_options": ["mid 20s", "late 20s to early 30s", "early 30s"],
+        "skin_options": ["warm bronze skin", "medium tawny skin", "sun-warmed medium skin"],
+        "face_structure_options": [
+            "wide cheekbones with a softly tapered chin",
+            "balanced strong facial structure with prominent cheekbones",
+            "gentle rounded face with warm lived-in character",
+        ],
+        "hair_options": [
+            "straight dark black hair with natural thickness",
+            "long dark hair with a simple center part and natural weight",
+            "dark brown straight hair with subtle natural body",
+        ],
+        "makeup_options": ["almost no visible makeup", "subtle earth-toned makeup"],
+        "expression_options": ["calm composed expression", "serene natural gaze", "quiet grounded confidence"],
+        "recent_avoid": ["glossy blowout finish", "heavy glamour makeup"],
+    },
+    # ── 7. Nikkei (nipo-brasileira) ───────────────────────────────────
+    {
+        "id": "br_nikkei",
+        "label": "BR Nikkei",
+        "presence": "contemporary Brazilian nikkei presence",
+        "age_options": ["mid 20s", "late 20s", "early 30s"],
+        "skin_options": ["light warm skin", "soft ivory-warm skin", "light-medium warm skin"],
+        "face_structure_options": [
+            "delicate bone structure with soft angular jaw",
+            "balanced features with gentle cheek planes and serene brow line",
+            "oval face geometry with refined proportions",
+        ],
+        "hair_options": [
+            "straight dark hair with natural shine and blunt ends",
+            "sleek shoulder-length black hair with a clean part",
+            "soft dark hair with a subtle layered cut and natural weight",
+        ],
+        "makeup_options": ["minimal clean makeup", "fresh understated makeup"],
+        "expression_options": ["calm composed expression", "gentle restrained smile", "quiet modern confidence"],
+        "recent_avoid": ["very curly hair", "heavy bronzed makeup"],
+    },
+    # ── 8. Sulista (descendência europeia, gaúcha/catarinense) ────────
+    {
+        "id": "br_sulista",
+        "label": "BR Sulista",
+        "presence": "polished contemporary Brazilian presence",
+        "age_options": ["mid 20s", "late 20s to early 30s"],
+        "skin_options": ["fair neutral skin", "light skin with soft pink undertone", "light olive skin"],
+        "face_structure_options": [
+            "defined cheekbones with a softly angular jawline",
+            "oval face with gentle European-inspired proportions",
+            "balanced facial structure with subtle brow prominence",
+        ],
+        "hair_options": [
+            "light brown straight hair with natural shine",
+            "dark blonde shoulder-length hair with a casual finish",
+            "soft chestnut waves with a polished natural part",
+            "medium-brown hair with loose relaxed movement",
+        ],
+        "makeup_options": ["refined neutral makeup", "minimal fresh makeup"],
+        "expression_options": ["composed confident expression", "subtle approachable expression", "quiet sophisticated gaze"],
+        "recent_avoid": ["very dark skin tones", "afro texture"],
+    },
+    # ── 9. Nordestina (nordeste brasileiro, pele bronzeada/morena) ────
+    {
+        "id": "br_nordestina",
+        "label": "BR Nordestina",
+        "presence": "warm authentic Brazilian nordeste presence",
+        "age_options": ["mid 20s", "late 20s", "early 30s"],
+        "skin_options": ["warm tanned skin", "medium sun-bronzed skin", "cinnamon-warm medium skin"],
+        "face_structure_options": [
+            "warm rounded face with natural sun-kissed character",
+            "balanced features with gentle cheek fullness and expressive eyes",
+            "strong gentle bone structure with authentic asymmetry",
+        ],
+        "hair_options": [
+            "thick dark wavy hair with natural volume",
+            "long dark hair with loose natural curls at the ends",
+            "dark brown hair with a sun-lightened subtle ombré effect",
+            "natural dark waves with beach-textured movement",
+        ],
+        "makeup_options": ["minimal sun-kissed makeup", "almost no visible makeup"],
+        "expression_options": ["warm genuine smile", "relaxed open expression", "casual easygoing confidence"],
+        "recent_avoid": ["platinum blonde", "very pale skin"],
+    },
+    # ── 10. Mulata Cacheada (mestiça, cabelo cacheado, pele média) ────
+    {
+        "id": "br_mulata_cacheada",
+        "label": "BR Mulata Cacheada",
+        "presence": "vibrant contemporary Brazilian presence",
+        "age_options": ["mid 20s", "late 20s", "late 20s to early 30s"],
+        "skin_options": ["warm medium-brown skin", "caramel medium skin", "golden medium-deep skin"],
+        "face_structure_options": [
+            "soft rounded cheeks with gentle jaw definition",
+            "balanced mixed-heritage features with warm natural expression",
+            "gentle face geometry with lively cheek warmth",
+        ],
+        "hair_options": [
+            "defined medium curls with natural bounce and volume",
+            "loose curly hair with honey-brown highlights",
+            "shoulder-length curly hair with natural frizz-free definition",
+            "voluminous curly hair with a casual side part",
+        ],
+        "makeup_options": ["fresh glowing makeup", "soft natural makeup"],
+        "expression_options": ["captivating warm smile", "relaxed radiant expression", "engaging casual confidence"],
+        "recent_avoid": ["straight sleek hair", "editorial severity"],
+    },
+    # ── 11. Mature Elegante (40+, tom elegante único) ─────────────────
+    {
+        "id": "br_mature_elegante",
+        "label": "BR Mature Elegante",
+        "presence": "elegant mature Brazilian presence",
+        "age_options": ["late 30s", "early 40s", "mid 40s"],
         "skin_options": ["medium olive skin", "medium warm skin", "light-medium neutral skin"],
         "face_structure_options": [
-            "balanced mature facial structure with warm approachable asymmetry",
-            "gentle mature face geometry with engaging natural confidence",
-            "softly defined mature features with lively everyday charisma",
+            "refined angular cheekbones with a composed jawline",
+            "balanced mature facial structure with gentle temple contour",
+            "elongated oval face with subtle nasolabial definition and wisdom",
         ],
         "hair_options": [
-            "shoulder-length dark hair with natural social-ready movement",
-            "simple dark bob with everyday polish and soft texture",
-            "natural dark hair with loose lived-in smoothness",
+            "a sleek jaw-length dark bob with a clean center part",
+            "polished shoulder-length dark hair with a smooth finish",
+            "natural dark hair with silver-touched highlights and quiet elegance",
+            "simple dark hair tucked behind the ears with understated movement",
         ],
-        "makeup_options": ["fresh natural makeup", "minimal polished makeup"],
-        "expression_options": ["warm engaging smile", "captivating relaxed expression", "quiet camera-aware confidence"],
-        "recent_avoid": ["formal luxury elegance", "campaign severity"],
+        "makeup_options": ["understated refined makeup", "minimal elegant makeup"],
+        "expression_options": ["confident composed expression", "elegant calm expression", "warm self-assured gaze"],
+        "recent_avoid": ["messy casual texture", "youthful creator energy"],
     },
+    # ── 12. Everyday Natural (cotidiana sem produção) ─────────────────
     {
         "id": "br_everyday_natural",
         "label": "BR Everyday Natural",
@@ -107,46 +289,7 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
         "expression_options": ["neutral everyday expression", "soft relaxed expression"],
         "recent_avoid": ["polished blowout finish", "soft editorial expression"],
     },
-    {
-        "id": "br_everyday_afro",
-        "label": "BR Everyday Afro",
-        "presence": "relatable everyday Brazilian presence",
-        "age_options": ["mid 20s", "late 20s to early 30s"],
-        "skin_options": ["deep rich brown skin", "medium-deep warm skin"],
-        "face_structure_options": [
-            "natural facial structure with warm everyday softness and expressive brows",
-            "balanced face with soft cheek definition and ordinary lived-in asymmetry",
-            "gently defined facial planes with a calm real-life expression",
-        ],
-        "hair_options": [
-            "soft natural curls with everyday volume and loose definition",
-            "short natural textured curls with a casual shape",
-            "a natural rounded afro with ordinary lived-in texture",
-        ],
-        "makeup_options": ["minimal everyday makeup", "almost no visible makeup"],
-        "expression_options": ["neutral everyday expression", "quiet relaxed expression"],
-        "recent_avoid": ["polished shape", "confident modern gaze"],
-    },
-    {
-        "id": "br_everyday_mature",
-        "label": "BR Everyday Mature",
-        "presence": "relatable mature Brazilian presence",
-        "age_options": ["late 30s", "early 40s"],
-        "skin_options": ["medium olive skin", "medium warm skin", "light-medium neutral skin"],
-        "face_structure_options": [
-            "balanced mature facial structure with natural smile lines",
-            "ordinary oval mature face with calm everyday definition",
-            "gentle mature face geometry with subtle lived-in asymmetry",
-        ],
-        "hair_options": [
-            "simple shoulder-length dark hair with natural texture",
-            "soft jaw-length dark hair with ordinary movement",
-            "natural dark hair tucked loosely behind the ears",
-        ],
-        "makeup_options": ["minimal everyday makeup", "almost no visible makeup"],
-        "expression_options": ["calm everyday expression", "quiet composed expression"],
-        "recent_avoid": ["sharp dark chin-length bob", "elegant calm expression"],
-    },
+    # ── 13. Minimal Premium (catalog refinado) ────────────────────────
     {
         "id": "br_minimal_premium",
         "label": "BR Minimal Premium",
@@ -167,6 +310,7 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
         "expression_options": ["calm sophisticated expression", "quiet confident gaze"],
         "recent_avoid": ["long natural curly hair", "golden tan waves"],
     },
+    # ── 14. Warm Commercial (ondas castanhas comercial) ───────────────
     {
         "id": "br_warm_commercial",
         "label": "BR Warm Commercial",
@@ -187,46 +331,7 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
         "expression_options": ["warm composed expression", "subtle approachable expression"],
         "recent_avoid": ["sleek jaw-length bob", "tight natural coils"],
     },
-    {
-        "id": "br_afro_modern",
-        "label": "BR Afro Modern",
-        "presence": "modern premium-catalog presence",
-        "age_options": ["late 20s", "late 20s to early 30s"],
-        "skin_options": ["deep rich brown skin", "medium-deep warm skin"],
-        "face_structure_options": [
-            "high cheekbones with a strong elegant jawline",
-            "rounded forehead and sculpted lower-face geometry",
-            "defined facial planes with expressive brow architecture",
-        ],
-        "hair_options": [
-            "short sculpted natural curls with a crisp silhouette",
-            "defined shoulder-length natural curls with controlled volume",
-            "a soft rounded natural afro with a polished shape",
-        ],
-        "makeup_options": ["clean luminous makeup", "modern understated makeup"],
-        "expression_options": ["calm self-assured expression", "confident modern gaze"],
-        "recent_avoid": ["straight dark brown shoulder-length hair", "long loose chestnut waves"],
-    },
-    {
-        "id": "br_mature_elegant",
-        "label": "BR Mature Elegant",
-        "presence": "elegant high-end catalog presence",
-        "age_options": ["early 40s", "mid 40s"],
-        "skin_options": ["medium olive skin", "medium warm skin", "light-medium neutral skin"],
-        "face_structure_options": [
-            "refined angular cheekbones with a composed jawline",
-            "elongated oval face with subtle nasolabial definition",
-            "balanced mature facial structure with gentle temple contour",
-        ],
-        "hair_options": [
-            "a sleek jaw-length dark bob with a clean center part",
-            "polished shoulder-length dark hair with a smooth blowout",
-            "a sharp dark chin-length bob tucked behind one ear",
-        ],
-        "makeup_options": ["understated refined makeup", "minimal elegant makeup"],
-        "expression_options": ["confident composed expression", "elegant calm expression"],
-        "recent_avoid": ["long loose chestnut waves", "short sculpted natural curls"],
-    },
+    # ── 15. Soft Editorial (editorial suave) ──────────────────────────
     {
         "id": "br_soft_editorial",
         "label": "BR Soft Editorial",
@@ -349,25 +454,25 @@ def _family_affinity(user_prompt: Optional[str], family: dict[str, Any]) -> int:
     score = 0
     family_id = family["id"]
     if "premium" in text or "catalog" in text or "sofistic" in text or "ensaio" in text:
-        if family_id in {"br_minimal_premium", "br_soft_editorial", "br_afro_modern"}:
+        if family_id in {"br_minimal_premium", "br_soft_editorial", "br_sulista"}:
             score += 2
     if "ugc" in text or "cameraroll" in text or "selfie" in text or "cliente real" in text or "cotidiano" in text:
-        if family_id in {"br_everyday_natural", "br_everyday_afro", "br_everyday_mature", "br_social_creator", "br_social_afro", "br_social_mature"}:
+        if family_id in {"br_everyday_natural", "br_social_creator", "br_morena_clara", "br_nordestina"}:
             score += 3
     if "influencer" in text or "creator" in text or "criadora" in text or "conteudo" in text or "cativante" in text:
-        if family_id in {"br_social_creator", "br_social_afro", "br_social_mature"}:
+        if family_id in {"br_social_creator", "br_morena_clara", "br_loira_natural"}:
             score += 4
     if "autentic" in text or "natural" in text:
-        if family_id in {"br_warm_commercial", "br_soft_editorial", "br_afro_modern", "br_everyday_natural", "br_everyday_afro", "br_everyday_mature"}:
+        if family_id in {"br_warm_commercial", "br_everyday_natural", "br_morena_clara", "br_nordestina", "br_cabocla"}:
             score += 1
     if "madura" in text or "40" in text or "elegante" in text:
-        if family_id == "br_mature_elegant":
+        if family_id == "br_mature_elegante":
             score += 3
     if "editorial" in text or "sofisticada" in text:
         if family_id in {"br_minimal_premium", "br_soft_editorial"}:
             score += 2
     if "comercial" in text or "marketplace" in text or "amig" in text:
-        if family_id == "br_warm_commercial":
+        if family_id in {"br_warm_commercial", "br_morena_clara"}:
             score += 2
     if "minimal" in text or "clean" in text:
         if family_id == "br_minimal_premium":
@@ -382,22 +487,22 @@ def _profile_family_bias(
     profile = operational_profile or {}
     guardrail = str(profile.get("guardrail_profile", "") or "")
     if guardrail == "strict_catalog":
-        if family_id in {"br_minimal_premium", "br_warm_commercial", "br_afro_modern", "br_mature_elegant"}:
+        if family_id in {"br_minimal_premium", "br_warm_commercial", "br_afro", "br_mature_elegante", "br_sulista"}:
             return 3
-        if family_id.startswith("br_everyday_"):
+        if family_id == "br_everyday_natural":
             return -1
     if guardrail == "natural_commercial":
-        if family_id in {"br_everyday_natural", "br_everyday_afro", "br_everyday_mature", "br_social_creator", "br_social_afro", "br_social_mature"}:
+        if family_id in {"br_everyday_natural", "br_social_creator", "br_morena_clara", "br_nordestina", "br_mulata_cacheada", "br_cabocla"}:
             return 3
         if family_id in {"br_minimal_premium", "br_soft_editorial"}:
             return -1
     if guardrail == "lifestyle_permissive":
-        if family_id in {"br_social_creator", "br_social_afro", "br_social_mature", "br_everyday_natural", "br_everyday_afro", "br_everyday_mature"}:
+        if family_id in {"br_social_creator", "br_morena_clara", "br_loira_natural", "br_everyday_natural", "br_nordestina", "br_mulata_cacheada"}:
             return 3
     if guardrail == "editorial_controlled":
-        if family_id in {"br_soft_editorial", "br_afro_modern", "br_minimal_premium", "br_mature_elegant"}:
+        if family_id in {"br_soft_editorial", "br_afro", "br_minimal_premium", "br_mature_elegante", "br_sulista", "br_nikkei"}:
             return 3
-        if family_id.startswith("br_everyday_"):
+        if family_id == "br_everyday_natural":
             return -1
     return 0
 

@@ -415,6 +415,36 @@ interface HistoryCardProps {
     onReuse?: () => void;
 }
 
+interface ImageCardMediaProps {
+    src: string;
+    alt: string;
+    loading: 'lazy' | 'eager';
+    onOpen?: () => void;
+}
+
+const ImageCardMedia = React.memo(({ src, alt, loading, onOpen }: ImageCardMediaProps) => {
+    const [loaded, setLoaded] = useState(false);
+
+    return (
+        <>
+            {!loaded && (
+                <div className="image-card-load-mask" aria-hidden="true">
+                    <div className="image-card-load-shimmer" />
+                </div>
+            )}
+            <img
+                src={src}
+                alt={alt}
+                className={`image-card-img ${loaded ? 'image-card-img--loaded' : 'image-card-img--loading'}`}
+                loading={loading}
+                onLoad={() => setLoaded(true)}
+                onError={() => setLoaded(true)}
+                onClick={onOpen}
+            />
+        </>
+    );
+});
+
 const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse }: HistoryCardProps) => {
     const src = imageUrl(item.url);
 
@@ -435,7 +465,11 @@ const HistoryCard = React.memo(({ item, index, onLightboxItem, onDelete, onReuse
             exit={{ opacity: 0, scale: 0.92 }}
             transition={{ duration: 0.2, delay: index < 12 ? index * 0.03 : 0 }}
         >
-            <img src={src} alt={`Imagem gerada — ${item.aspect_ratio || '1:1'}`} className="image-card-img" loading="lazy" />
+            <ImageCardMedia
+                src={src}
+                alt={`Imagem gerada — ${item.aspect_ratio || '1:1'}`}
+                loading="lazy"
+            />
 
             {/* Overlay — seller-facing only */}
             <div className="image-card-overlay">
@@ -719,12 +753,11 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.3, delay: i * 0.08 }}
                         >
-                            <img
+                            <ImageCardMedia
                                 src={imageUrl(img.url)}
                                 alt={`Geração ${i + 1}`}
-                                className="image-card-img"
-                                loading="lazy"
-                                onClick={() => openLightbox(imageUrl(img.url))}
+                                loading="eager"
+                                onOpen={() => openLightbox(imageUrl(img.url))}
                             />
                             <div className="image-card-actions" role="group" onClick={e => e.stopPropagation()}>
                                 <button

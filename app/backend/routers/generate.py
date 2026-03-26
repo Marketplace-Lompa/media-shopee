@@ -12,7 +12,7 @@ from typing import Any, Callable, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from agent import run_agent
-from agent_runtime.diversity import (
+from agent_runtime.target_builder import (
     build_mode_diversity_target,
     harmonize_diversity_target_for_mode,
 )
@@ -205,6 +205,7 @@ def _run_generate_pipeline(
         diversity_target = build_mode_diversity_target(active_mode, user_prompt=prompt)
     else:
         active_mode = get_mode(mode or DEFAULT_TEXT_MODE)
+        diversity_context_prompt = prompt or image_analysis_text or active_mode.description
         legacy_diversity_target = select_diversity_target(
             seed_hint=prompt or "",
             guided_brief=normalized_guided,
@@ -214,7 +215,7 @@ def _run_generate_pipeline(
         diversity_target = harmonize_diversity_target_for_mode(
             active_mode,
             legacy_diversity_target,
-            user_prompt=prompt,
+            user_prompt=diversity_context_prompt,
         )
 
     emit(

@@ -464,7 +464,8 @@ def test_finalize_prompt_agent_result_text_mode_adds_footwear_guardrail_for_full
             "profile_id": "natural:natural_commercial",
             "styling_state": {
                 "footwear_required": True,
-                "footwear_strategy": "footwear appropriate to the look in a natural understated direction",
+                "footwear_family": "soft_flat",
+                "footwear_strategy": "soft flat footwear with a clean low-profile outline and restrained contrast",
                 "look_finish": "natural complete look without overstyling",
             },
         },
@@ -477,7 +478,53 @@ def test_finalize_prompt_agent_result_text_mode_adds_footwear_guardrail_for_full
         casting_profile="natural_commercial",
     )
 
-    assert "footwear appropriate to the look in a natural understated direction" in result["prompt"].lower()
+    assert "soft flat footwear with a clean low-profile outline and restrained contrast" in result["prompt"].lower()
+    used_sources = {item["source"] for item in result["prompt_compiler_debug"]["used_clauses"]}
+    assert "styling_completion" in used_sources
+
+
+def test_finalize_prompt_agent_result_text_mode_renders_footwear_from_family_when_strategy_is_missing() -> None:
+    result = finalize_prompt_agent_result(
+        result={
+            "prompt": (
+                "RAW photo, a full-body natural commercial shot of a woman standing on a quiet neighborhood sidewalk "
+                "wearing an olive green linen midi dress."
+            ),
+            "shot_type": "wide",
+        },
+        has_images=False,
+        has_prompt=True,
+        user_prompt="vestido verde para ecommerce",
+        structural_contract={},
+        guided_brief=None,
+        guided_enabled=False,
+        guided_set_mode="unica",
+        guided_set_detection={},
+        grounding_mode="off",
+        pipeline_mode="text_mode",
+        aspect_ratio="4:5",
+        pose="relaxed stance",
+        grounding_pose_clause="",
+        profile="A Brazilian fashion model with a warm, naturally commercial presence; features blend 'Ana' and 'Lia Costa'.",
+        scenario="neighborhood commercial",
+        diversity_target={
+            "profile_id": "natural:natural_commercial",
+            "styling_state": {
+                "footwear_required": True,
+                "footwear_family": "closed_clean",
+                "look_finish": "natural complete look without overstyling",
+            },
+        },
+        mode_id="natural",
+        framing_profile="full_body",
+        camera_type="natural_digital",
+        capture_geometry="full_body_neutral",
+        lighting_profile="natural_soft",
+        pose_energy="relaxed",
+        casting_profile="natural_commercial",
+    )
+
+    assert "closed footwear" in result["prompt"].lower()
     used_sources = {item["source"] for item in result["prompt_compiler_debug"]["used_clauses"]}
     assert "styling_completion" in used_sources
 

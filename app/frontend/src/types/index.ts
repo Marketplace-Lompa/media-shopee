@@ -1,5 +1,6 @@
 export type AspectRatio = '1:1' | '9:16' | '16:9' | '4:3' | '3:4' | '4:5';
 export type Resolution = '1K' | '2K' | '4K';
+export type AngleTarget = 'front' | 'left_3q' | 'right_3q' | 'left_profile' | 'right_profile' | 'back' | 'left_3q_back' | 'right_3q_back';
 export type PoolType = 'modelo' | 'roupa' | 'cenario';
 export type PipelineMode = 'reference_mode' | 'reference_mode_strict' | 'text_mode';
 export type CreateCategory = 'fashion';
@@ -28,8 +29,25 @@ export interface EditTarget {
     filename: string;
     url: string;
     prompt?: string;
-    aspect_ratio?: string;
-    resolution?: string;
+    aspect_ratio?: AspectRatio | string;
+    resolution?: Resolution | string;
+    shot_type?: string;
+}
+
+export interface EditCommandCenterOptions {
+    editSubmode?: 'angle_transform';
+    viewIntent?: 'soft_turn' | 'back_view' | 'preserve';
+    distanceIntent?: 'preserve' | 'closer' | 'farther';
+    poseFreedom?: 'locked' | 'flexible';
+    angleTarget?: AngleTarget;
+    preserveFraming?: boolean;
+    preserveCameraHeight?: boolean;
+    preserveDistance?: boolean;
+    preservePose?: boolean;
+    aspect_ratio?: AspectRatio;
+    resolution?: Resolution;
+    sourceShotType?: string;
+    freeText?: string;
 }
 
 export interface GuidedBrief {
@@ -300,6 +318,7 @@ export interface EditJobResult {
     images: Array<{ url: string; filename: string; size_kb?: number; mime_type?: string }>;
     edit_instruction: string;
     edit_type?: string;
+    edit_submode?: string;
     change_summary?: string;
     optimized_prompt?: string;
     aspect_ratio?: string;

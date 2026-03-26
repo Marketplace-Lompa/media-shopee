@@ -18,6 +18,34 @@ _BAREFOOT_EXCEPTION_KEYWORDS = (
     "loungewear", "robe",
 )
 
+_FOOTWEAR_FAMILY_RENDERINGS: dict[str, tuple[str, ...]] = {
+    "open_minimal": (
+        "minimal open-profile footwear with restrained lines and low contrast",
+        "understated open footwear with a quiet visual profile",
+        "clean open footwear that stays secondary to the garment",
+    ),
+    "closed_clean": (
+        "clean closed footwear with low profile and tonal restraint",
+        "closed low-profile footwear with a quiet commercial finish",
+        "closed footwear with restrained contrast and minimal visual noise",
+    ),
+    "soft_flat": (
+        "soft flat footwear with a clean low-profile outline and restrained contrast",
+        "low-profile flat footwear with a gentle commercial finish",
+        "softly structured flat footwear that stays visually quiet",
+    ),
+    "refined_lifted": (
+        "refined low-lift footwear with controlled emphasis and tonal balance",
+        "elevated low-profile footwear that stays secondary to the garment",
+        "polished low-lift footwear with restrained visual presence",
+    ),
+    "casual_grounded": (
+        "grounded everyday footwear with relaxed polish and low visual noise",
+        "casual grounded footwear with low contrast and believable ease",
+        "everyday footwear with a grounded profile and restrained presence",
+    ),
+}
+
 
 _STYLING_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
     "catalog_clean": {
@@ -25,10 +53,10 @@ _STYLING_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
             "commercially complete minimal look",
             "catalog-complete restrained styling",
         ),
-        "footwear_strategy": (
-            "discreet footwear appropriate to the look with minimal visual profile",
-            "refined low-emphasis footwear coherent with the garment's direction",
-            "clean commercially coherent footwear with restrained visual presence",
+        "footwear_family": (
+            "closed_clean",
+            "refined_lifted",
+            "soft_flat",
         ),
         "accessory_restraint": (
             "nearly absent accessories",
@@ -47,10 +75,11 @@ _STYLING_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
             "softly resolved everyday styling",
             "clean believable look completion",
         ),
-        "footwear_strategy": (
-            "footwear appropriate to the look in a natural understated direction",
-            "discreet everyday footwear with low visual noise",
-            "simple commercially coherent footwear that matches the garment's mood",
+        "footwear_family": (
+            "soft_flat",
+            "closed_clean",
+            "casual_grounded",
+            "open_minimal",
         ),
         "accessory_restraint": (
             "restrained everyday accessories",
@@ -69,10 +98,11 @@ _STYLING_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
             "commercially resolved lived-in styling",
             "believable lifestyle look completion",
         ),
-        "footwear_strategy": (
-            "casual footwear appropriate to the look with social believability",
-            "clean casual footwear in a tonal direction",
-            "simple everyday footwear with low visual contrast",
+        "footwear_family": (
+            "casual_grounded",
+            "soft_flat",
+            "open_minimal",
+            "closed_clean",
         ),
         "accessory_restraint": (
             "light lifestyle accessories",
@@ -91,10 +121,10 @@ _STYLING_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
             "fashion-aware commercial look completion",
             "resolved styling with stronger image intention",
         ),
-        "footwear_strategy": (
-            "sleek refined footwear appropriate to the look with low color contrast",
-            "clean sculptural footwear with restrained graphic presence",
-            "fashion-aware tonal footwear with controlled visual emphasis",
+        "footwear_family": (
+            "refined_lifted",
+            "closed_clean",
+            "open_minimal",
         ),
         "accessory_restraint": (
             "edited fashion accessories only",
@@ -120,17 +150,17 @@ def _stable_index(seed: str, size: int) -> int:
 def _garment_styling_affinity(user_prompt: str) -> dict[str, str]:
     text = str(user_prompt or "").lower()
     affinity = {
-        "footwear_strategy": "",
+        "footwear_family": "",
         "look_finish": "",
     }
     if any(token in text for token in ("vestido", "dress", "saia", "skirt", "linho", "linen", "evasê", "evase", "bufante", "puff")):
-        affinity["footwear_strategy"] = "footwear appropriate to the look in a natural understated direction"
+        affinity["footwear_family"] = "soft_flat"
         affinity["look_finish"] = "natural complete look without overstyling"
     if any(token in text for token in ("blazer", "alfaiat", "tailored", "structured", "lapela", "lapel")):
-        affinity["footwear_strategy"] = "sleek refined footwear appropriate to the look with low color contrast"
+        affinity["footwear_family"] = "closed_clean"
         affinity["look_finish"] = "quiet premium catalog finish"
     if any(token in text for token in ("tricô", "tricot", "knit", "crochê", "crochet", "malha")):
-        affinity["footwear_strategy"] = "simple everyday footwear with low visual contrast"
+        affinity["footwear_family"] = "casual_grounded"
         affinity["look_finish"] = "soft premium everyday finish"
     return affinity
 
@@ -174,6 +204,26 @@ def _prioritize_options(
     return matched + unmatched if matched else windowed
 
 
+def render_footwear_strategy(
+    *,
+    mode_id: str,
+    footwear_family: str,
+    seed_hint: str = "",
+    operational_profile: Optional[dict[str, Any]] = None,
+) -> str:
+    renderings = list(_FOOTWEAR_FAMILY_RENDERINGS.get(footwear_family, ()))
+    if not renderings:
+        return "commercially coherent footwear with restrained visual presence"
+    profile_keywords, invention_budget = _styling_profile_keywords(operational_profile)
+    prioritized = _prioritize_options(
+        renderings,
+        keywords=profile_keywords,
+        invention_budget=invention_budget,
+    )
+    seed = f"{mode_id}:{footwear_family}:{seed_hint}"
+    return prioritized[_stable_index(seed, len(prioritized))]
+
+
 def select_styling_completion_state(
     *,
     mode_id: str,
@@ -189,12 +239,12 @@ def select_styling_completion_state(
     seed_base = f"{mode_id}:{framing_profile}:{scenario_pool}:{user_prompt or ''}:{seed_hint}"
 
     completion_levels = list(library["completion_level"])
-    footwear_options = list(library["footwear_strategy"])
+    footwear_families = list(library["footwear_family"])
     accessory_options = list(library["accessory_restraint"])
     finish_options = list(library["look_finish"])
 
-    if affinity["footwear_strategy"] and affinity["footwear_strategy"] in footwear_options:
-        footwear_options = [affinity["footwear_strategy"]] + [v for v in footwear_options if v != affinity["footwear_strategy"]]
+    if affinity["footwear_family"] and affinity["footwear_family"] in footwear_families:
+        footwear_families = [affinity["footwear_family"]] + [v for v in footwear_families if v != affinity["footwear_family"]]
     if affinity["look_finish"] and affinity["look_finish"] in finish_options:
         finish_options = [affinity["look_finish"]] + [v for v in finish_options if v != affinity["look_finish"]]
 
@@ -203,8 +253,8 @@ def select_styling_completion_state(
         keywords=profile_keywords,
         invention_budget=invention_budget,
     )
-    footwear_options = _prioritize_options(
-        footwear_options,
+    footwear_families = _prioritize_options(
+        footwear_families,
         keywords=profile_keywords,
         invention_budget=invention_budget,
     )
@@ -220,7 +270,13 @@ def select_styling_completion_state(
     )
 
     completion_level = completion_levels[_stable_index(seed_base + ":completion", len(completion_levels))]
-    footwear_strategy = footwear_options[_stable_index(seed_base + ":footwear", len(footwear_options))]
+    footwear_family = footwear_families[_stable_index(seed_base + ":footwear_family", len(footwear_families))]
+    footwear_strategy = render_footwear_strategy(
+        mode_id=mode_id,
+        footwear_family=footwear_family,
+        seed_hint=seed_base + ":footwear_strategy",
+        operational_profile=operational_profile,
+    )
     accessory_restraint = accessory_options[_stable_index(seed_base + ":accessory", len(accessory_options))]
     look_finish = finish_options[_stable_index(seed_base + ":finish", len(finish_options))]
     footwear_required = framing_profile == "full_body" and not any(
@@ -239,6 +295,7 @@ def select_styling_completion_state(
 
     return {
         "completion_level": completion_level,
+        "footwear_family": footwear_family,
         "footwear_strategy": footwear_strategy,
         "accessory_restraint": accessory_restraint,
         "look_finish": look_finish,
@@ -250,6 +307,7 @@ def select_styling_completion_state(
                 mode_id,
                 framing_profile,
                 completion_level,
+                footwear_family,
                 footwear_strategy,
                 accessory_restraint,
                 look_finish,

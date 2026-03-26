@@ -14,7 +14,7 @@ Princípio: se o texto pode ser lido como frase de prompt, está errado.
 O preset é uma intenção que o agente *resolve*, não um fragmento que ele *cola*.
 """
 import random
-from typing import Optional
+from typing import Any, Optional
 
 from agent_runtime.casting_engine import select_brazilian_casting_profile
 from agent_runtime.coordination_engine import select_coordination_state
@@ -28,7 +28,7 @@ from agent_runtime.modes import (
 )
 from agent_runtime.preset_patch import PresetPatch
 from agent_runtime.pose_engine import select_pose_state
-from agent_runtime.scene_engine import select_scene_state
+from agent_runtime.scene_engine import select_scene_direction, select_scene_state
 from agent_runtime.styling_completion_engine import select_styling_completion_state
 
 _last_presence_idx_by_casting: dict[str, int] = {}
@@ -96,31 +96,47 @@ _CASTING_FAMILY_BIASES: dict[str, tuple[str, ...]] = {
     "catalog_clean": (
         "br_minimal_premium",
         "br_warm_commercial",
-        "br_afro_modern",
-        "br_mature_elegant",
+        "br_afro",
+        "br_mature_elegante",
+        "br_sulista",
+        "br_morena_clara",
     ),
     "natural": (
-        "br_everyday_natural",
-        "br_everyday_afro",
-        "br_everyday_mature",
         "br_social_creator",
-        "br_social_afro",
-        "br_social_mature",
+        "br_morena_clara",
+        "br_loira_natural",
+        "br_nordestina",
+        "br_cabocla",
+        "br_mulata_cacheada",
+        "br_everyday_natural",
+        "br_afro",
+        "br_nikkei",
+        "br_ruiva",
+        "br_sulista",
         "br_warm_commercial",
     ),
     "lifestyle": (
         "br_social_creator",
-        "br_social_afro",
-        "br_social_mature",
+        "br_morena_clara",
+        "br_loira_natural",
+        "br_nordestina",
+        "br_mulata_cacheada",
+        "br_cabocla",
         "br_everyday_natural",
-        "br_everyday_afro",
-        "br_everyday_mature",
+        "br_afro",
+        "br_nikkei",
+        "br_ruiva",
+        "br_sulista",
     ),
     "editorial_commercial": (
         "br_soft_editorial",
-        "br_afro_modern",
+        "br_afro",
         "br_minimal_premium",
-        "br_mature_elegant",
+        "br_mature_elegante",
+        "br_sulista",
+        "br_nikkei",
+        "br_morena_clara",
+        "br_loira_natural",
     ),
 }
 
@@ -130,6 +146,8 @@ _CASTING_FAMILY_BIASES: dict[str, tuple[str, ...]] = {
 # O preset é um EIXO SEMÂNTICO, não texto de prompt.
 
 _MODE_PRESET_POOLS: dict[str, dict[str, tuple[str, ...]]] = {
+    # ── CATÁLOGO ─────────────────────────────────────────────
+    # Alma: "A peça é a estrela." Tudo fixo, zero variação.
     "catalog_clean": {
         "scenario_pool": ("studio_minimal",),
         "pose_energy": ("static",),
@@ -139,50 +157,57 @@ _MODE_PRESET_POOLS: dict[str, dict[str, tuple[str, ...]]] = {
         "capture_geometry": ("full_body_neutral",),
         "lighting_profile": ("studio_even",),
     },
+    # ── NATURAL ──────────────────────────────────────────────
+    # Alma: "Pessoa real vestindo." Cenários QUIETOS e discretos
+    # que apoiam sem competir. Pose = relaxed ONLY (candid é lifestyle).
+    # Cenários exclusivos: residential, café, curated_interior, hotel, neighborhood.
     "natural": {
         "scenario_pool": (
             "residential_daylight",
             "neighborhood_commercial",
-            "nature_open_air",
             "curated_interior",
-            "tropical_garden",
             "cafe_bistro",
             "hotel_pousada",
         ),
-        "pose_energy": ("relaxed", "candid"),
+        "pose_energy": ("relaxed",),
         "casting_profile": ("natural_commercial",),
         "framing_profile": ("three_quarter", "full_body"),
         "camera_type": ("natural_digital",),
         "capture_geometry": ("three_quarter_eye_level", "three_quarter_slight_angle", "full_body_neutral"),
         "lighting_profile": ("natural_soft", "directional_daylight"),
     },
+    # ── LIFESTYLE ────────────────────────────────────────────
+    # Alma: "Vivendo o momento." Cenários PROTAGONISTAS com narrativa.
+    # Pose = candid + directed (NUNCA relaxed, que é natural).
+    # Câmera phone-first = DNA de UGC/influencer.
+    # Casting ampliado com editorial_presence para mais diversidade.
     "lifestyle": {
         "scenario_pool": (
             "textured_city",
-            "nature_open_air",
-            "neighborhood_commercial",
             "beach_coastal",
             "market_feira",
-            "tropical_garden",
-            "cafe_bistro",
             "rooftop_terrace",
+            "tropical_garden",
+            "nature_open_air",
         ),
-        "pose_energy": ("candid", "relaxed"),
-        "casting_profile": ("natural_commercial",),
+        "pose_energy": ("candid", "directed"),
+        "casting_profile": ("natural_commercial", "editorial_presence"),
         "framing_profile": ("environmental_wide", "three_quarter"),
-        "camera_type": ("natural_digital", "phone_social"),
-        "capture_geometry": ("environmental_wide_observer", "three_quarter_slight_angle", "three_quarter_eye_level"),
-        "lighting_profile": ("ambient_lifestyle", "directional_daylight", "natural_soft"),
+        "camera_type": ("phone_social", "natural_digital"),
+        "capture_geometry": ("environmental_wide_observer", "three_quarter_slight_angle"),
+        "lighting_profile": ("ambient_lifestyle", "directional_daylight"),
     },
+    # ── EDITORIAL ────────────────────────────────────────────
+    # Alma: "Moda como arte." Cenários premium e intencionais.
+    # Sem hotel_pousada (pertence ao Natural). Pose = directed first.
     "editorial_commercial": {
         "scenario_pool": (
             "architecture_premium",
             "curated_interior",
             "cultural_space",
-            "hotel_pousada",
             "rooftop_terrace",
         ),
-        "pose_energy": ("directed", "relaxed"),
+        "pose_energy": ("directed",),
         "casting_profile": ("editorial_presence", "polished_commercial"),
         "framing_profile": ("editorial_mid", "three_quarter"),
         "camera_type": ("editorial_fashion", "commercial_full_frame"),
@@ -303,22 +328,29 @@ def build_mode_diversity_target(
     )
     profile_dict = operational_profile.to_dict()
     casting_key = resolved_presets["casting_profile"]
-    casting_state = select_brazilian_casting_profile(
-        seed_hint=(
-            f"{mode_config.id}:"
-            f"{resolved_presets['scenario_pool']}:"
-            f"{resolved_presets['framing_profile']}:"
-            f"{resolved_presets['camera_type']}:"
-            f"{resolved_presets['capture_geometry']}:"
-            f"{resolved_presets['lighting_profile']}:"
-            f"{resolved_presets['pose_energy']}:"
-            f"{casting_key}"
-        ),
-        user_prompt=user_prompt or mode_config.description,
-        preferred_family_ids=list(_CASTING_FAMILY_BIASES.get(mode_config.id, ())),
-        commit=False,
-        operational_profile=profile_dict,
-    )
+
+    # Alma pura: modes criativos não usam casting prescritivo.
+    # O prompt_context.py injeta a alma da modelo (model_soul.py) no lugar.
+    is_creative_mode = mode_config.id != "catalog_clean"
+    if is_creative_mode:
+        casting_state: dict[str, Any] = {}
+    else:
+        casting_state = select_brazilian_casting_profile(
+            seed_hint=(
+                f"{mode_config.id}:"
+                f"{resolved_presets['scenario_pool']}:"
+                f"{resolved_presets['framing_profile']}:"
+                f"{resolved_presets['camera_type']}:"
+                f"{resolved_presets['capture_geometry']}:"
+                f"{resolved_presets['lighting_profile']}:"
+                f"{resolved_presets['pose_energy']}:"
+                f"{casting_key}"
+            ),
+            user_prompt=user_prompt or mode_config.description,
+            preferred_family_ids=list(_CASTING_FAMILY_BIASES.get(mode_config.id, ())),
+            commit=False,
+            operational_profile=profile_dict,
+        )
 
     scene_state = select_scene_state(
         scenario_pool=resolved_presets["scenario_pool"],
@@ -384,9 +416,28 @@ def build_mode_diversity_target(
         operational_profile=profile_dict,
     )
 
-    profile_hint, presence_energy, presence_tone = _sample_diversity_target(
-        casting_profile=casting_key,  # type: ignore[arg-type]
-    )
+    # Alma pura: modes criativos usam MODEL SOUL para identidade da modelo.
+    # Name blending (profile_hint) conflita com a alma — desativado para criativos.
+    if mode_config.id != "catalog_clean":
+        profile_hint = ""
+        presence_energy = ""
+        presence_tone = ""
+    else:
+        profile_hint, presence_energy, presence_tone = _sample_diversity_target(
+            casting_profile=casting_key,  # type: ignore[arg-type]
+        )
+
+    # Para modes criativos, gerar scene_direction guideline-driven
+    scene_direction = None
+    if mode_config.id != "catalog_clean":
+        pools = _MODE_PRESET_POOLS.get(mode_config.id, {})
+        all_scenario_pools = list(pools.get("scenario_pool", ()))
+        if all_scenario_pools:
+            scene_direction = select_scene_direction(
+                scenario_pools=all_scenario_pools,
+                mode_id=mode_config.id,
+                user_prompt=user_prompt,
+            )
 
     return {
         "profile_id": f"{mode_config.id}:{casting_key}",
@@ -406,6 +457,7 @@ def build_mode_diversity_target(
             "recent_avoid": list(casting_state.get("recent_avoid", []) or []),
         },
         "scene_state": scene_state,
+        "scene_direction": scene_direction,
         "capture_state": capture_state,
         "pose_state": pose_state,
         "styling_state": styling_state,

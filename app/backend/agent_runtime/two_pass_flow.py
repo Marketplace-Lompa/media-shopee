@@ -589,6 +589,11 @@ def build_art_direction_two_pass_edit_prompt(
 
     sentences = [
         angle_directive,  # instrução de ângulo/crop obrigatória — vazia se não houver slot directive
+        (
+            "IDENTITY REPLACEMENT: The person in the base image is a PLACEHOLDER and must be fully replaced. "
+            "Do not preserve ANY facial features, skin tone, hair color, hair style, body type, or age "
+            "from the base image person OR from the reference images. Create a completely new person."
+        ),
         "Keep the garment exactly the same: " + ", ".join(locks) + ".",
         _pattern_lock_sentence,  # lock específico de padrão — vazio se padrão não detectado
         f"Replace the model with {identity_sentence}.",

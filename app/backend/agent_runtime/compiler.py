@@ -180,6 +180,16 @@ def _compile_prompt_v2(
         clauses.extend(struct_clauses)
         discarded.extend(struct_discarded)
 
+    # ── P1: Âncora de fidelidade de garment (reference_mode) ─────────
+    # A referência é a ÚNICA fonte de verdade para a roupa.
+    # Modelo e cenário são livres — apenas a roupa deve ser fiel.
+    if has_images and pipeline_mode == "reference_mode":
+        clauses.append((
+            "the uploaded reference image is the sole garment truth source — "
+            "preserve exact color, fabric, pattern scale, construction, and silhouette",
+            1, "garment_fidelity_anchor"
+        ))
+
     # ── P1: Atypical silhouette / Complex matching (grounding full) ──
     if grounding_mode == "full":
         clauses.append((
@@ -268,6 +278,15 @@ def _compile_prompt_v2(
 
     if has_images:
         clauses.append((model_presence_clause, 3, "quality_model"))
+        # ── Pose corporal: enforcement explícito para editorial ──────
+        # As diretivas de pose no MODE_PRESETS (system prompt) são frequentemente
+        # ignoradas pelo Gemini. Reforçamos diretamente no prompt compilado.
+        if pose_energy == "directed":
+            clauses.append((
+                "dynamic fashion pose with weight shifted, body angled, "
+                "and arms purposefully placed — never static or symmetrical",
+                3, "pose_body_directed"
+            ))
         if not (has_images and not has_prompt and guided_pose_creative):
             clauses.append((gaze_clause, 3, "quality_gaze"))
         clauses.append((_scene_composition_clause(base, _guided_scene_type, pipeline_mode), 4, "quality_scene"))

@@ -264,9 +264,15 @@ def _build_stage1_prompt(
         "Do not add pins, brooches, belts, scarves, jewelry, or decorative garment accessories. "
     )
 
+    _identity_guard = (
+        "The people/models shown in the reference images are NOT the subject — "
+        "completely ignore their face, skin tone, hair color, hair style, body type, age, and ethnicity. "
+        "Create a clearly different adult Brazilian woman for this photo."
+    )
     if preset_hint == "ugc_real_br":
         parts = [
             "Ultra-realistic fashion photo of a natural adult woman wearing the garment.",
+            _identity_guard,
             "Realistic skin texture, natural body proportions, relaxed readable stance, full garment clearly visible.",
             "Neutral believable real-life indoor composition with ordinary soft light and no campaign polish.",
             "Preserve exact garment geometry, texture continuity, and construction details.",
@@ -274,6 +280,7 @@ def _build_stage1_prompt(
     else:
         parts = [
             "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment.",
+            _identity_guard,
             "Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible.",
             "Clean premium indoor composition, soft natural daylight.",
             "Preserve exact garment geometry, texture continuity, and construction details.",
@@ -932,6 +939,7 @@ def run_pipeline_v2(
                 session_id=edit_session_id,
                 reference_images_bytes=edit_reference_bytes,
                 use_image_grounding=_use_image_grounding,
+                lock_person=False,
             )
 
             if not edit_results:
@@ -1105,6 +1113,7 @@ def run_pipeline_v2(
                         session_id=f"{edit_session_id}_retry",
                         reference_images_bytes=edit_reference_bytes,
                         use_image_grounding=_use_image_grounding,
+                        lock_person=False,
                     )
                     retry_result = retry_results[0] if retry_results else None
                     retry_assessment = (

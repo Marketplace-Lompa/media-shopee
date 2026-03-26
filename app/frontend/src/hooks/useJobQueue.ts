@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { submitGenerateAsync, submitEditAsync, submitMarketplaceAsync } from '../lib/api';
-import type { JobEntry, JobType, JobStatus, EditTarget, AspectRatio, Resolution, Mode, MarketplaceChannel, MarketplaceOperation, CreateCategory } from '../types';
+import type { JobEntry, JobType, JobStatus, EditTarget, EditCommandCenterOptions, AspectRatio, Resolution, Mode, MarketplaceChannel, MarketplaceOperation, CreateCategory } from '../types';
 
 // Adaptive polling: ajusta taxa baseado no estágio atual do job
 const POLL_DEFAULT_MS = 1200;       // queued / desconhecido
@@ -97,9 +97,16 @@ export interface GeneratePayload {
     mode: Mode;
 }
 
-export interface EditPayload {
+export interface FreeformEditPayload {
     editInstruction: string;
     target: EditTarget;
+    files?: File[];
+}
+
+export interface GuidedAnglePayload {
+    editInstruction: string;
+    target: EditTarget;
+    commandCenter: EditCommandCenterOptions;
     files?: File[];
 }
 
@@ -385,7 +392,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
         }
     }
 
-    async function submitEditJob(payload: EditPayload) {
+    async function submitFreeformEditJob(payload: FreeformEditPayload) {
         const sourceThumbnail = payload.target.url.startsWith('http')
             ? payload.target.url
             : `${window.location.origin}${payload.target.url}`;
@@ -396,6 +403,7 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
             const fd = new FormData();
             fd.append('source_url', payload.target.url);
             fd.append('edit_instruction', payload.editInstruction);
+            fd.append('input_mode', 'freeform');
             if (payload.target.prompt) fd.append('source_prompt', payload.target.prompt);
             if (payload.target.session_id) fd.append('source_session_id', payload.target.session_id);
             if (payload.target.aspect_ratio) fd.append('aspect_ratio', payload.target.aspect_ratio);
@@ -410,6 +418,49 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
             startPolling(job_id, 'edit');
         } catch (err) {
             const msg = err instanceof Error ? err.message : 'Erro ao enviar edição';
+            setJobs(prev => prev.map(j =>
+                j.id === entry.id ? { ...j, status: 'error', error: msg } : j
+            ));
+        }
+    }
+
+    async function submitGuidedAngleJob(payload: GuidedAnglePayload) {
+        const sourceThumbnail = payload.target.url.startsWith('http')
+            ? payload.target.url
+            : `${window.location.origin}${payload.target.url}`;
+        const entry = makeTempEntry('edit', [sourceThumbnail], payload.editInstruction);
+        setJobs(prev => [entry, ...prev]);
+
+        try {
+            const fd = new FormData();
+            fd.append('source_url', payload.target.url);
+            fd.append('edit_instruction', payload.editInstruction);
+            fd.append('input_mode', 'guided_angle');
+            if (payload.target.session_id) fd.append('source_session_id', payload.target.session_id);
+            if (payload.commandCenter.aspect_ratio) fd.append('aspect_ratio', payload.commandCenter.aspect_ratio);
+            else if (payload.target.aspect_ratio) fd.append('aspect_ratio', payload.target.aspect_ratio);
+            if (payload.commandCenter.resolution) fd.append('resolution', payload.commandCenter.resolution);
+            else if (payload.target.resolution) fd.append('resolution', payload.target.resolution);
+            if (payload.commandCenter.editSubmode) fd.append('edit_submode', payload.commandCenter.editSubmode);
+            if (payload.commandCenter.viewIntent) fd.append('view_intent', payload.commandCenter.viewIntent);
+            if (payload.commandCenter.distanceIntent) fd.append('distance_intent', payload.commandCenter.distanceIntent);
+            if (payload.commandCenter.poseFreedom) fd.append('pose_freedom', payload.commandCenter.poseFreedom);
+            if (payload.commandCenter.angleTarget) fd.append('angle_target', payload.commandCenter.angleTarget);
+            if (payload.commandCenter.sourceShotType) fd.append('source_shot_type', payload.commandCenter.sourceShotType);
+            if (typeof payload.commandCenter.preserveFraming === 'boolean') fd.append('preserve_framing', String(payload.commandCenter.preserveFraming));
+            if (typeof payload.commandCenter.preserveCameraHeight === 'boolean') fd.append('preserve_camera_height', String(payload.commandCenter.preserveCameraHeight));
+            if (typeof payload.commandCenter.preserveDistance === 'boolean') fd.append('preserve_distance', String(payload.commandCenter.preserveDistance));
+            if (typeof payload.commandCenter.preservePose === 'boolean') fd.append('preserve_pose', String(payload.commandCenter.preservePose));
+            payload.files?.forEach(f => fd.append('images', f));
+
+            const { job_id } = await submitEditAsync(fd);
+
+            setJobs(prev => prev.map(j =>
+                j.id === entry.id ? { ...j, id: job_id, message: 'Aguardando fila…' } : j
+            ));
+            startPolling(job_id, 'edit');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Erro ao enviar edição guiada';
             setJobs(prev => prev.map(j =>
                 j.id === entry.id ? { ...j, status: 'error', error: msg } : j
             ));
@@ -451,5 +502,5 @@ export function useJobQueue({ onJobComplete }: UseJobQueueOptions) {
         }
     }
 
-    return { jobs, submitGenerateJob, submitEditJob, submitMarketplaceJob, dismissJob };
+    return { jobs, submitGenerateJob, submitFreeformEditJob, submitGuidedAngleJob, submitMarketplaceJob, dismissJob };
 }

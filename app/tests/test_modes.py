@@ -20,7 +20,7 @@ from agent_runtime.modes import (
     resolve_operational_mode_profile,
     resolve_mode_with_overrides,
 )
-from agent_runtime.diversity import (
+from agent_runtime.target_builder import (
     build_mode_diversity_target,
     harmonize_diversity_target_for_mode,
 )
@@ -148,6 +148,7 @@ def test_build_mode_diversity_target_uses_abstract_profile_and_presence_axes() -
     assert pose_state["surface_direction"]
     assert pose_state["pose_signature"]
     assert styling_state["completion_level"]
+    assert styling_state["footwear_family"]
     assert styling_state["footwear_strategy"]
     assert styling_state["look_finish"]
     assert styling_state["styling_signature"]
@@ -246,3 +247,37 @@ def test_harmonize_diversity_target_for_mode_upgrades_legacy_reference_shape_wit
     assert target["legacy_profile_id"] == "legacy_profile_1"
     assert target["legacy_profile_prompt"] == "late 20s, warm Brazilian commercial model"
     assert target["profile_prompt"] == "late 20s, warm Brazilian commercial model"
+
+
+def test_harmonize_diversity_target_for_mode_uses_piece_context_when_prompt_is_absent() -> None:
+    from agent_runtime import target_builder as diversity_module
+
+    captured: dict[str, str | None] = {"user_prompt": None}
+    original_builder = diversity_module.build_mode_diversity_target
+
+    def fake_builder(mode_config, user_prompt=None, preset_patch=None):
+        captured["user_prompt"] = user_prompt
+        return original_builder(mode_config, user_prompt=user_prompt, preset_patch=preset_patch)
+
+    legacy = {
+        "profile_id": "legacy_profile_2",
+        "profile_prompt": "warm Brazilian commercial model",
+        "scenario_id": "legacy_scene_2",
+        "scenario_prompt": "believable refined interior",
+        "pose_id": "legacy_pose_2",
+        "pose_prompt": "relaxed standing pose",
+    }
+
+    try:
+        diversity_module.build_mode_diversity_target = fake_builder
+        target = harmonize_diversity_target_for_mode(
+            get_mode("natural"),
+            legacy,
+            user_prompt="olive knit cardigan with visible texture and soft drape",
+        )
+    finally:
+        diversity_module.build_mode_diversity_target = original_builder
+
+    assert captured["user_prompt"] == "olive knit cardigan with visible texture and soft drape"
+    assert target["profile_hint"]
+    assert target["scene_state"]["world_family"]

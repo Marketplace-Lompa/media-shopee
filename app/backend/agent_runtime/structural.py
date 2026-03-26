@@ -823,6 +823,16 @@ def _compress_structural_facts(contract: dict) -> tuple[list[tuple[str, int, str
             "ribbed horizontal stripe texture",
             "horizontal stripe texture",
         }
+        # Surface detail tokens: cues containing these describe texture/pattern/finish
+        # rather than structural geometry. The visual reference already conveys them
+        # with higher fidelity than text — injecting them risks Nano reinterpreting
+        # the surface instead of copying it faithfully from the image.
+        _SURFACE_TOKENS = (
+            "ribbed", "rib ", "knit", "crochet", "woven", "pattern",
+            "texture", "stitch", "relief", "geometric", "diamond",
+            "chevron", "stripe", "plaid", "argyle", "lace", "cable",
+            "pointelle", "jacquard", "herringbone", "tweed", "waffle",
+        )
         added_cues = 0
         for cue in must_keep:
             cleaned = cue.strip()
@@ -832,6 +842,11 @@ def _compress_structural_facts(contract: dict) -> tuple[list[tuple[str, int, str
                     if cleaned_low in _GENERIC_DRAPED_CUES or "sleeve" in cleaned_low or "batwing" in cleaned_low:
                         discarded.append(("must_keep", f"generic:{cleaned_low}"))
                         continue
+                # Surface detail guard: discard cues about texture/pattern/finish
+                # — reference images convey these with higher fidelity than text.
+                if any(token in cleaned_low for token in _SURFACE_TOKENS):
+                    discarded.append(("must_keep", f"surface_detail:{cleaned_low}"))
+                    continue
                 if added_cues < 3:
                     clauses.append((cleaned, 1, "must_keep"))
                     added_cues += 1

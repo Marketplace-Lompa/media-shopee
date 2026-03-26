@@ -10,6 +10,7 @@ from agent_runtime.compiler import (
     _SENTENCE_SPLIT_RE,
 )
 from agent_runtime.garment_narrative import sanitize_garment_narrative
+from agent_runtime.styling_completion_engine import render_footwear_strategy
 
 # ─── Sanitização de camera_and_realism (ex-camera.py) ───────────────────────
 # Essas funções existem apenas para LIMPAR o output do Gemini quando ele
@@ -257,7 +258,15 @@ def _maybe_enforce_text_mode_footwear(
         return prompt_text, None
 
     footwear_strategy = str((styling_state or {}).get("footwear_strategy", "") or "").strip()
+    footwear_family = str((styling_state or {}).get("footwear_family", "") or "").strip()
     look_finish = str((styling_state or {}).get("look_finish", "") or "").strip()
+    if not footwear_strategy and footwear_family:
+        footwear_strategy = render_footwear_strategy(
+            mode_id=mode_id,
+            footwear_family=footwear_family,
+            seed_hint=f"{mode_id}:{framing_profile}:fallback",
+            operational_profile=None,
+        )
     if footwear_strategy:
         finish_clause = f" to maintain a {look_finish}" if look_finish else ""
         clause = (

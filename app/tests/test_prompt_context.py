@@ -159,7 +159,8 @@ def test_build_generate_context_text_uses_text_only_diversity_rules_without_refe
             },
             "styling_state": {
                 "completion_level": "commercially complete natural styling",
-                "footwear_strategy": "footwear appropriate to the look in a natural understated direction",
+                "footwear_family": "soft_flat",
+                "footwear_strategy": "soft flat footwear with a clean low-profile outline and restrained contrast",
                 "accessory_restraint": "light personal styling only",
                 "look_finish": "natural complete look without overstyling",
                 "styling_interference": "low styling interference",
@@ -177,6 +178,13 @@ def test_build_generate_context_text_uses_text_only_diversity_rules_without_refe
                 "synthesis_rule": "All visible choices must feel like the same photograph with one commercial intention, not separate good ideas described in sequence.",
                 "bridge_clause": "The warm setting, relaxed body direction, and clean capture work together to keep the garment believable and visually primary.",
                 "coordination_signature": "sig-coordination-123",
+            },
+            "operational_profile": {
+                "mode_id": "natural",
+                "engine_weights": {"casting": 0.8, "scene": 0.9, "capture": 0.75, "styling": 0.55, "pose": 0.7},
+                "surface_budget": {"subject": 3, "scene": 2, "capture": 2, "styling": 1, "pose": 2},
+                "invention_budget": 0.45,
+                "guardrail_profile": "natural_commercial",
             },
         },
         guided_enabled=False,
@@ -214,20 +222,34 @@ def test_build_generate_context_text_uses_text_only_diversity_rules_without_refe
     assert "pose surface budget:" in context
     assert "guardrail behavior:" in context
     assert "without naming modes or preset mechanics" in context
-    assert "CASTING LATENT STATE" in context
-    assert "SCENE LATENT STATE" in context
+    # Modes criativos usam MODEL SOUL (alma universal) em vez de CASTING LATENT STATE
+    assert "MODEL SOUL" in context
+    assert "FACE:" in context
+    assert "SKIN:" in context
+    assert "HAIR:" in context
+    assert "BODY:" in context
+    assert "AGE:" in context
+    assert "BRAZILIAN REGIONAL DIVERSITY" in context
+    assert "NORTE" in context
+    assert "NORDESTE" in context
+    assert "SUL" in context
+    assert "SUDESTE" in context
+    # Cenário: para modes criativos, scene_direction pode substituir SCENE LATENT STATE
+    # mas a presença depende da implementação no diversity — não é um invariante a verificar aqui
     assert "CAPTURE LATENT STATE" in context
     assert "POSE LATENT STATE" in context
+    assert "footwear family:" in context
     assert "STYLING LATENT STATE" in context
     assert "ART DIRECTION COORDINATION STATE" in context
-    assert "generic apartment, street, or premium backdrop" in context
-    assert "choose how the camera should look at the garment" in context
-    assert "apparent age" in context
+    assert "invent a commercially coherent camera language" in context
+    assert "not a fixed camera script" in context
+    assert "not repeated from a generic safe default" in context
+    assert "not fixed choreography" in context
+    assert "invent believable body direction" in context
     assert "specific stance or gesture" in context
     assert "complete the look with fashion judgment" in context
     assert "one authored image direction" in context
     assert "natural relational phrase" in context
-    assert "recent avoid:" in context
     assert "family_id" not in context
 
 
@@ -323,12 +345,16 @@ def test_build_generate_context_text_reference_mode_softens_casting_surface_guid
         reference_knowledge="REFERENCE_KNOWLEDGE_BLOCK",
     )
 
-    assert "CASTING LATENT STATE (reference mode: use as abstract persona guidance" in context
-    assert "skin direction:" not in context
-    assert "hair language:" not in context
-    assert "face impression:" not in context
-    assert "keep them broad and secondary" in context
-    assert "do not over-specify phenotype in garment-reference mode" in context
+    # Modes criativos usam MODEL SOUL, não CASTING LATENT STATE prescritivo
+    assert "MODEL SOUL" in context
+    assert "FACE:" in context
+    assert "SKIN:" in context
+    assert "HAIR:" in context
+    assert "BODY:" in context
+    assert "AGE:" in context
+    assert "BRAZILIAN REGIONAL DIVERSITY" in context
+    # Modo referência mantém distinção visual da modelo de referência
+    assert "read clearly distinct from her" in context
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -22,6 +22,7 @@ def test_select_styling_completion_state_returns_complete_latent_styling_coordin
     )
 
     assert state["completion_level"]
+    assert state["footwear_family"]
     assert state["footwear_strategy"]
     assert state["accessory_restraint"]
     assert state["look_finish"]
@@ -47,6 +48,7 @@ def test_select_styling_completion_state_changes_with_mode_and_garment() -> None
         seed_hint="blazer",
     )
 
+    assert dress["footwear_family"] != blazer["footwear_family"]
     assert dress["footwear_strategy"] != blazer["footwear_strategy"]
     assert dress["look_finish"] != blazer["look_finish"]
 

@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Copy, Download, Clock, Pencil, ChevronDown } from 'lucide-react';
+import {
+  X,
+  Copy,
+  Download,
+  Clock,
+  Pencil,
+  ChevronDown,
+  ArrowDown,
+  Lock,
+  Unlock,
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import type { Tab } from './components/Sidebar';
 import { ChatInput } from './components/ChatInput';
@@ -23,13 +36,74 @@ import {
 import { useJobQueue } from './hooks/useJobQueue';
 import { useDialogA11y } from './hooks/useDialogA11y';
 import type {
+  AspectRatio,
   PoolItem,
   MediaHistoryItem,
   EditTarget,
   JobReviewPayload,
   CreateCategory,
+  Resolution,
 } from './types';
 import './App.css';
+
+const EDIT_AR_OPTIONS: AspectRatio[] = ['4:5', '1:1', '9:16', '16:9', '4:3', '3:4'];
+const EDIT_RES_OPTIONS: Resolution[] = ['1K', '2K', '4K'];
+interface LightboxEditDraft {
+  angleMode: 'soft_turn' | 'back_view' | null;
+  distanceMode: 'closer' | 'farther' | null;
+  positionControl: 'locked' | 'flexible' | null;
+  aspectRatio: AspectRatio;
+  resolution: Resolution;
+  freeText: string;
+}
+
+function coerceAspectRatio(value?: string): AspectRatio {
+  return (EDIT_AR_OPTIONS.includes(value as AspectRatio) ? value : '4:5') as AspectRatio;
+}
+
+function coerceResolution(value?: string): Resolution {
+  return (EDIT_RES_OPTIONS.includes(value as Resolution) ? value : '1K') as Resolution;
+}
+
+function makeLightboxEditDraft(item: MediaHistoryItem): LightboxEditDraft {
+  return {
+    angleMode: null,
+    distanceMode: null,
+    positionControl: null,
+    aspectRatio: coerceAspectRatio(item.aspect_ratio),
+    resolution: coerceResolution(item.resolution),
+    freeText: '',
+  };
+}
+
+function hasDeterministicEditSelection(draft: LightboxEditDraft): boolean {
+  return Boolean(draft.angleMode || draft.distanceMode || draft.positionControl);
+}
+
+function buildAngleInstruction(draft: LightboxEditDraft): string {
+  if (!hasDeterministicEditSelection(draft)) {
+    return '';
+  }
+  const parts: string[] = [];
+  if (draft.angleMode) {
+    parts.push(
+      draft.angleMode === 'back_view'
+        ? 'mostrar costas da peça com fidelidade'
+        : 'mudar o ângulo de forma leve e comercial',
+    );
+  }
+  if (draft.distanceMode === 'closer') {
+    parts.push('mais próximo');
+  } else if (draft.distanceMode === 'farther') {
+    parts.push('mais distante');
+  }
+  if (draft.positionControl === 'flexible') {
+    parts.push('liberar um pouco a posição');
+  } else if (draft.positionControl === 'locked') {
+    parts.push('travar posição');
+  }
+  return parts.join('. ');
+}
 
 /* ── LightboxMeta: metadados técnicos colapsável ─────────── */
 function LightboxMeta({ item }: { item: MediaHistoryItem }) {
@@ -76,6 +150,8 @@ export default function App() {
   const [poolLoading, setPoolLoading] = useState(false);
   const [mediaHistory, setMediaHistory] = useState<MediaHistoryItem[]>([]);
   const [lightbox, setLightbox] = useState<{ url: string; item?: MediaHistoryItem } | null>(null);
+  const [lightboxEditMode, setLightboxEditMode] = useState(false);
+  const [lightboxEditDraft, setLightboxEditDraft] = useState<LightboxEditDraft | null>(null);
   const [reuseData, setReuseData] = useState<{ prompt?: string; references?: string[] } | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [reviewData, setReviewData] = useState<JobReviewPayload | null>(null);
@@ -174,14 +250,24 @@ export default function App() {
   }, [tab, reviewData, reviewLoading, fetchLatestReviewData]);
 
   // ── Job Queue ─────────────────────────────────────────────
-  const { jobs, submitGenerateJob, submitEditJob, submitMarketplaceJob, dismissJob } = useJobQueue({
+  const { jobs, submitGenerateJob, submitFreeformEditJob, submitGuidedAngleJob, submitMarketplaceJob, dismissJob } = useJobQueue({
     onJobComplete: fetchHistory,
   });
+
+  useEffect(() => {
+    if (!lightbox?.item) {
+      setLightboxEditMode(false);
+      setLightboxEditDraft(null);
+      return;
+    }
+    setLightboxEditMode(false);
+    setLightboxEditDraft(makeLightboxEditDraft(lightbox.item));
+  }, [lightbox?.item]);
 
   /* ── Handle Edit — agora assíncrono via job queue ────────── */
   function handleEdit(editInstruction: string, target: EditTarget, files?: File[]) {
     setEditTarget(null);
-    submitEditJob({ editInstruction, target, files });
+    submitFreeformEditJob({ editInstruction, target, files });
   }
 
   async function handleHistoryDelete(id: string) {
@@ -217,6 +303,49 @@ export default function App() {
 
   function handleMarketplaceSubmit(payload: Parameters<typeof submitMarketplaceJob>[0]) {
     submitMarketplaceJob(payload);
+  }
+
+  function handleLightboxAngleEdit() {
+    if (!lightbox?.item || !lightboxEditDraft) return;
+    const guidedMode = hasDeterministicEditSelection(lightboxEditDraft);
+    const freeInstruction = lightboxEditDraft.freeText.trim();
+    const editInstruction = guidedMode ? buildAngleInstruction(lightboxEditDraft) : freeInstruction;
+    if (!editInstruction) return;
+    const target: EditTarget = {
+      session_id: lightbox.item.session_id || '',
+      filename: lightbox.item.filename,
+      url: lightbox.item.url,
+      prompt: lightbox.item.prompt || lightbox.item.optimized_prompt,
+      aspect_ratio: lightbox.item.aspect_ratio,
+      resolution: lightbox.item.resolution,
+      shot_type: lightbox.item.shot_type,
+    };
+    if (guidedMode) {
+      submitGuidedAngleJob({
+        editInstruction,
+        target,
+        commandCenter: {
+          editSubmode: 'angle_transform',
+          viewIntent: lightboxEditDraft.angleMode ?? 'preserve',
+          distanceIntent: lightboxEditDraft.distanceMode ?? 'preserve',
+          poseFreedom: lightboxEditDraft.positionControl ?? undefined,
+          angleTarget: lightboxEditDraft.angleMode === 'back_view' ? 'back' : undefined,
+          preserveFraming: true,
+          preserveCameraHeight: true,
+          preserveDistance: lightboxEditDraft.distanceMode === null,
+          preservePose: lightboxEditDraft.positionControl === 'locked',
+          aspect_ratio: lightboxEditDraft.aspectRatio,
+          resolution: lightboxEditDraft.resolution,
+          sourceShotType: lightbox.item.shot_type,
+        },
+      });
+    } else {
+      submitFreeformEditJob({
+        editInstruction,
+        target,
+      });
+    }
+    setLightbox(null);
   }
 
   return (
@@ -378,13 +507,13 @@ export default function App() {
 
               {lightbox.item && (
                 <motion.div
-                  className="lightbox-details"
+                  className={`lightbox-details ${lightboxEditMode ? 'lightbox-details--edit' : ''}`}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 }}
                 >
                   <div className="lightbox-details-header">
-                    <span className="t-label text-secondary">Detalhes da geração</span>
+                    <span className="t-label text-secondary">{lightboxEditMode ? 'Editar imagem' : 'Detalhes da geração'}</span>
                     {lightbox.item.session_id && (
                       <span className="badge" style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.7 }} title="Session ID">
                         #{lightbox.item.session_id}
@@ -393,22 +522,15 @@ export default function App() {
                     <div className="lightbox-details-actions">
                       <button
                         className="lightbox-action-btn lightbox-edit-btn"
-                        title="Modificar esta imagem"
+                        title={lightboxEditMode ? 'Voltar para detalhes' : 'Modificar esta imagem'}
                         onClick={() => {
                           if (lightbox.item) {
-                            setEditTarget({
-                              session_id: lightbox.item.session_id || '',
-                              filename: lightbox.item.filename,
-                              url: lightbox.item.url,
-                              prompt: lightbox.item.prompt || lightbox.item.optimized_prompt,
-                              aspect_ratio: lightbox.item.aspect_ratio,
-                              resolution: lightbox.item.resolution,
-                            });
-                            setLightbox(null);
+                            setLightboxEditDraft(prev => prev ?? makeLightboxEditDraft(lightbox.item as MediaHistoryItem));
+                            setLightboxEditMode(current => !current);
                           }
                         }}
                       >
-                        <Pencil size={14} /> Modificar
+                        <Pencil size={14} /> {lightboxEditMode ? 'Detalhes' : 'Modificar'}
                       </button>
                       <a
                         href={lightbox.url}
@@ -426,54 +548,236 @@ export default function App() {
                   <div className="lightbox-badges">
                     {lightbox.item.aspect_ratio && <span className="badge">{lightbox.item.aspect_ratio}</span>}
                     {lightbox.item.resolution && <span className="badge">{lightbox.item.resolution}</span>}
-                    {lightbox.item.mode && <span className="badge badge--accent" title={lightbox.item.mode}>{humanizeMode(lightbox.item.mode)}</span>}
-                    {lightbox.item.preset && <span className="badge badge--accent" title={lightbox.item.preset}>{humanizePreset(lightbox.item.preset)}</span>}
-                    {lightbox.item.fidelity_mode && <span className="badge" title={lightbox.item.fidelity_mode}>{humanizeFidelityMode(lightbox.item.fidelity_mode)}</span>}
-                    {lightbox.item.scene_preference && <span className="badge" title={lightbox.item.scene_preference}>{humanizeScenePreference(lightbox.item.scene_preference)}</span>}
-                    {lightbox.item.pose_flex_mode && lightbox.item.pose_flex_mode !== 'auto' && <span className="badge" title={lightbox.item.pose_flex_mode}>{humanizePoseFlexMode(lightbox.item.pose_flex_mode)}</span>}
-                    {lightbox.item.pipeline_mode && <span className="badge" title={lightbox.item.pipeline_mode}>{humanizePipelineMode(lightbox.item.pipeline_mode)}</span>}
-                    {lightbox.item.thinking_level && lightbox.item.thinking_level !== 'MINIMAL' && <span className="badge badge--accent">{lightbox.item.thinking_level}</span>}
-                    {lightbox.item.shot_type && <span className="badge">{lightbox.item.shot_type}</span>}
-                    {lightbox.item.marketplace_channel && <span className="badge badge--accent" title={lightbox.item.marketplace_channel}>{humanizeMarketplaceChannel(lightbox.item.marketplace_channel)}</span>}
-                    {lightbox.item.marketplace_operation && <span className="badge" title={lightbox.item.marketplace_operation}>{humanizeMarketplaceOperation(lightbox.item.marketplace_operation)}</span>}
-                    {lightbox.item.slot_id && <span className="badge" title={lightbox.item.slot_id}>{humanizeSlotId(lightbox.item.slot_id)}</span>}
-                    {lightbox.item.grounding_effective && (
-                      <span className="badge badge--success">🌐 Pesquisa web ativa</span>
+                    {lightboxEditMode ? (
+                      <>
+                        {lightbox.item.mode && <span className="badge badge--accent" title={lightbox.item.mode}>{humanizeMode(lightbox.item.mode)}</span>}
+                        {lightbox.item.shot_type && <span className="badge">{lightbox.item.shot_type}</span>}
+                      </>
+                    ) : (
+                      <>
+                        {lightbox.item.mode && <span className="badge badge--accent" title={lightbox.item.mode}>{humanizeMode(lightbox.item.mode)}</span>}
+                        {lightbox.item.preset && <span className="badge badge--accent" title={lightbox.item.preset}>{humanizePreset(lightbox.item.preset)}</span>}
+                        {lightbox.item.fidelity_mode && <span className="badge" title={lightbox.item.fidelity_mode}>{humanizeFidelityMode(lightbox.item.fidelity_mode)}</span>}
+                        {lightbox.item.scene_preference && <span className="badge" title={lightbox.item.scene_preference}>{humanizeScenePreference(lightbox.item.scene_preference)}</span>}
+                        {lightbox.item.pose_flex_mode && lightbox.item.pose_flex_mode !== 'auto' && <span className="badge" title={lightbox.item.pose_flex_mode}>{humanizePoseFlexMode(lightbox.item.pose_flex_mode)}</span>}
+                        {lightbox.item.pipeline_mode && <span className="badge" title={lightbox.item.pipeline_mode}>{humanizePipelineMode(lightbox.item.pipeline_mode)}</span>}
+                        {lightbox.item.thinking_level && lightbox.item.thinking_level !== 'MINIMAL' && <span className="badge badge--accent">{lightbox.item.thinking_level}</span>}
+                        {lightbox.item.shot_type && <span className="badge">{lightbox.item.shot_type}</span>}
+                        {lightbox.item.marketplace_channel && <span className="badge badge--accent" title={lightbox.item.marketplace_channel}>{humanizeMarketplaceChannel(lightbox.item.marketplace_channel)}</span>}
+                        {lightbox.item.marketplace_operation && <span className="badge" title={lightbox.item.marketplace_operation}>{humanizeMarketplaceOperation(lightbox.item.marketplace_operation)}</span>}
+                        {lightbox.item.slot_id && <span className="badge" title={lightbox.item.slot_id}>{humanizeSlotId(lightbox.item.slot_id)}</span>}
+                        {lightbox.item.grounding_effective && (
+                          <span className="badge badge--success">🌐 Pesquisa web ativa</span>
+                        )}
+                      </>
                     )}
                   </div>
 
-                  {/* Prompt */}
-                  {(lightbox.item.prompt || lightbox.item.optimized_prompt) && (
-                    <div className="lightbox-prompt-section">
-                      <div className="lightbox-prompt-header">
-                        <span className="t-xs text-tertiary">Prompt</span>
+                  {lightboxEditMode && lightboxEditDraft ? (
+                    <div className="lightbox-edit-panel">
+                      <div className="lightbox-edit-scroll">
+                        <div className="lightbox-edit-compose">
+                          <div className="lightbox-edit-title-row">
+                            <span className="t-xs text-tertiary">Modificar</span>
+                            <span className="t-xs text-tertiary">
+                              {hasDeterministicEditSelection(lightboxEditDraft) ? 'Ajuste guiado ativo' : 'Instrução livre'}
+                            </span>
+                          </div>
+                          <textarea
+                            className="lightbox-edit-textarea"
+                            value={lightboxEditDraft.freeText}
+                            onChange={(e) => setLightboxEditDraft(prev => prev ? { ...prev, freeText: e.target.value } : prev)}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            placeholder={
+                              hasDeterministicEditSelection(lightboxEditDraft)
+                                ? 'Ajuste livre indisponível enquanto um controle guiado estiver ativo'
+                                : 'Descreva a modificação que deseja fazer'
+                            }
+                            rows={3}
+                            disabled={hasDeterministicEditSelection(lightboxEditDraft)}
+                          />
+                        </div>
+
+                        <div className="lightbox-edit-section">
+                          <div className="lightbox-edit-title-row">
+                            <span className="t-xs text-tertiary">Ângulo</span>
+                            <span className="t-xs text-tertiary">Direção principal</span>
+                          </div>
+                          <div className="lightbox-edit-choice-grid">
+                          <button
+                            type="button"
+                            className={`lightbox-edit-choice-card ${lightboxEditDraft.angleMode === 'soft_turn' ? 'lightbox-edit-choice-card--active' : ''}`}
+                            onClick={() => setLightboxEditDraft(prev => prev ? {
+                              ...prev,
+                              angleMode: prev.angleMode === 'soft_turn' ? null : 'soft_turn',
+                            } : prev)}
+                          >
+                              <span className="lightbox-edit-choice-icon" aria-hidden="true">
+                                <RotateCw size={16} />
+                              </span>
+                              <span className="lightbox-edit-choice-copy">
+                                <span className="lightbox-edit-choice-label">Mudar ângulo</span>
+                                <span className="lightbox-edit-choice-sublabel">Giro leve decidido pelo agente</span>
+                              </span>
+                            </button>
+                          <button
+                            type="button"
+                            className={`lightbox-edit-choice-card ${lightboxEditDraft.angleMode === 'back_view' ? 'lightbox-edit-choice-card--active' : ''}`}
+                            onClick={() => setLightboxEditDraft(prev => prev ? {
+                              ...prev,
+                              angleMode: prev.angleMode === 'back_view' ? null : 'back_view',
+                            } : prev)}
+                          >
+                              <span className="lightbox-edit-choice-icon" aria-hidden="true">
+                                <ArrowDown size={16} />
+                              </span>
+                              <span className="lightbox-edit-choice-copy">
+                                <span className="lightbox-edit-choice-label">Ângulo de costas</span>
+                                <span className="lightbox-edit-choice-sublabel">Prioriza a leitura das costas</span>
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="lightbox-edit-inline-grid">
+                          <div className="lightbox-edit-inline-group">
+                            <span className="lightbox-edit-config-label">Close</span>
+                            <div className="lightbox-edit-chip-row">
+                              <button
+                                type="button"
+                                className={`lightbox-edit-chip ${lightboxEditDraft.distanceMode === 'closer' ? 'lightbox-edit-chip--active' : ''}`}
+                                onClick={() => setLightboxEditDraft(prev => prev ? { ...prev, distanceMode: prev.distanceMode === 'closer' ? null : 'closer' } : prev)}
+                              >
+                                <ZoomIn size={14} />
+                                <span>Mais próximo</span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`lightbox-edit-chip ${lightboxEditDraft.distanceMode === 'farther' ? 'lightbox-edit-chip--active' : ''}`}
+                                onClick={() => setLightboxEditDraft(prev => prev ? { ...prev, distanceMode: prev.distanceMode === 'farther' ? null : 'farther' } : prev)}
+                              >
+                                <ZoomOut size={14} />
+                                <span>Mais distante</span>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="lightbox-edit-inline-group">
+                            <span className="lightbox-edit-config-label">Controle</span>
+                            <div className="lightbox-edit-chip-row">
+                              <button
+                                type="button"
+                                className={`lightbox-edit-chip ${lightboxEditDraft.positionControl === 'locked' ? 'lightbox-edit-chip--active' : ''}`}
+                                onClick={() => setLightboxEditDraft(prev => prev ? {
+                                  ...prev,
+                                  positionControl: prev.positionControl === 'locked' ? null : 'locked',
+                                } : prev)}
+                              >
+                                <Lock size={14} />
+                                <span>Travar posição</span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`lightbox-edit-chip ${lightboxEditDraft.positionControl === 'flexible' ? 'lightbox-edit-chip--active' : ''}`}
+                                onClick={() => setLightboxEditDraft(prev => prev ? {
+                                  ...prev,
+                                  positionControl: prev.positionControl === 'flexible' ? null : 'flexible',
+                                } : prev)}
+                              >
+                                <Unlock size={14} />
+                                <span>Liberar posição</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="lightbox-edit-inline-grid lightbox-edit-inline-grid--compact">
+                          <div className="lightbox-edit-inline-group">
+                            <span className="lightbox-edit-config-label">Proporção</span>
+                            <div className="lightbox-edit-chip-row">
+                              {EDIT_AR_OPTIONS.map(option => (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  className={`lightbox-edit-chip ${lightboxEditDraft.aspectRatio === option ? 'lightbox-edit-chip--active' : ''}`}
+                                  onClick={() => setLightboxEditDraft(prev => prev ? { ...prev, aspectRatio: option } : prev)}
+                                >
+                                  {option}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="lightbox-edit-inline-group">
+                            <span className="lightbox-edit-config-label">Qualidade</span>
+                            <div className="lightbox-edit-chip-row">
+                              {EDIT_RES_OPTIONS.map(option => (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  className={`lightbox-edit-chip ${lightboxEditDraft.resolution === option ? 'lightbox-edit-chip--active' : ''}`}
+                                  onClick={() => setLightboxEditDraft(prev => prev ? { ...prev, resolution: option } : prev)}
+                                >
+                                  {option}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="lightbox-edit-footer">
                         <button
+                          type="button"
                           className="lightbox-copy-btn"
-                          onClick={() => navigator.clipboard.writeText(lightbox.item?.prompt || lightbox.item?.optimized_prompt || '')}
-                          title="Copiar prompt"
-                          aria-label="Copiar prompt"
+                          onClick={() => setLightboxEditMode(false)}
                         >
-                          <Copy size={12} /> Copiar
+                          Voltar
+                        </button>
+                        <button
+                          type="button"
+                          className="lightbox-edit-apply-btn"
+                          disabled={!lightboxEditDraft.freeText.trim() && !hasDeterministicEditSelection(lightboxEditDraft)}
+                          onClick={handleLightboxAngleEdit}
+                        >
+                          {hasDeterministicEditSelection(lightboxEditDraft)
+                            ? 'Aplicar ajuste guiado'
+                            : (lightboxEditDraft.freeText.trim() ? 'Aplicar modificação' : 'Descreva ou selecione um ajuste')}
                         </button>
                       </div>
-                      <p className="lightbox-prompt-text">
-                        {lightbox.item.prompt || lightbox.item.optimized_prompt}
-                      </p>
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      {(lightbox.item.prompt || lightbox.item.optimized_prompt) && (
+                        <div className="lightbox-prompt-section">
+                          <div className="lightbox-prompt-header">
+                            <span className="t-xs text-tertiary">Prompt</span>
+                            <button
+                              className="lightbox-copy-btn"
+                              onClick={() => navigator.clipboard.writeText(lightbox.item?.prompt || lightbox.item?.optimized_prompt || '')}
+                              title="Copiar prompt"
+                              aria-label="Copiar prompt"
+                            >
+                              <Copy size={12} /> Copiar
+                            </button>
+                          </div>
+                          <p className="lightbox-prompt-text">
+                            {lightbox.item.prompt || lightbox.item.optimized_prompt}
+                          </p>
+                        </div>
+                      )}
 
-                  {/* Timestamp */}
-                  {lightbox.item.created_at && (
-                    <div className="lightbox-timestamp">
-                      <Clock size={11} />
-                      <span className="t-xs text-tertiary">
-                        {new Date(lightbox.item.created_at).toLocaleString('pt-BR')}
-                      </span>
-                    </div>
-                  )}
+                      {lightbox.item.created_at && (
+                        <div className="lightbox-timestamp">
+                          <Clock size={11} />
+                          <span className="t-xs text-tertiary">
+                            {new Date(lightbox.item.created_at).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                      )}
 
-                  {/* Metadados técnicos (colapsável) */}
-                  <LightboxMeta item={lightbox.item} />
+                      <LightboxMeta item={lightbox.item} />
+                    </>
+                  )}
                 </motion.div>
               )}
             </div>

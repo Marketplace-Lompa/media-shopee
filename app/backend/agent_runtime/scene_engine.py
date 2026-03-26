@@ -538,3 +538,58 @@ def select_scene_state(
             ]
         ),
     }
+
+
+def select_scene_direction(
+    *,
+    scenario_pools: list[str],
+    mode_id: str,
+    user_prompt: Optional[str] = None,
+) -> dict[str, Any]:
+    """Retorna diretrizes inspiracionais ao invés de cenário específico.
+
+    Para modes criativos, agrega múltiplas famílias do pool do mode para
+    produzir uma lista AMPLA de exemplos que sinaliza liberdade criativa.
+    """
+    # Agregar material de TODAS as famílias do pool do mode
+    all_emotional: list[str] = []
+    all_material: list[str] = []
+    all_density: list[str] = []
+    all_brazil: list[str] = []
+    all_microcontexts: list[str] = []
+
+    for pool_key in scenario_pools:
+        library = _SCENE_WORLD_LIBRARY.get(pool_key)
+        if not library:
+            continue
+        for mc in library.get("microcontext", ()):
+            if mc not in all_microcontexts:
+                all_microcontexts.append(mc)
+        for em in library.get("emotional_register", ()):
+            if em not in all_emotional:
+                all_emotional.append(em)
+        for mat in library.get("material_language", ()):
+            if mat not in all_material:
+                all_material.append(mat)
+        for den in library.get("background_density", ()):
+            if den not in all_density:
+                all_density.append(den)
+        for br in library.get("brazil_anchor", ()):
+            if br not in all_brazil:
+                all_brazil.append(br)
+
+    # Selecionar tom e paleta representativos (primeiro é prioridade do pool)
+    tone = all_emotional[0] if all_emotional else "warm authentic Brazilian atmosphere"
+    palette = all_material[0] if all_material else "natural materials + warm light"
+    density = all_density[0] if all_density else "medium"
+    brazil = all_brazil[0] if all_brazil else "credible Brazilian atmosphere"
+
+    return {
+        "scene_tone": tone,
+        "scene_palette": palette,
+        "scene_density": density,
+        "brazil_anchor": brazil,
+        "variety_examples": all_microcontexts,
+        "mode_id": mode_id,
+    }
+

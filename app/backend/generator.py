@@ -407,9 +407,14 @@ async def edit_image_async(
     session_id: Optional[str] = None,
     reference_images_bytes: Optional[List[bytes]] = None,
     use_image_grounding: bool = False,
+    lock_person: bool = True,
 ) -> List[dict]:
     """
     Edita uma imagem existente via Nano Banana 2 — versão async.
+
+    lock_person: quando True (default), trava a pessoa da base image.
+        Quando False (two-pass flow), trava APENAS a roupa e instrui
+        a substituição completa da modelo humana.
     """
     if session_id is None:
         session_id = str(uuid.uuid4())[:8]
@@ -426,12 +431,23 @@ async def edit_image_async(
         current_references = _build_retry_reference_subset(prepared_reference_images, attempt, minimum_keep=2)
         _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
 
-        content_parts = [
-            types.Part(text=(
+        if lock_person:
+            _base_image_instruction = (
                 "BASE IMAGE TO EDIT: The image immediately below is the source to edit. "
                 "LOCK the person in this image — their face, skin tone, hair, body proportions, "
                 "and pose must remain exactly as shown. Do not alter the person in any way."
-            )),
+            )
+        else:
+            _base_image_instruction = (
+                "BASE IMAGE TO EDIT: The image immediately below is the source to edit. "
+                "LOCK ONLY THE GARMENT in this image — preserve its exact shape, color, texture, "
+                "construction, length, and silhouette. The person wearing the garment is a PLACEHOLDER "
+                "and MUST be fully replaced with a completely different model. Do not preserve any "
+                "facial features, skin tone, hair, body type, or pose from this base image person."
+            )
+
+        content_parts = [
+            types.Part(text=_base_image_instruction),
             types.Part(
                 inline_data=types.Blob(mime_type=_detect_image_mime(source_image_bytes), data=source_image_bytes),
                 media_resolution=_hi_res,
@@ -609,10 +625,15 @@ def edit_image(
     session_id: Optional[str] = None,
     reference_images_bytes: Optional[List[bytes]] = None,
     use_image_grounding: bool = False,
+    lock_person: bool = True,
 ) -> List[dict]:
     """
     Edita uma imagem existente via Nano Banana 2 (sync).
     Mantido para backward-compatibility com pipeline_v2.py.
+
+    lock_person: quando True (default), trava a pessoa da base image.
+        Quando False (two-pass flow), trava APENAS a roupa e instrui
+        a substituição completa da modelo humana.
     """
     if session_id is None:
         session_id = str(uuid.uuid4())[:8]
@@ -630,12 +651,23 @@ def edit_image(
         current_references = _build_retry_reference_subset(prepared_reference_images, attempt, minimum_keep=2)
         _hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
 
-        content_parts = [
-            types.Part(text=(
+        if lock_person:
+            _base_image_instruction = (
                 "BASE IMAGE TO EDIT: The image immediately below is the source to edit. "
                 "LOCK the person in this image — their face, skin tone, hair, body proportions, "
                 "and pose must remain exactly as shown. Do not alter the person in any way."
-            )),
+            )
+        else:
+            _base_image_instruction = (
+                "BASE IMAGE TO EDIT: The image immediately below is the source to edit. "
+                "LOCK ONLY THE GARMENT in this image — preserve its exact shape, color, texture, "
+                "construction, length, and silhouette. The person wearing the garment is a PLACEHOLDER "
+                "and MUST be fully replaced with a completely different model. Do not preserve any "
+                "facial features, skin tone, hair, body type, or pose from this base image person."
+            )
+
+        content_parts = [
+            types.Part(text=_base_image_instruction),
             types.Part(
                 inline_data=types.Blob(mime_type=_detect_image_mime(source_image_bytes), data=source_image_bytes),
                 media_resolution=_hi_res,

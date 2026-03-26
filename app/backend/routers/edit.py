@@ -13,8 +13,11 @@ from fastapi import APIRouter, Form, UploadFile, File
 from fastapi.responses import StreamingResponse
 from typing import List
 
-from edit_agent import refine_edit_instruction
-from generator import edit_image, OUTPUTS_DIR
+from agent_runtime.editing.contracts import ImageEditExecutionRequest
+from agent_runtime.editing.executor import execute_image_edit_request
+from agent_runtime.editing.freeform_flow import prepare_freeform_edit_prompt
+from agent_runtime.editing.guided_angle_flow import prepare_guided_angle_prompt
+from generator import OUTPUTS_DIR
 from history import add_entry as history_add
 from config import DEFAULT_ASPECT_RATIO, DEFAULT_RESOLUTION
 from job_manager import create_job, start_job, update_stage, complete_job, fail_job, get_job
@@ -35,14 +38,39 @@ def _sse_event(stage: str, data: dict) -> str:
     return f"data: {payload}\n\n"
 
 
+def _resolve_edit_input_mode(
+    *,
+    input_mode: Optional[str],
+    edit_submode: Optional[str],
+) -> str:
+    normalized_mode = str(input_mode or "").strip().lower()
+    if normalized_mode in {"freeform", "guided_angle"}:
+        return normalized_mode
+    if str(edit_submode or "").strip().lower() == "angle_transform":
+        return "guided_angle"
+    return "freeform"
+
+
 @router.post("/stream")
 async def edit_stream(
     source_url: str = Form(...),
     edit_instruction: str = Form(...),
     source_prompt: Optional[str] = Form(default=None),
     source_session_id: Optional[str] = Form(default=None),
+    input_mode: Optional[str] = Form(default=None),
     aspect_ratio: Optional[str] = Form(default=None),
     resolution: Optional[str] = Form(default=None),
+    edit_submode: Optional[str] = Form(default=None),
+    view_intent: Optional[str] = Form(default=None),
+    distance_intent: Optional[str] = Form(default=None),
+    pose_freedom: Optional[str] = Form(default=None),
+    angle_target: Optional[str] = Form(default=None),
+    preserve_framing: Optional[bool] = Form(default=True),
+    preserve_camera_height: Optional[bool] = Form(default=True),
+    preserve_distance: Optional[bool] = Form(default=True),
+    preserve_pose: Optional[bool] = Form(default=True),
+    source_shot_type: Optional[str] = Form(default=None),
+    free_text: Optional[str] = Form(default=None),
     images: List[UploadFile] = File(default=[]),
 ):
     async def event_generator():
@@ -91,29 +119,48 @@ async def edit_stream(
         })
 
         try:
-            agent_result = await asyncio.to_thread(
-                refine_edit_instruction,
-                edit_instruction=edit_instruction,
-                source_image_bytes=source_bytes,
-                source_prompt=source_prompt,
-                reference_images_bytes=ref_images_bytes if ref_images_bytes else None,
+            resolved_input_mode = _resolve_edit_input_mode(
+                input_mode=input_mode,
+                edit_submode=edit_submode,
             )
+            if resolved_input_mode == "guided_angle":
+                prepared_prompt = await asyncio.to_thread(
+                    prepare_guided_angle_prompt,
+                    edit_instruction=edit_instruction,
+                    view_intent=view_intent,
+                    distance_intent=distance_intent,
+                    pose_freedom=pose_freedom,
+                    angle_target=angle_target,
+                    preserve_framing=bool(preserve_framing),
+                    preserve_camera_height=bool(preserve_camera_height),
+                    preserve_distance=bool(preserve_distance),
+                    preserve_pose=bool(preserve_pose),
+                    source_shot_type=source_shot_type,
+                )
+            else:
+                prepared_prompt = await asyncio.to_thread(
+                    prepare_freeform_edit_prompt,
+                    edit_instruction=edit_instruction,
+                    source_image_bytes=source_bytes,
+                    source_prompt=source_prompt,
+                    reference_images_bytes=ref_images_bytes if ref_images_bytes else None,
+                )
         except Exception as e:
             yield _sse_event("error", {
                 "message": f"Erro no Edit Agent: {str(e)}",
             })
             return
 
-        final_prompt = agent_result.get("final_prompt", edit_instruction)
-        edit_type = agent_result.get("edit_type", "general")
-        change_summary = agent_result.get("change_summary_ptbr", edit_instruction)
+        final_prompt = prepared_prompt.display_prompt or edit_instruction
+        edit_type = prepared_prompt.edit_type or "general"
+        change_summary = prepared_prompt.change_summary_ptbr or edit_instruction
 
         yield _sse_event("prompt_ready", {
             "message": "Prompt de edição pronto",
             "prompt": final_prompt,
             "edit_type": edit_type,
             "change_summary": change_summary,
-            "confidence": agent_result.get("confidence", 0.5),
+            "confidence": prepared_prompt.confidence,
         })
 
         # ── 3. Gerar imagem editada via Nano Banana 2 ─────────────────
@@ -128,13 +175,21 @@ async def edit_stream(
 
         try:
             batch = await asyncio.to_thread(
-                edit_image,
-                source_image_bytes=source_bytes,
-                edit_prompt=final_prompt,
-                aspect_ratio=used_ar,
-                resolution=used_res,
-                session_id=session_id,
-                reference_images_bytes=ref_images_bytes if ref_images_bytes else None,
+                execute_image_edit_request,
+                ImageEditExecutionRequest(
+                    source_image_bytes=source_bytes,
+                    prepared_prompt=prepared_prompt,
+                    aspect_ratio=used_ar,
+                    resolution=used_res,
+                    session_id=session_id,
+                    source_session_id=source_session_id,
+                    source_prompt_context=(
+                        source_prompt if prepared_prompt.include_source_prompt_context else None
+                    ),
+                    reference_images_bytes=ref_images_bytes if ref_images_bytes else [],
+                    edit_submode=("angle_transform" if resolved_input_mode == "guided_angle" else edit_submode),
+                    source_shot_type=source_shot_type,
+                ),
             )
         except Exception as e:
             yield _sse_event("error", {
@@ -145,11 +200,12 @@ async def edit_stream(
         # ── 4. Salvar no histórico ────────────────────────────────────
         images_out = []
         for img_info in batch:
-            entry = history_add(
+            history_add(
                 session_id=session_id,
                 filename=img_info["filename"],
                 url=img_info["url"],
                 prompt=final_prompt,
+                optimized_prompt=final_prompt,
                 shot_type="edit",
                 aspect_ratio=used_ar,
                 resolution=used_res,
@@ -168,6 +224,7 @@ async def edit_stream(
             "message": "Edição concluída",
             "session_id": session_id,
             "source_session_id": source_session_id,
+            "edit_submode": edit_submode,
             "edit_type": edit_type,
             "change_summary": change_summary,
             "optimized_prompt": final_prompt,
@@ -196,8 +253,20 @@ async def edit_async(
     edit_instruction: str = Form(...),
     source_prompt: Optional[str] = Form(default=None),
     source_session_id: Optional[str] = Form(default=None),
+    input_mode: Optional[str] = Form(default=None),
     aspect_ratio: Optional[str] = Form(default=None),
     resolution: Optional[str] = Form(default=None),
+    edit_submode: Optional[str] = Form(default=None),
+    view_intent: Optional[str] = Form(default=None),
+    distance_intent: Optional[str] = Form(default=None),
+    pose_freedom: Optional[str] = Form(default=None),
+    angle_target: Optional[str] = Form(default=None),
+    preserve_framing: Optional[bool] = Form(default=True),
+    preserve_camera_height: Optional[bool] = Form(default=True),
+    preserve_distance: Optional[bool] = Form(default=True),
+    preserve_pose: Optional[bool] = Form(default=True),
+    source_shot_type: Optional[str] = Form(default=None),
+    free_text: Optional[str] = Form(default=None),
     images: List[UploadFile] = File(default=[]),
 ):
     """Submete edição de imagem como job assíncrono. Retorna job_id para polling."""
@@ -229,31 +298,53 @@ async def edit_async(
         "aspect_ratio": used_ar,
         "resolution": used_res,
         "ref_count": len(ref_images_bytes),
+        "edit_submode": edit_submode,
     })
 
     def _worker() -> None:
         session_id = str(uuid.uuid4())[:8]
         try:
             update_stage(job_id, "editing", {"message": "Agente analisando instrução de edição…"})
-            agent_result = refine_edit_instruction(
-                edit_instruction=edit_instruction,
-                source_image_bytes=source_bytes,
-                source_prompt=source_prompt,
-                reference_images_bytes=ref_images_bytes if ref_images_bytes else None,
+            resolved_input_mode = _resolve_edit_input_mode(
+                input_mode=input_mode,
+                edit_submode=edit_submode,
             )
-
-            final_prompt = agent_result.get("final_prompt", edit_instruction)
-            edit_type = agent_result.get("edit_type", "general")
-            change_summary = agent_result.get("change_summary_ptbr", edit_instruction)
-
+            if resolved_input_mode == "guided_angle":
+                prepared_prompt = prepare_guided_angle_prompt(
+                    edit_instruction=edit_instruction,
+                    view_intent=view_intent,
+                    distance_intent=distance_intent,
+                    pose_freedom=pose_freedom,
+                    angle_target=angle_target,
+                    preserve_framing=bool(preserve_framing),
+                    preserve_camera_height=bool(preserve_camera_height),
+                    preserve_distance=bool(preserve_distance),
+                    preserve_pose=bool(preserve_pose),
+                    source_shot_type=source_shot_type,
+                )
+            else:
+                prepared_prompt = prepare_freeform_edit_prompt(
+                    edit_instruction=edit_instruction,
+                    source_image_bytes=source_bytes,
+                    source_prompt=source_prompt,
+                    reference_images_bytes=ref_images_bytes if ref_images_bytes else None,
+                )
             update_stage(job_id, "generating", {"message": "Gerando imagem editada via Nano…", "current": 1, "total": 1})
-            batch = edit_image(
-                source_image_bytes=source_bytes,
-                edit_prompt=final_prompt,
-                aspect_ratio=used_ar,
-                resolution=used_res,
-                session_id=session_id,
-                reference_images_bytes=ref_images_bytes if ref_images_bytes else None,
+            batch = execute_image_edit_request(
+                ImageEditExecutionRequest(
+                    source_image_bytes=source_bytes,
+                    prepared_prompt=prepared_prompt,
+                    aspect_ratio=used_ar,
+                    resolution=used_res,
+                    session_id=session_id,
+                    source_session_id=source_session_id,
+                    source_prompt_context=(
+                        source_prompt if prepared_prompt.include_source_prompt_context else None
+                    ),
+                    reference_images_bytes=ref_images_bytes if ref_images_bytes else [],
+                    edit_submode=("angle_transform" if resolved_input_mode == "guided_angle" else edit_submode),
+                    source_shot_type=source_shot_type,
+                )
             )
 
             images_out = []
@@ -262,7 +353,8 @@ async def edit_async(
                     session_id=session_id,
                     filename=img_info["filename"],
                     url=img_info["url"],
-                    prompt=final_prompt,
+                    prompt=prepared_prompt.display_prompt,
+                    optimized_prompt=prepared_prompt.display_prompt,
                     shot_type="edit",
                     aspect_ratio=used_ar,
                     resolution=used_res,
@@ -280,12 +372,13 @@ async def edit_async(
                 "session_id": session_id,
                 "images": images_out,
                 "edit_instruction": edit_instruction,
-                "edit_type": edit_type,
-                "change_summary": change_summary,
-                "optimized_prompt": final_prompt,
+                "edit_type": prepared_prompt.edit_type,
+                "change_summary": prepared_prompt.change_summary_ptbr,
+                "optimized_prompt": prepared_prompt.display_prompt,
                 "aspect_ratio": used_ar,
                 "resolution": used_res,
                 "source_session_id": source_session_id,
+                "edit_submode": "angle_transform" if resolved_input_mode == "guided_angle" else edit_submode,
             })
 
         except Exception as exc:

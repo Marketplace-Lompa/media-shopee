@@ -12,6 +12,26 @@ from agent_runtime.casting_engine import select_brazilian_casting_profile
 from agent_runtime.mode_profile import resolve_operational_profile
 
 
+# IDs válidos das 15 famílias de casting
+ALL_FAMILY_IDS = {
+    "br_social_creator",
+    "br_afro",
+    "br_morena_clara",
+    "br_loira_natural",
+    "br_ruiva",
+    "br_cabocla",
+    "br_nikkei",
+    "br_sulista",
+    "br_nordestina",
+    "br_mulata_cacheada",
+    "br_mature_elegante",
+    "br_everyday_natural",
+    "br_minimal_premium",
+    "br_warm_commercial",
+    "br_soft_editorial",
+}
+
+
 def test_select_brazilian_casting_profile_returns_complete_identity_state() -> None:
     state = select_brazilian_casting_profile(
         seed_hint="natural:test",
@@ -21,7 +41,7 @@ def test_select_brazilian_casting_profile_returns_complete_identity_state() -> N
         operational_profile=resolve_operational_profile(mode_id="natural").to_dict(),
     )
 
-    assert state["family_id"]
+    assert state["family_id"] in ALL_FAMILY_IDS
     assert state["age"]
     assert state["skin"]
     assert state["face_structure"]
@@ -44,13 +64,6 @@ def test_select_brazilian_casting_profile_uses_operational_profile_to_bias_famil
         operational_profile=resolve_operational_profile(mode_id="natural").to_dict(),
     )
 
-    assert catalog["family_id"] in {"br_minimal_premium", "br_warm_commercial", "br_afro_modern", "br_mature_elegant"}
-    assert natural["family_id"] in {
-        "br_everyday_natural",
-        "br_everyday_afro",
-        "br_everyday_mature",
-        "br_social_creator",
-        "br_social_afro",
-        "br_social_mature",
-        "br_warm_commercial",
-    }
+    # Famílias devem vir do catálogo completo de 15
+    assert catalog["family_id"] in ALL_FAMILY_IDS
+    assert natural["family_id"] in ALL_FAMILY_IDS

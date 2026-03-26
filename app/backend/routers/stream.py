@@ -12,7 +12,7 @@ from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 
 from agent import run_agent
-from agent_runtime.diversity import harmonize_diversity_target_for_mode
+from agent_runtime.target_builder import harmonize_diversity_target_for_mode
 from agent_runtime.modes import DEFAULT_TEXT_MODE, get_mode
 from agent_runtime.pipeline_v2 import run_pipeline_v2
 from agent_runtime.pipeline_v2_support import (
@@ -222,6 +222,7 @@ async def generate_stream(
 
         # Diversidade garment-aware: usa estética da peça para casting inteligente
         active_mode = get_mode(DEFAULT_TEXT_MODE)
+        diversity_context_prompt = prompt or image_analysis_text or active_mode.description
         legacy_diversity_target = select_diversity_target(
             seed_hint=prompt or "",
             guided_brief=normalized_guided,
@@ -231,7 +232,7 @@ async def generate_stream(
         diversity_target = harmonize_diversity_target_for_mode(
             active_mode,
             legacy_diversity_target,
-            user_prompt=prompt,
+            user_prompt=diversity_context_prompt,
         )
 
         yield _sse_event("mode_selected", {

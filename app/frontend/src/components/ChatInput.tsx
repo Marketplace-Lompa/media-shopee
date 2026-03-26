@@ -141,6 +141,7 @@ export function ChatInput({
         if (!incoming) return;
         const valid = Array.from(incoming).filter(f => f.type.startsWith('image/'));
         setFiles(prev => [...prev, ...valid].slice(0, 14));
+        if (fileRef.current) fileRef.current.value = '';
     }
 
     function removeFile(i: number) {
@@ -151,6 +152,7 @@ export function ChatInput({
         if (!incoming) return;
         const valid = Array.from(incoming).filter(f => f.type.startsWith('image/'));
         setColorFiles(prev => [...prev, ...valid].slice(0, 14));
+        if (colorFileRef.current) colorFileRef.current.value = '';
     }
 
     function removeColorFile(i: number) {

@@ -61,8 +61,9 @@ def _build_mode_block(
             extra_text = f'User text to incorporate: "{user_prompt}".'
         else:
             extra_text = (
-                "No text from user. Extract ONLY the garment (color, fabric, structure, pattern) "
-                "from the reference images. The person/model shown in the reference is NOT the "
+                "No text from user. Extract ONLY the garment structural skeleton (type, silhouette, fit, length) "
+                "from the reference images — surface details like pattern, stitch, texture, and color are already "
+                "conveyed by the images with higher fidelity than text. The person/model shown in the reference is NOT the "
                 "subject — completely ignore her appearance. Build the hero shot around the "
                 "DIVERSITY_TARGET new model profile, scenario, and pose."
             )
@@ -137,29 +138,40 @@ def _build_diversity_target_block(
     if dt.get("profile_id"):
         block += f"Model profile ID: {dt['profile_id']}.\n"
 
-    # ── Regras anti-cópia (só quando há imagens de referência) ────
+    # ── Regras anti-cópia + fidelidade de roupa (só quando há imagens de referência) ────
     if has_images:
         block += (
             "GARMENT-ONLY REFERENCE MODE:\n"
-            "  - Reference images = garment source ONLY (color, fabric, structure, pattern).\n"
-            "  - Discard the reference model completely. Do not copy face, skin, hair, body, or pose.\n"
+            "  - The uploaded reference image is the SOLE SOURCE OF TRUTH for the garment.\n"
+            "  - Copy EXACTLY from reference: color, fabric, texture, pattern scale, construction, silhouette, drape.\n"
+            "  - Preserve garment geometry: opening style, sleeve architecture, hem behavior, garment length, neckline shape.\n"
+            "  - NEVER simplify, reinterpret, or hallucinate garment details that differ from the reference.\n"
+            "  - Discard the reference model completely. Invent a NEW person. Do not copy face, skin, hair, body, or pose.\n"
+            "  - Model and scene are FREE — only the GARMENT must match the reference with absolute fidelity.\n"
         )
 
-    # ── Diretivas de persona (compartilhadas) ─────────────────────
+    # ── Diretivas de persona (criatividade unificada, com contenção anti-copy no reference mode) ──
     presence_clause = ""
     if presence_energy or presence_tone:
         presence_clause = f" Presence: {presence_energy}, {presence_tone}."
-    block += (
-        f"Model persona anchor: {profile_hint}.{presence_clause}\n"
-        "Keep the model distinctly Brazilian in a believable, non-stereotyped way.\n"
-        "Use the persona anchor consistently in the final prompt instead of dropping it.\n"
-        + (
-            "Invent a new Brazilian persona that complements the garment, but keep physical characterization broad and non-dominant.\n"
-            "Do not lock the model into a highly specific phenotype unless the brief explicitly asks for it.\n"
-            if has_images
-            else "Invent unique physical characteristics (skin tone, hair, age, build) that complement the garment.\n"
+    persona_creation_rule = (
+        "Invent a clearly new Brazilian persona that is VISUALLY DISTINCT from the reference woman.\n"
+        "You MUST specify concrete physical traits (hair color & style, approximate age, skin tone, build) that CONTRAST with the reference person.\n"
+        "A vague or generic description will cause the image model to copy the reference person — be specific and different.\n"
+        if has_images
+        else "Invent unique physical characteristics (skin tone, hair, age, build) that complement the garment.\n"
+    )
+    # Persona anchor: só injetar quando houver name blend (catalog_clean).
+    # Modes criativos usam MODEL SOUL — sem persona anchor redundante.
+    if profile_hint:
+        block += (
+            f"Model persona anchor: {profile_hint}.{presence_clause}\n"
+            "Use the persona anchor consistently in the final prompt instead of dropping it.\n"
         )
-        + "Keep the garment as the hero. Model presence is secondary.\n"
+    block += (
+        "Keep the model distinctly Brazilian in a believable, non-stereotyped way.\n"
+        f"{persona_creation_rule}"
+        "Keep the garment as the hero. Model presence is secondary.\n"
         "Scenario, framing, lighting, and pose come from MODE_PRESETS. Follow those directions.\n"
         "Inside those directions, invent a fresh specific solution instead of repeating a generic safe default.\n"
         "Never mention preset labels or metatextual terms like capture geometry, scenario family, or lighting profile in the final prompt.\n"
@@ -192,24 +204,37 @@ def _build_diversity_target_block(
             f"  - guardrail behavior: {operational_profile.get('guardrail_profile', '')}\n"
             "Let this shape how much each layer appears in the final prompt, without naming modes or preset mechanics.\n"
         )
-    if casting_state:
+    # Casting: alma pura para modes criativos, prescritivo para catalog_clean
+    mode_id = dt.get("mode", "")
+    is_creative_mode = mode_id != "catalog_clean"
+
+    if is_creative_mode:
+        # Alma da modelo — universal, sem prescrição de atributos
+        from agent_runtime.model_soul import get_model_soul
+        block += get_model_soul()
+        if has_images:
+            block += (
+                "If the reference images contain a woman, make the new model read clearly "
+                "distinct from her in overall identity, hair silhouette, and presence.\n"
+            )
+    elif casting_state:
+        # catalog_clean: mantém prescrição para consistência de catálogo
         recent_avoid = ", ".join(casting_state.get("recent_avoid") or []) or "none"
         if has_images:
             block += (
-                "CASTING LATENT STATE (reference mode: use as abstract persona guidance, not as literal phenotype casting):\n"
+                "CASTING LATENT STATE (creative seed — use as inspiration for the new persona, NOT as literal phenotype casting):\n"
                 f"  - age energy: {casting_state.get('age', '')}\n"
                 f"  - polish level: {casting_state.get('makeup', '')}\n"
                 f"  - expression energy: {casting_state.get('expression', '')}\n"
                 f"  - presence: {casting_state.get('presence', '')}\n"
                 f"  - variation rule: {casting_state.get('difference_instruction', '')}\n"
                 f"  - recent avoid: {recent_avoid}\n"
-                "If you surface physical cues, keep them broad and secondary.\n"
-                "Avoid locking both exact skin tone and exact hair silhouette into a highly specific phenotype unless the brief explicitly asks for it.\n"
-                "Final prompt surface minimum: apparent age or overall presence is enough; do not over-specify phenotype in garment-reference mode.\n"
+                "These casting coordinates are a creative starting point, not a prescriptive recipe.\n"
+                "If the reference images contain a woman, make the new model read clearly distinct from her in overall identity, hair silhouette, and presence.\n"
             )
         else:
             block += (
-                "CASTING LATENT STATE (internal creative coordinates, do not copy as a checklist):\n"
+                "CASTING LATENT STATE (creative seed — use as inspiration, NOT as a rigid checklist):\n"
                 f"  - age energy: {casting_state.get('age', '')}\n"
                 f"  - face impression: {casting_state.get('face_structure', '')}\n"
                 f"  - skin direction: {casting_state.get('skin', '')}\n"
@@ -219,27 +244,26 @@ def _build_diversity_target_block(
                 f"  - presence: {casting_state.get('presence', '')}\n"
                 f"  - variation rule: {casting_state.get('difference_instruction', '')}\n"
                 f"  - recent avoid: {recent_avoid}\n"
-                "Final prompt surface minimum: explicitly render apparent age, one concrete face impression, and one clear hair description.\n"
+                "These casting coordinates are a creative starting point, not a prescriptive recipe.\n"
+                "Final prompt surface minimum: render apparent age, one face impression, and one hair description.\n"
             )
-    if scene_state:
+
+    scene_direction = dt.get("scene_direction") or {}
+    if scene_state and not scene_direction:
+        # ── CATALOG_CLEAN: prescritivo → cenário fixo de estúdio ──
         block += (
-            "SCENE LATENT STATE (creative seed — use as inspiration, NOT as a rigid constraint):\n"
+            "SCENE LATENT STATE (prescriptive — follow this scene direction precisely):\n"
             f"  - world family: {scene_state.get('world_family', '')}\n"
             f"  - microcontext: {scene_state.get('microcontext', '')}\n"
             f"  - emotional register: {scene_state.get('emotional_register', '')}\n"
             f"  - material language: {scene_state.get('material_language', '')}\n"
             f"  - background density: {scene_state.get('background_density', '')}\n"
             f"  - Brazil anchor: {scene_state.get('brazil_anchor', '')}\n"
-            "These scene coordinates are starting inspiration, not boundaries.\n"
-            "Freely invent an authentic Brazilian scene — indoor or outdoor — that fits\n"
-            "the active visual mode's tone. Surprise with variety: tropical gardens,\n"
-            "pousada verandas, padarias, rooftops, parks, hotel lobbies, feiras,\n"
-            "residential courtyards, coastal boardwalks, cultural spaces.\n"
-            "Avoid defaulting to the same type of scene across consecutive generations.\n"
+            "Follow this scene specification precisely. Do not deviate.\n"
         )
     if capture_state:
         block += (
-            "CAPTURE LATENT STATE (internal image-direction coordinates, do not copy as a checklist):\n"
+            "CAPTURE LATENT STATE (creative seed — use as inspiration for how the camera should interpret the garment, NOT as a rigid shot recipe):\n"
             f"  - framing intent: {capture_state.get('framing_intent', '')}\n"
             f"  - camera family: {capture_state.get('camera_family', '')}\n"
             f"  - geometry intent: {capture_state.get('geometry_intent', '')}\n"
@@ -249,11 +273,15 @@ def _build_diversity_target_block(
             f"  - body relation: {capture_state.get('body_relation', '')}\n"
             f"  - angle logic: {capture_state.get('angle_logic', '')}\n"
             f"  - garment priority: {capture_state.get('garment_priority', '')}\n"
-            "Use this to choose how the camera should look at the garment, based on silhouette, proportion, and selling points, without exposing preset mechanics.\n"
+            "These capture coordinates are starting inspiration, not a fixed camera script.\n"
+            "Use your creative freedom to invent a commercially coherent camera language\n"
+            "that fits the garment, the setting, and the active visual mode.\n"
+            "Let framing, angle, and separation feel chosen for this specific image,\n"
+            "not repeated from a generic safe default or exposed as preset mechanics.\n"
         )
     if pose_state:
         block += (
-            "POSE LATENT STATE (internal body-direction coordinates, do not copy as a checklist):\n"
+            "POSE LATENT STATE (creative seed — use as inspiration for body direction, NOT as a rigid pose recipe):\n"
             f"  - pose family: {pose_state.get('pose_family', '')}\n"
             f"  - stance logic: {pose_state.get('stance_logic', '')}\n"
             f"  - weight shift: {pose_state.get('weight_shift', '')}\n"
@@ -262,6 +290,11 @@ def _build_diversity_target_block(
             f"  - head direction: {pose_state.get('head_direction', '')}\n"
             f"  - gesture intention: {pose_state.get('gesture_intention', '')}\n"
             f"  - garment interaction: {pose_state.get('garment_interaction', '')}\n"
+            "These pose coordinates are starting inspiration, not fixed choreography.\n"
+            "Use your creative freedom to invent believable body direction that fits\n"
+            "the garment, the scene, and the mode's tone.\n"
+            "Vary gesture, asymmetry, and weight placement when appropriate instead of\n"
+            "defaulting to the same stable or generic stance every time.\n"
             "Final prompt surface minimum: describe a specific stance or gesture, not only generic wording like stable pose or composed stance.\n"
         )
     if styling_state:
@@ -269,6 +302,7 @@ def _build_diversity_target_block(
         block += (
             "STYLING LATENT STATE (internal fashion-styling coordinates, do not copy as a checklist):\n"
             f"  - completion level: {styling_state.get('completion_level', '')}\n"
+            f"  - footwear family: {styling_state.get('footwear_family', '')}\n"
             f"  - footwear strategy: {styling_state.get('footwear_strategy', '')}\n"
             f"  - accessory restraint: {styling_state.get('accessory_restraint', '')}\n"
             f"  - look finish: {styling_state.get('look_finish', '')}\n"

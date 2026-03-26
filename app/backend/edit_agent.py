@@ -4,7 +4,7 @@ Edit Agent — Refina instruções de edição pontual para o Nano Banana 2.
 Analisa a instrução do usuário + imagem original e produz um prompt otimizado
 com cláusulas de preservação automáticas baseadas no tipo de edição detectado.
 """
-import json
+import re
 from typing import Optional
 
 from google import genai
@@ -24,33 +24,11 @@ client = genai.Client(
     http_options={'timeout': 120.0}
 )
 
-# ── Schema de saída do agente ──────────────────────────────────────────────────
-EDIT_ANALYSIS_SCHEMA = {
-    "type": "object",
-    "required": ["edit_type", "refined_prompt", "preserve_clause", "confidence"],
-    "properties": {
-        "edit_type": {
-            "type": "string",
-            "enum": [
-                "background",
-                "color",
-                "accessory",
-                "set_member",
-                "lighting",
-                "framing",
-                "pose",
-                "model",
-                "fabric",
-                "general",
-            ],
-        },
-        "refined_prompt": {"type": "string"},
-        "preserve_clause": {"type": "string"},
-        "reference_item_description": {"type": "string"},
-        "change_summary_ptbr": {"type": "string"},
-        "confidence": {"type": "number"},
-    },
-}
+# ── Tipos válidos de edição ────────────────────────────────────────────────────
+_VALID_EDIT_TYPES = frozenset({
+    "background", "color", "accessory", "set_member",
+    "lighting", "framing", "pose", "model", "fabric", "general",
+})
 
 # ── Cláusulas de preservação por tipo ──────────────────────────────────────────
 PRESERVATION_TEMPLATES = {
@@ -219,7 +197,81 @@ GOOD reference_item_description: "From flat lay reference: rectangular knit scar
 GOOD refined_prompt: "Edit this image: add a matching knit scarf wrapped once around the model's neck, with the ends falling naturally down the front of her chest over the existing cardigan. The scarf features the same olive green and dusty rose vertical stripe pattern and crochet texture as the cardigan, draping with soft gravity-driven folds. Do not transfer any person identity from any reference image — extract only the described item."
 GOOD preserve_clause: "PRESERVE exactly: the model's face, skin tone, and shoulder-length dark brown hair; the white crew-neck cotton t-shirt and white linen shorts; the green and pink striped cardigan's specific knit texture, stripe scale, and fit; the model's standing pose and hand placement; the minimalist light grey background and soft, even studio lighting."
 
-Output valid JSON only."""
+## OUTPUT FORMAT
+
+Write your response using these delimited markers. Each marker is MANDATORY.
+Produce the markers in exactly this order:
+
+<EDIT_TYPE>one of: background | color | accessory | set_member | lighting | framing | pose | model | fabric | general</EDIT_TYPE>
+
+<REFINED_PROMPT>
+Your refined edit prompt in full English. Must start with "Edit this image:"
+Be specific, actionable, and use precise fashion/photography vocabulary.
+</REFINED_PROMPT>
+
+<PRESERVE>
+Specific preservation clause listing every visible element that must NOT change.
+Describe actual colors, materials, and features you see — not generic "keep everything".
+</PRESERVE>
+
+<REFERENCE_ITEM>
+Only for set_member edits: detailed description of the item from the reference image.
+Leave empty for non-set_member edits.
+</REFERENCE_ITEM>
+
+<SUMMARY_PTBR>Concise summary in Brazilian Portuguese of what will change.</SUMMARY_PTBR>
+
+<CONFIDENCE>A number between 0.0 and 1.0 indicating interpretation confidence.</CONFIDENCE>"""
+
+
+# ── Parser de output prompt-guided ─────────────────────────────────────────────
+
+def _extract_marker(text: str, tag: str) -> str:
+    """Extrai conteúdo entre <TAG>...</TAG> do output do agente."""
+    pattern = rf"<{tag}>\s*(.*?)\s*</{tag}>"
+    match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    return match.group(1).strip() if match else ""
+
+
+def _parse_guided_output(raw_text: str, fallback_instruction: str) -> dict:
+    """Parseia output prompt-guided com marcadores delimitados."""
+    edit_type = _extract_marker(raw_text, "EDIT_TYPE").lower().strip()
+    if edit_type not in _VALID_EDIT_TYPES:
+        edit_type = "general"
+
+    refined_prompt = _extract_marker(raw_text, "REFINED_PROMPT")
+    preserve_clause = _extract_marker(raw_text, "PRESERVE")
+    reference_item = _extract_marker(raw_text, "REFERENCE_ITEM")
+    summary = _extract_marker(raw_text, "SUMMARY_PTBR")
+    confidence_str = _extract_marker(raw_text, "CONFIDENCE")
+
+    try:
+        confidence = max(0.0, min(1.0, float(confidence_str)))
+    except (ValueError, TypeError):
+        confidence = 0.5
+
+    # Se o prompt refinado está vazio, o agente falhou na curadoria
+    if not refined_prompt:
+        print(f"[EDIT_AGENT] ⚠️ No REFINED_PROMPT in agent output, using template fallback")
+        refined_prompt = (
+            f"Edit this image: apply the following modification — "
+            f"{fallback_instruction}. Keep all other elements unchanged."
+        )
+
+    if not preserve_clause:
+        preserve_clause = PRESERVATION_TEMPLATES.get(edit_type, PRESERVATION_TEMPLATES["general"])
+
+    if not summary:
+        summary = fallback_instruction
+
+    return {
+        "edit_type": edit_type,
+        "refined_prompt": refined_prompt,
+        "preserve_clause": preserve_clause,
+        "reference_item_description": reference_item,
+        "change_summary_ptbr": summary,
+        "confidence": confidence,
+    }
 
 
 def refine_edit_instruction(
@@ -280,8 +332,6 @@ def refine_edit_instruction(
                 temperature=0.3,
                 max_output_tokens=2000,
                 safety_settings=SAFETY_CONFIG,
-                response_mime_type="application/json",
-                response_json_schema=EDIT_ANALYSIS_SCHEMA,
             ),
         )
 
@@ -292,24 +342,9 @@ def refine_edit_instruction(
                     raw_text += part.text
 
         if raw_text:
-            try:
-                parsed = json.loads(raw_text)
-            except json.JSONDecodeError:
-                # Tentar reparar JSON truncado (output cortado por token limit)
-                repaired = raw_text.rstrip()
-                # Fechar string aberta
-                if repaired.count('"') % 2 != 0:
-                    repaired += '"'
-                # Fechar objeto JSON
-                open_braces = repaired.count('{') - repaired.count('}')
-                repaired += '}' * max(0, open_braces)
-                try:
-                    parsed = json.loads(repaired)
-                    print(f"[EDIT_AGENT] ⚠️ JSON was truncated, repaired successfully")
-                except json.JSONDecodeError:
-                    print(f"[EDIT_AGENT] ⚠️ JSON repair failed, raw: {raw_text[:300]}")
-                    parsed = {}
+            parsed = _parse_guided_output(raw_text, edit_instruction)
         else:
+            print("[EDIT_AGENT] ⚠️ Agent returned empty response, using fallback")
             parsed = {}
 
     except Exception as e:
@@ -339,6 +374,7 @@ def refine_edit_instruction(
 
     result = {
         "edit_type": edit_type,
+        "edit_delta_prompt": refined_prompt,
         "refined_prompt": refined_prompt,
         "preserve_clause": preserve_clause,
         "reference_item_description": reference_item_description,

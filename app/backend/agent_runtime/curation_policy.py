@@ -321,15 +321,17 @@ def derive_art_direction_selection_policy(
 
         casting_preferred.extend([
             "br_social_creator",
-            "br_social_afro",
-            "br_social_mature",
+            "br_morena_clara",
+            "br_nordestina",
             "br_everyday_natural",
-            "br_everyday_afro",
-            "br_everyday_mature",
+            "br_mulata_cacheada",
+            "br_cabocla",
             "br_warm_commercial",
             "br_soft_editorial",
+            "br_loira_natural",
+            "br_afro",
         ])
-        casting_avoid.extend(["br_minimal_premium", "br_mature_elegant"])
+        casting_avoid.extend(["br_minimal_premium", "br_mature_elegante"])
         if strict_mode or detail_sensitive_garment:
             if selfie_compatible:
                 camera_preferred.extend(["phone_front_selfie", "phone_cameraroll", "phone_direct_flash", "sony_documentary", "fujifilm_candid"])
@@ -361,8 +363,8 @@ def derive_art_direction_selection_policy(
         if wants_creator_energy:
             casting_preferred = dedupe_preserve_order([
                 "br_social_creator",
-                "br_social_afro",
-                "br_social_mature",
+                "br_morena_clara",
+                "br_loira_natural",
                 *casting_preferred,
             ])
 
@@ -492,7 +494,7 @@ def derive_art_direction_selection_policy(
     if premium_like or ((detail_sensitive_garment or strict_mode) and not ugc_like):
         camera_preferred.extend(["canon_balanced", "sony_documentary", "fujifilm_candid"])
         camera_avoid.append("phone_clean")
-        casting_preferred.extend(["br_minimal_premium", "br_soft_editorial", "br_afro_modern", "br_mature_elegant"])
+        casting_preferred.extend(["br_minimal_premium", "br_soft_editorial", "br_afro", "br_mature_elegante", "br_sulista"])
         if preset != "marketplace_lifestyle":
             casting_avoid.append("br_warm_commercial")
 
@@ -504,7 +506,7 @@ def derive_art_direction_selection_policy(
 
     if identity_risk == "high":
         camera_preferred.insert(0, "canon_balanced")
-        casting_preferred.extend(["br_mature_elegant", "br_soft_editorial"])
+        casting_preferred.extend(["br_mature_elegante", "br_soft_editorial"])
 
     if _lighting_signature_policy_enabled() and integration_risk == "high":
         camera_preferred = ["canon_balanced", "sony_documentary", *camera_preferred]

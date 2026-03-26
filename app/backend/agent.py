@@ -24,7 +24,7 @@ from agent_runtime.triage import (
     _infer_text_mode_shot,
     resolve_prompt_agent_visual_triage,
 )
-from agent_runtime.diversity import (
+from agent_runtime.target_builder import (
     _sample_diversity_target,
     build_mode_diversity_target,
     harmonize_diversity_target_for_mode,
@@ -118,22 +118,29 @@ def run_agent(
         image_analysis = ""
         look_contract = {}
 
+    diversity_context_prompt = (
+        user_prompt or garment_hint or image_analysis or (effective_mode.description if effective_mode else "")
+    )
+
     if has_images and effective_mode and not diversity_target:
         diversity_target = build_mode_diversity_target(
             effective_mode,
-            user_prompt=(user_prompt or garment_hint or image_analysis or effective_mode.description),
+            user_prompt=diversity_context_prompt,
         )
     if effective_mode:
         diversity_target = harmonize_diversity_target_for_mode(
             effective_mode,
             diversity_target,
-            user_prompt=user_prompt,
+            user_prompt=diversity_context_prompt,
         )
 
     # Profile via Name Blending — persona anchor para o Gemini.
-    # Cenário e pose: no text-only mode, as direções vêm dos presets
-    # via MODE_PRESETS (describe_mode_defaults). Não injetamos frases prontas.
-    if effective_mode:
+    # Modes criativos: identidade vem da MODEL SOUL, sem name blending.
+    # Catalog_clean: mantém name blending para ancoragem determinística.
+    is_creative = effective_mode and effective_mode.id != "catalog_clean"
+    if is_creative:
+        fallback_hint = ""
+    elif effective_mode:
         fallback_hint, _, _ = _sample_diversity_target(
             casting_profile=effective_mode.presets.casting_profile,
         )
