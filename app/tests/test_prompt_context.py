@@ -159,7 +159,7 @@ def test_build_generate_context_text_uses_text_only_diversity_rules_without_refe
             },
             "styling_state": {
                 "completion_level": "commercially complete natural styling",
-                "footwear_strategy": "minimal tan leather sandals",
+                "footwear_strategy": "footwear appropriate to the look in a natural understated direction",
                 "accessory_restraint": "light personal styling only",
                 "look_finish": "natural complete look without overstyling",
                 "styling_interference": "low styling interference",
@@ -280,6 +280,55 @@ def test_build_generate_context_text_reference_mode_uses_mode_presets_and_name_b
     # Sem scenario/pose literais hardcoded no ref mode
     assert "Place new model in scenario:" not in context
     assert "Use pose:" not in context
+
+
+def test_build_generate_context_text_reference_mode_softens_casting_surface_guidance() -> None:
+    context = build_generate_context_text(
+        has_images=True,
+        has_prompt=True,
+        uploaded_images_count=2,
+        user_prompt="foto premium com a peça fiel",
+        pool_context="",
+        aspect_ratio="4:5",
+        resolution="1536",
+        profile="features blend 'Juliana' and 'Raissa'",
+        diversity_target={
+            "profile_id": "natural:natural_commercial",
+            "profile_hint": "features blend 'Juliana' and 'Raissa'",
+            "presence_energy": "warm",
+            "presence_tone": "commercial",
+            "casting_state": {
+                "age": "late 20s",
+                "skin": "deep rich brown skin",
+                "face_structure": "balanced attractive facial planes with natural asymmetry and expressive eyes",
+                "hair": "a rounded afro with natural shape and charismatic texture",
+                "makeup": "fresh natural makeup",
+                "expression": "subtle engaging smile",
+                "presence": "charismatic Brazilian creator presence",
+                "difference_instruction": "This casting should clearly differ from recent outputs in hair silhouette, face impression, and age energy.",
+                "recent_avoid": ["editorial severity"],
+            },
+        },
+        guided_enabled=False,
+        guided_brief=None,
+        guided_set_mode="unica",
+        guided_set_detection={},
+        structural_contract={"enabled": True, "garment_subtype": "knit_top"},
+        look_contract=None,
+        grounding_research="",
+        grounding_effective=False,
+        grounding_context_hint=None,
+        grounding_mode="off",
+        mode_defaults_text="Active visual mode: Natural.",
+        reference_knowledge="REFERENCE_KNOWLEDGE_BLOCK",
+    )
+
+    assert "CASTING LATENT STATE (reference mode: use as abstract persona guidance" in context
+    assert "skin direction:" not in context
+    assert "hair language:" not in context
+    assert "face impression:" not in context
+    assert "keep them broad and secondary" in context
+    assert "do not over-specify phenotype in garment-reference mode" in context
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

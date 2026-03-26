@@ -26,9 +26,9 @@ _STYLING_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
             "catalog-complete restrained styling",
         ),
         "footwear_strategy": (
-            "discreet tonal leather sandals",
-            "minimal neutral block-heel sandals",
-            "clean low-profile tonal sandals",
+            "discreet footwear appropriate to the look with minimal visual profile",
+            "refined low-emphasis footwear coherent with the garment's direction",
+            "clean commercially coherent footwear with restrained visual presence",
         ),
         "accessory_restraint": (
             "nearly absent accessories",
@@ -48,9 +48,9 @@ _STYLING_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
             "clean believable look completion",
         ),
         "footwear_strategy": (
-            "discreet flat leather sandals",
-            "minimal tan leather sandals",
-            "simple tonal sandals with low visual noise",
+            "footwear appropriate to the look in a natural understated direction",
+            "discreet everyday footwear with low visual noise",
+            "simple commercially coherent footwear that matches the garment's mood",
         ),
         "accessory_restraint": (
             "restrained everyday accessories",
@@ -70,9 +70,9 @@ _STYLING_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
             "believable lifestyle look completion",
         ),
         "footwear_strategy": (
-            "casual leather sandals",
-            "clean tonal sneakers",
-            "simple low-profile flats or sandals",
+            "casual footwear appropriate to the look with social believability",
+            "clean casual footwear in a tonal direction",
+            "simple everyday footwear with low visual contrast",
         ),
         "accessory_restraint": (
             "light lifestyle accessories",
@@ -92,9 +92,9 @@ _STYLING_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
             "resolved styling with stronger image intention",
         ),
         "footwear_strategy": (
-            "sleek tonal heels or refined sandals",
-            "clean sculptural footwear with low color contrast",
-            "fashion-aware tonal footwear with restrained graphic presence",
+            "sleek refined footwear appropriate to the look with low color contrast",
+            "clean sculptural footwear with restrained graphic presence",
+            "fashion-aware tonal footwear with controlled visual emphasis",
         ),
         "accessory_restraint": (
             "edited fashion accessories only",
@@ -124,13 +124,13 @@ def _garment_styling_affinity(user_prompt: str) -> dict[str, str]:
         "look_finish": "",
     }
     if any(token in text for token in ("vestido", "dress", "saia", "skirt", "linho", "linen", "evasê", "evase", "bufante", "puff")):
-        affinity["footwear_strategy"] = "minimal tan leather sandals"
+        affinity["footwear_strategy"] = "footwear appropriate to the look in a natural understated direction"
         affinity["look_finish"] = "natural complete look without overstyling"
     if any(token in text for token in ("blazer", "alfaiat", "tailored", "structured", "lapela", "lapel")):
-        affinity["footwear_strategy"] = "sleek tonal heels or refined sandals"
+        affinity["footwear_strategy"] = "sleek refined footwear appropriate to the look with low color contrast"
         affinity["look_finish"] = "quiet premium catalog finish"
     if any(token in text for token in ("tricô", "tricot", "knit", "crochê", "crochet", "malha")):
-        affinity["footwear_strategy"] = "simple low-profile flats or sandals"
+        affinity["footwear_strategy"] = "simple everyday footwear with low visual contrast"
         affinity["look_finish"] = "soft premium everyday finish"
     return affinity
 
@@ -140,9 +140,9 @@ def _styling_profile_keywords(operational_profile: Optional[dict[str, Any]]) -> 
     guardrail = str(profile.get("guardrail_profile", "") or "")
     invention_budget = float(profile.get("invention_budget", 0.5) or 0.5)
     if guardrail == "strict_catalog":
-        return (("minimal", "restrained", "quiet", "clean", "tonal", "neutral"), invention_budget)
+        return (("minimal", "restrained", "quiet", "clean", "tonal", "neutral", "low-contrast"), invention_budget)
     if guardrail == "natural_commercial":
-        return (("natural", "believable", "warm", "light", "everyday", "tan"), invention_budget)
+        return (("natural", "believable", "warm", "light", "everyday", "understated"), invention_budget)
     if guardrail == "lifestyle_permissive":
         return (("casual", "social", "lived", "fresh", "believable"), invention_budget)
     if guardrail == "editorial_controlled":

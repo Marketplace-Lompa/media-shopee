@@ -206,6 +206,58 @@ def test_finalize_prompt_agent_result_text_mode_enforces_casting_surface_minimum
     assert "casting_surface" in used_sources
 
 
+def test_finalize_prompt_agent_result_reference_mode_softens_casting_surface_minimum() -> None:
+    result = finalize_prompt_agent_result(
+        result={
+            "prompt": "RAW photo, a charismatic Brazilian woman wearing the referenced knit top in a believable refined interior.",
+            "shot_type": "medium",
+        },
+        has_images=True,
+        has_prompt=True,
+        user_prompt="foto premium com a peca fiel",
+        structural_contract={
+            "enabled": True,
+            "garment_subtype": "knit_top",
+        },
+        guided_brief=None,
+        guided_enabled=False,
+        guided_set_mode="unica",
+        guided_set_detection={},
+        grounding_mode="off",
+        pipeline_mode="reference_mode",
+        aspect_ratio="4:5",
+        pose="",
+        grounding_pose_clause="",
+        profile="features blend 'Juliana' and 'Raissa'",
+        scenario="",
+        diversity_target={
+            "profile_id": "natural:natural_commercial",
+            "casting_state": {
+                "age": "late 20s",
+                "skin": "deep rich brown skin",
+                "face_structure": "balanced attractive facial planes with natural asymmetry and expressive eyes",
+                "hair": "a rounded afro with natural shape and charismatic texture",
+                "expression": "subtle engaging smile",
+                "presence": "charismatic Brazilian creator presence",
+            },
+        },
+        mode_id="natural",
+        framing_profile="three_quarter",
+        camera_type="natural_digital",
+        capture_geometry="three_quarter_eye_level",
+        lighting_profile="natural_soft",
+        pose_energy="relaxed",
+        casting_profile="natural_commercial",
+    )
+
+    low = result["prompt"].lower()
+    used_sources = {item["source"] for item in result["prompt_compiler_debug"]["used_clauses"]}
+    assert "late 20s" in low
+    assert "deep rich brown skin" not in low
+    assert "rounded afro" not in low
+    assert "casting_surface" in used_sources
+
+
 def test_finalize_prompt_agent_result_text_mode_enforces_specific_pose_surface() -> None:
     result = finalize_prompt_agent_result(
         result={
@@ -343,7 +395,7 @@ def test_finalize_prompt_agent_result_adds_coordination_bridge_when_prompt_is_de
                 "RAW photo, a Brazilian woman in her late 20s with a balanced oval face and soft medium-brown waves "
                 "wearing an olive green linen midi dress in a minimalist studio. "
                 "She stands with a subtle weight shift. "
-                "Discreet tan leather sandals complete the look."
+                "Calçado discreto e adequado ao look completa a produção."
             ),
             "shot_type": "wide",
         },
@@ -412,7 +464,7 @@ def test_finalize_prompt_agent_result_text_mode_adds_footwear_guardrail_for_full
             "profile_id": "natural:natural_commercial",
             "styling_state": {
                 "footwear_required": True,
-                "footwear_strategy": "minimal tan leather sandals",
+                "footwear_strategy": "footwear appropriate to the look in a natural understated direction",
                 "look_finish": "natural complete look without overstyling",
             },
         },
@@ -425,7 +477,7 @@ def test_finalize_prompt_agent_result_text_mode_adds_footwear_guardrail_for_full
         casting_profile="natural_commercial",
     )
 
-    assert "minimal tan leather sandals" in result["prompt"].lower()
+    assert "footwear appropriate to the look in a natural understated direction" in result["prompt"].lower()
     used_sources = {item["source"] for item in result["prompt_compiler_debug"]["used_clauses"]}
     assert "styling_completion" in used_sources
 
@@ -464,7 +516,7 @@ def test_finalize_prompt_agent_result_text_mode_respects_explicit_barefoot_brief
         casting_profile="natural_commercial",
     )
 
-    assert "sandals" not in result["prompt"].lower()
+    assert "adequate footwear" not in result["prompt"].lower()
     used_sources = {item["source"] for item in result["prompt_compiler_debug"]["used_clauses"]}
     assert "styling_completion" not in used_sources
 

@@ -267,6 +267,10 @@ def test_run_agent_reference_mode_upgrades_legacy_diversity_target_to_latent_sta
     assert "CAPTURE LATENT STATE" in context
     assert "POSE LATENT STATE" in context
     assert "STYLING LATENT STATE" in context
+    assert "skin direction:" not in context
+    assert "hair language:" not in context
+    assert "face impression:" not in context
+    assert "do not over-specify phenotype in garment-reference mode" in context
     assert result["diversity_target"]["casting_state"]["age"] == "late 20s to early 30s"
     assert result["diversity_target"]["legacy_profile_id"] == "legacy_profile_1"
 

@@ -265,9 +265,9 @@ def _maybe_enforce_text_mode_footwear(
             "without competing with the garment."
         )
     elif mode_id == "catalog_clean":
-        clause = "She is styled with discreet neutral sandals to keep the look commercially complete without competing with the garment."
+        clause = "She is styled with discreet footwear appropriate to the look to keep the styling commercially complete without competing with the garment."
     elif mode_id == "natural":
-        clause = "She is styled with discreet flat sandals that keep the look commercially complete without competing with the garment."
+        clause = "She is styled with footwear that feels appropriate to the look and keeps the styling commercially complete without competing with the garment."
     else:
         clause = "She is styled with discreet commercially coherent footwear that keeps the look complete without competing with the garment."
 
@@ -289,18 +289,41 @@ def _maybe_enforce_casting_surface(
     *,
     prompt_text: str,
     casting_state: Optional[dict[str, Any]] = None,
+    reference_mode: bool = False,
 ) -> tuple[str, Optional[str]]:
     state = casting_state or {}
     if not state:
         return prompt_text, None
 
     has_age, has_face, has_hair = _has_casting_surface(prompt_text)
-    if has_age and has_face and has_hair:
-        return prompt_text, None
-
     age = str(state.get("age", "") or "").strip()
     face = str(state.get("face_structure", "") or "").strip()
     hair = str(state.get("hair", "") or "").strip()
+    presence = str(state.get("presence", "") or "").strip()
+    expression = str(state.get("expression", "") or "").strip()
+
+    if reference_mode:
+        if has_age or has_face or has_hair:
+            return prompt_text, None
+        clause = ""
+        if age and presence:
+            clause = f"She appears in her {age} with {presence}"
+        elif age:
+            clause = f"She appears in her {age}"
+        elif presence:
+            clause = f"She has {presence}"
+        elif expression:
+            clause = f"She has a {expression}"
+        if not clause:
+            return prompt_text, None
+        if not clause.endswith("."):
+            clause += "."
+        base = re.sub(r"\s+", " ", prompt_text.strip())
+        separator = "" if base.endswith((".", "!", "?")) else "."
+        return f"{base}{separator} {clause}".strip(), "casting_surface"
+
+    if has_age and has_face and has_hair:
+        return prompt_text, None
 
     age_fragment = f"in her {age}" if (not has_age and age) else ""
     face_fragment = face if (not has_face and face) else ""
@@ -505,7 +528,7 @@ def finalize_prompt_agent_result(
         if pipeline_mode == "text_mode"
         else _compose_prompt_with_camera(compiled_base_prompt, camera_realism)
     )
-    if pipeline_mode == "text_mode":
+    if pipeline_mode in ("text_mode", "reference_mode"):
         casting_state = (diversity_target or {}).get("casting_state") or {}
         pose_state = (diversity_target or {}).get("pose_state") or {}
         styling_state = (diversity_target or {}).get("styling_state") or {}
@@ -513,6 +536,7 @@ def finalize_prompt_agent_result(
         final_prompt, casting_source = _maybe_enforce_casting_surface(
             prompt_text=final_prompt,
             casting_state=casting_state,
+            reference_mode=bool(has_images),
         )
         if casting_source:
             compiler_debug["used_clauses"].append(

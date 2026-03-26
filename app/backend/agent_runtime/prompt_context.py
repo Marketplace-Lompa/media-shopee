@@ -153,8 +153,13 @@ def _build_diversity_target_block(
         f"Model persona anchor: {profile_hint}.{presence_clause}\n"
         "Keep the model distinctly Brazilian in a believable, non-stereotyped way.\n"
         "Use the persona anchor consistently in the final prompt instead of dropping it.\n"
-        "Invent unique physical characteristics (skin tone, hair, age, build) that complement the garment.\n"
-        "Keep the garment as the hero. Model presence is secondary.\n"
+        + (
+            "Invent a new Brazilian persona that complements the garment, but keep physical characterization broad and non-dominant.\n"
+            "Do not lock the model into a highly specific phenotype unless the brief explicitly asks for it.\n"
+            if has_images
+            else "Invent unique physical characteristics (skin tone, hair, age, build) that complement the garment.\n"
+        )
+        + "Keep the garment as the hero. Model presence is secondary.\n"
         "Scenario, framing, lighting, and pose come from MODE_PRESETS. Follow those directions.\n"
         "Inside those directions, invent a fresh specific solution instead of repeating a generic safe default.\n"
         "Never mention preset labels or metatextual terms like capture geometry, scenario family, or lighting profile in the final prompt.\n"
@@ -189,29 +194,48 @@ def _build_diversity_target_block(
         )
     if casting_state:
         recent_avoid = ", ".join(casting_state.get("recent_avoid") or []) or "none"
-        block += (
-            "CASTING LATENT STATE (internal creative coordinates, do not copy as a checklist):\n"
-            f"  - age energy: {casting_state.get('age', '')}\n"
-            f"  - face impression: {casting_state.get('face_structure', '')}\n"
-            f"  - skin direction: {casting_state.get('skin', '')}\n"
-            f"  - hair language: {casting_state.get('hair', '')}\n"
-            f"  - polish level: {casting_state.get('makeup', '')}\n"
-            f"  - expression energy: {casting_state.get('expression', '')}\n"
-            f"  - presence: {casting_state.get('presence', '')}\n"
-            f"  - variation rule: {casting_state.get('difference_instruction', '')}\n"
-            f"  - recent avoid: {recent_avoid}\n"
-            "Final prompt surface minimum: explicitly render apparent age, one concrete face impression, and one clear hair description.\n"
-        )
+        if has_images:
+            block += (
+                "CASTING LATENT STATE (reference mode: use as abstract persona guidance, not as literal phenotype casting):\n"
+                f"  - age energy: {casting_state.get('age', '')}\n"
+                f"  - polish level: {casting_state.get('makeup', '')}\n"
+                f"  - expression energy: {casting_state.get('expression', '')}\n"
+                f"  - presence: {casting_state.get('presence', '')}\n"
+                f"  - variation rule: {casting_state.get('difference_instruction', '')}\n"
+                f"  - recent avoid: {recent_avoid}\n"
+                "If you surface physical cues, keep them broad and secondary.\n"
+                "Avoid locking both exact skin tone and exact hair silhouette into a highly specific phenotype unless the brief explicitly asks for it.\n"
+                "Final prompt surface minimum: apparent age or overall presence is enough; do not over-specify phenotype in garment-reference mode.\n"
+            )
+        else:
+            block += (
+                "CASTING LATENT STATE (internal creative coordinates, do not copy as a checklist):\n"
+                f"  - age energy: {casting_state.get('age', '')}\n"
+                f"  - face impression: {casting_state.get('face_structure', '')}\n"
+                f"  - skin direction: {casting_state.get('skin', '')}\n"
+                f"  - hair language: {casting_state.get('hair', '')}\n"
+                f"  - polish level: {casting_state.get('makeup', '')}\n"
+                f"  - expression energy: {casting_state.get('expression', '')}\n"
+                f"  - presence: {casting_state.get('presence', '')}\n"
+                f"  - variation rule: {casting_state.get('difference_instruction', '')}\n"
+                f"  - recent avoid: {recent_avoid}\n"
+                "Final prompt surface minimum: explicitly render apparent age, one concrete face impression, and one clear hair description.\n"
+            )
     if scene_state:
         block += (
-            "SCENE LATENT STATE (internal world-building coordinates, do not copy as a checklist):\n"
+            "SCENE LATENT STATE (creative seed — use as inspiration, NOT as a rigid constraint):\n"
             f"  - world family: {scene_state.get('world_family', '')}\n"
             f"  - microcontext: {scene_state.get('microcontext', '')}\n"
             f"  - emotional register: {scene_state.get('emotional_register', '')}\n"
             f"  - material language: {scene_state.get('material_language', '')}\n"
             f"  - background density: {scene_state.get('background_density', '')}\n"
             f"  - Brazil anchor: {scene_state.get('brazil_anchor', '')}\n"
-            "Use this to invent a specific setting inside the allowed scenario family instead of defaulting to the same generic apartment, street, or premium backdrop.\n"
+            "These scene coordinates are starting inspiration, not boundaries.\n"
+            "Freely invent an authentic Brazilian scene — indoor or outdoor — that fits\n"
+            "the active visual mode's tone. Surprise with variety: tropical gardens,\n"
+            "pousada verandas, padarias, rooftops, parks, hotel lobbies, feiras,\n"
+            "residential courtyards, coastal boardwalks, cultural spaces.\n"
+            "Avoid defaulting to the same type of scene across consecutive generations.\n"
         )
     if capture_state:
         block += (

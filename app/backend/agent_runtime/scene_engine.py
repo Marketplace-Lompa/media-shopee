@@ -197,6 +197,195 @@ _SCENE_WORLD_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
             "subtle Brazilian design-store sensibility",
         ),
     },
+    "tropical_garden": {
+        "microcontext": (
+            "shaded tropical garden path with filtered canopy light",
+            "residential courtyard with potted palms and terracotta",
+            "pousada garden with hammock edges and bougainvillea depth",
+            "quintal brasileiro with mango tree shade and worn tile",
+        ),
+        "emotional_register": (
+            "warm organic ease",
+            "tropical domestic calm",
+            "lush lived-in softness",
+        ),
+        "material_language": (
+            "foliage + terracotta + soft earth + dappled shade",
+            "tropical planting + weathered stone + warm wood",
+            "palm shadow + tile + green depth + filtered light",
+        ),
+        "background_density": (
+            "medium natural layering",
+            "lush but secondary",
+            "soft organic depth",
+        ),
+        "brazil_anchor": (
+            "authentic Brazilian tropical residential warmth",
+            "credible Brazilian garden domesticity",
+        ),
+    },
+    "cafe_bistro": {
+        "microcontext": (
+            "neighborhood padaria with glass counter and warm interior light",
+            "Brazilian bistro corner with wood stools and chalkboard depth",
+            "açaí shop front with casual seating and sidewalk proximity",
+            "corner coffee bar with espresso machine and morning routine energy",
+        ),
+        "emotional_register": (
+            "warm social ease",
+            "approachable everyday ritual",
+            "soft commercial intimacy",
+        ),
+        "material_language": (
+            "wood counter + glass + tile + warm practical light",
+            "concrete floor + menu board + casual furniture",
+            "mosaic tile + wood + metal fixtures + coffee aroma suggestion",
+        ),
+        "background_density": (
+            "moderately active",
+            "believable morning rhythm",
+            "controlled social background",
+        ),
+        "brazil_anchor": (
+            "authentic Brazilian café culture",
+            "credible Brazilian padaria atmosphere",
+        ),
+    },
+    "beach_coastal": {
+        "microcontext": (
+            "boardwalk edge with sand depth and open horizon",
+            "coastal town sidewalk with sea breeze suggestion and pastel facades",
+            "beach kiosk proximity with soft sand transition and dune vegetation",
+            "marina walkway with boat masts and calm waterfront light",
+        ),
+        "emotional_register": (
+            "open coastal freedom",
+            "breezy relaxed warmth",
+            "salt-air luminosity",
+        ),
+        "material_language": (
+            "sand + weathered wood + coastal vegetation + open sky",
+            "pastel plaster + boardwalk planks + sea light reflection",
+            "dune grass + pale concrete + warm horizon glow",
+        ),
+        "background_density": (
+            "airy with coastal depth",
+            "open but grounded",
+            "breathable horizon presence",
+        ),
+        "brazil_anchor": (
+            "authentic Brazilian coastal warmth",
+            "credible Brazilian beach-town life",
+        ),
+    },
+    "hotel_pousada": {
+        "microcontext": (
+            "pousada reception with woven textures and warm ambient light",
+            "boutique hotel corridor with soft art and restrained luxury",
+            "pousada veranda with rattan chairs and garden view glimpse",
+            "hotel lobby lounge with curated plants and quiet spatial depth",
+        ),
+        "emotional_register": (
+            "quiet hospitality warmth",
+            "restrained travel elegance",
+            "soft curated welcome",
+        ),
+        "material_language": (
+            "rattan + linen + warm wood + indirect light",
+            "polished floor + soft upholstery + curated greenery",
+            "woven textures + plaster + ambient lamp warmth",
+        ),
+        "background_density": (
+            "restrained but curated",
+            "soft hospitality depth",
+            "quietly furnished",
+        ),
+        "brazil_anchor": (
+            "credible Brazilian pousada charm",
+            "authentic Brazilian boutique hospitality",
+        ),
+    },
+    "market_feira": {
+        "microcontext": (
+            "covered market aisle with colorful produce and diffused overhead light",
+            "feira livre edge with awning shade and stacked crate texture",
+            "mercado municipal gallery with tile and warm vendor depth",
+            "artisan craft fair with textile displays and soft crowd recession",
+        ),
+        "emotional_register": (
+            "vibrant everyday abundance",
+            "warm communal energy",
+            "colorful authentic bustle",
+        ),
+        "material_language": (
+            "canvas awning + wooden crate + colorful produce + warm shade",
+            "tile floor + iron structure + diffused overhead light",
+            "textile stacks + handcraft displays + filtered natural light",
+        ),
+        "background_density": (
+            "moderate with selective focus",
+            "active but depth-controlled",
+            "colorful but secondary",
+        ),
+        "brazil_anchor": (
+            "authentic Brazilian feira atmosphere",
+            "credible Brazilian mercado vitality",
+        ),
+    },
+    "cultural_space": {
+        "microcontext": (
+            "museum gallery with clean walls and controlled spatial rhythm",
+            "cultural center foyer with high ceilings and geometric light",
+            "art gallery transition space with curated negative space",
+            "library reading corner with warm wood and book-spine depth",
+        ),
+        "emotional_register": (
+            "composed intellectual calm",
+            "quiet cultural sophistication",
+            "elegant institutional restraint",
+        ),
+        "material_language": (
+            "white wall + polished floor + curated light + spatial void",
+            "concrete + glass + wood bench + controlled geometry",
+            "book spines + warm wood + soft institutional light",
+        ),
+        "background_density": (
+            "deliberately sparse",
+            "curated negative space",
+            "controlled institutional depth",
+        ),
+        "brazil_anchor": (
+            "contemporary Brazilian cultural refinement",
+            "credible Brazilian institutional elegance",
+        ),
+    },
+    "rooftop_terrace": {
+        "microcontext": (
+            "residential rooftop terrace with city skyline and potted plants",
+            "apartment building terraço with clothesline edges and sky openness",
+            "bar rooftop with string lights and warm evening transition",
+            "hotel terrace with lounge seating and panoramic urban depth",
+        ),
+        "emotional_register": (
+            "elevated urban openness",
+            "sky-level domestic ease",
+            "warm aerial intimacy",
+        ),
+        "material_language": (
+            "concrete parapet + potted greenery + sky reflection",
+            "tile floor + metal railing + string lights + warm dusk",
+            "lounge furniture + glass barrier + urban panorama",
+        ),
+        "background_density": (
+            "open with skyline depth",
+            "airy elevated perspective",
+            "panoramic but controlled",
+        ),
+        "brazil_anchor": (
+            "authentic Brazilian urban rooftop life",
+            "credible Brazilian terraço atmosphere",
+        ),
+    },
 }
 
 

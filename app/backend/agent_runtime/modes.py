@@ -231,6 +231,13 @@ def describe_mode_defaults(mode_config: ModeConfig) -> str:
         "textured_city": "more tactile urban environment with visible real-world material texture",
         "nature_open_air": "open-air outdoor context with breathable natural depth",
         "curated_interior": "refined indoor commercial setting with deliberate styling restraint",
+        "tropical_garden": "tropical garden or courtyard with organic warmth and natural shade",
+        "cafe_bistro": "neighborhood café, padaria, or bistro with warm social intimacy",
+        "beach_coastal": "coastal boardwalk, beach proximity, or marina with open-air luminosity",
+        "hotel_pousada": "boutique hotel or pousada with restrained hospitality charm",
+        "market_feira": "open market, feira, or mercado with vibrant everyday abundance",
+        "cultural_space": "museum, gallery, or cultural center with composed institutional calm",
+        "rooftop_terrace": "rooftop terrace with elevated urban openness or skyline depth",
     }
     framing_map = {
         "full_body": "prefer full-body garment readability",
@@ -272,10 +279,24 @@ def describe_mode_defaults(mode_config: ModeConfig) -> str:
         "editorial_presence": "model presence should feel elevated, fashion-aware, and intentionally editorial",
     }
     p = mode_config.presets
+    # Modos criativos usam direção inspiracional; catalog_clean usa restrição rígida
+    _PRESCRIPTIVE_MODES = {"catalog_clean"}
+    if mode_config.id in _PRESCRIPTIVE_MODES:
+        scenario_line = f"- scenario constraint: {scenario_map.get(p.scenario_pool, '')}. Do not deviate from this backdrop type."
+    else:
+        seed_desc = scenario_map.get(p.scenario_pool, "")
+        scenario_line = (
+            f"- scenario direction: use creative freedom to invent authentic Brazilian scenes "
+            f"(indoor or outdoor) that match this mode's tone. "
+            f"Seed inspiration: {seed_desc}. "
+            f"Treat this seed as a starting point, not a boundary — freely explore "
+            f"gardens, cafés, pousadas, rooftops, parks, feiras, cultural spaces, "
+            f"coastal areas, courtyards, and more. Prioritize variety."
+        )
     lines = [
         f"Active visual mode: {mode_config.label}.",
         "Treat these as preferred defaults for this job unless the user brief clearly asks otherwise:",
-        f"- scenario family: {scenario_map[p.scenario_pool]}",
+        scenario_line,
         f"- framing: {framing_map[p.framing_profile]}",
         f"- camera type: {camera_type_map[p.camera_type]}",
         f"- capture geometry: {capture_geometry_map[p.capture_geometry]}",

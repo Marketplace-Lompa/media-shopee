@@ -71,7 +71,7 @@ def test_preferred_shot_type_follows_mode_framing_profile() -> None:
 def test_describe_mode_defaults_exposes_business_and_preset_context() -> None:
     text = describe_mode_defaults(get_mode("lifestyle"))
     assert "Active visual mode: Lifestyle." in text
-    assert "scenario family:" in text
+    assert "scenario direction:" in text or "scenario constraint:" in text
     assert "camera type:" in text
     assert "capture geometry:" in text
     assert "lighting:" in text
@@ -80,7 +80,11 @@ def test_describe_mode_defaults_exposes_business_and_preset_context() -> None:
 def test_build_mode_diversity_target_uses_valid_mode_preset_pool() -> None:
     target = build_mode_diversity_target(get_mode("lifestyle"))
     presets = target["preset_defaults"]
-    assert presets["scenario_pool"] in {"textured_city", "nature_open_air", "neighborhood_commercial"}
+    assert presets["scenario_pool"] in {
+        "textured_city", "nature_open_air", "neighborhood_commercial",
+        "beach_coastal", "market_feira", "tropical_garden",
+        "cafe_bistro", "rooftop_terrace",
+    }
     assert presets["pose_energy"] in {"candid", "relaxed"}
     assert presets["casting_profile"] == "natural_commercial"
     assert presets["framing_profile"] in {"environmental_wide", "three_quarter"}
@@ -96,7 +100,11 @@ def test_natural_pool_prefers_natural_digital_capture_language() -> None:
     target = build_mode_diversity_target(get_mode("natural"))
     presets = target["preset_defaults"]
     assert presets["camera_type"] == "natural_digital"
-    assert presets["scenario_pool"] in {"residential_daylight", "neighborhood_commercial"}
+    assert presets["scenario_pool"] in {
+        "residential_daylight", "neighborhood_commercial",
+        "nature_open_air", "curated_interior",
+        "tropical_garden", "cafe_bistro", "hotel_pousada",
+    }
     assert presets["pose_energy"] in {"relaxed", "candid"}
 
 
@@ -123,7 +131,11 @@ def test_build_mode_diversity_target_uses_abstract_profile_and_presence_axes() -
     assert casting_state["face_structure"]
     assert casting_state["hair"]
     assert casting_state["signature"]
-    assert scene_state["world_family"] in {"residential_daylight", "neighborhood_commercial"}
+    assert scene_state["world_family"] in {
+        "residential_daylight", "neighborhood_commercial",
+        "nature_open_air", "curated_interior",
+        "tropical_garden", "cafe_bistro", "hotel_pousada",
+    }
     assert scene_state["microcontext"]
     assert scene_state["material_language"]
     assert scene_state["scene_signature"]
@@ -220,7 +232,11 @@ def test_harmonize_diversity_target_for_mode_upgrades_legacy_reference_shape_wit
 
     assert target["profile_hint"]
     assert target["casting_state"]["age"] == "late 30s to early 40s"
-    assert target["scene_state"]["world_family"] in {"residential_daylight", "neighborhood_commercial"}
+    assert target["scene_state"]["world_family"] in {
+        "residential_daylight", "neighborhood_commercial",
+        "nature_open_air", "curated_interior",
+        "tropical_garden", "cafe_bistro", "hotel_pousada",
+    }
     assert target["capture_state"]["camera_family"] == "natural_digital"
     assert target["pose_state"]["pose_signature"]
     assert target["styling_state"]["look_finish"]
