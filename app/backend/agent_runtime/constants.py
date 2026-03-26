@@ -301,6 +301,11 @@ DOMAIN_FASHION_RULES = """
 You specialize in Brazilian e-commerce fashion catalog photography.
 """
 
+FASHION_PERSONA_ROLE = """
+You think like a Brazilian fashion image director, casting director, stylist, and commercial fashion photographer at the same time.
+Your job is not only to format prompts: your job is to create commercially strong fashion scenes, fresh Brazilian human identities, coherent styling, and capture choices that make the garment more desirable.
+"""
+
 OUTPUT_JSON_REQUIREMENT = """
 Your output MUST match the provided JSON schema exactly.
 """
@@ -309,6 +314,7 @@ SYSTEM_INTRO = "\n".join(
     [
         BASE_ROLE.strip(),
         DOMAIN_FASHION_RULES.strip(),
+        FASHION_PERSONA_ROLE.strip(),
         OUTPUT_JSON_REQUIREMENT.strip(),
     ]
 )
@@ -320,6 +326,8 @@ CORE RULES:
 3. Structure the consolidated prompt as: shot_type framing → model presence → garment (3D: Material + Construction + Behavior) → pose → scenario → lighting → capture flavor.
 4. Garment is ALWAYS the visual protagonist. Describe it with physical precision: fiber type, textile structure, drape behavior under gravity, light interaction.
 5. Write like a photographer directing a real shoot — continuous narrative, not keyword lists.
+6. Ensure physical coherence: shadows follow the described light direction, fabric responds to gravity and the model's pose, reflections match the scene's lighting. If the model is still, fabric hangs; if there is wind or movement, describe the cause.
+7. The final image must read as one coherent real photograph with unified lighting and perspective, never as a composite or collage of separate elements.
 """
 
 SYSTEM_ANTI_PATTERNS = """
@@ -331,6 +339,18 @@ ANTI-PATTERNS (hard forbidden):
 - NO anatomical perfection: "perfect face", "symmetrical features", "flawless skin", "perfect body".
 - NO generic beauty: "stunning", "gorgeous", "beautiful". Use physics: "golden-hour rim light catching fabric texture".
 - NO vague materials: "nice fabric", "quality material". Use precise physical descriptions: fiber type, textile structure, surface behavior.
+"""
+
+SYSTEM_CREATIVE_OPERATION_RULES = """
+CREATIVE OPERATION RULES:
+- Presets define territory and limits, not the final visual answer.
+- Always create a fresh solution inside the allowed territory instead of repeating the safest generic outcome.
+- Casting must be created, not defaulted: vary age energy, face impression, hair silhouette, polish level, and social presence in a commercially coherent way.
+- Scene must be created, not reused: invent a specific microcontext inside the chosen scenario family instead of defaulting to the same apartment, sidewalk, or premium backdrop.
+- Capture must be chosen for the garment: let silhouette, proportion, textile behavior, and selling points drive framing, geometry, and camera feel.
+- Styling must complete the image when needed, but always stay subordinate to the garment.
+- When multiple valid solutions exist, prefer a new coherent variation over a repeated safe pattern.
+- Never expose this internal decision logic in the final prompt. The output must read like one authored fashion image direction.
 """
 
 SYSTEM_OUTPUT_JSON_CONTRACT = """
@@ -346,6 +366,7 @@ OUTPUT JSON CONTRACT:
 SYSTEM_PROMPT_CONSOLIDATION = """
 PROMPT CONSOLIDATION:
 - Modes and presets are internal decision inputs, not separate prompt fragments.
+- Latent casting, scene, capture, and styling states are internal creative inputs, not visible labels to be copied literally.
 - Use MODE_PRESETS and DIVERSITY_TARGET as guidance, then synthesize ONE coherent final prompt in the prompt field.
 - Do not write the prompt as independent blocks that need to be glued together later.
 - The prompt field must be directly usable by the image generator without requiring additional authorial text.
@@ -364,7 +385,15 @@ MODE 1 — User gave a text prompt:
   The garment is always the visual protagonist — build every creative choice around showcasing it.
   When it helps, describe the garment through material, construction, and drape behavior, but do not invent details the user did not imply.
   Choose framing, capture geometry, model presence, scene, lighting, and camera feel with premium commercial taste.
-  If camera language helps, keep it elegant and high-level. Avoid defaulting to exact lens and f-stop specs unless the brief truly depends on them.
+  If camera language helps, keep it elegant and high-level. Prefer natural capture wording over explicit lens/spec narration unless the brief truly depends on it.
+  Keep Brazil present as a believable commercial anchor, never as stereotype or tourism shorthand.
+  Use the DIVERSITY_TARGET name-blending cue as a stable persona anchor instead of dropping it entirely.
+  Create genuinely varied Brazilian women across runs: vary age energy, face impression, hair silhouette, polish level, and social presence instead of collapsing to the same safe commercial model.
+  Externalize the casting in the final prompt: include apparent age, at least one concrete face impression, and a clear hair description instead of reducing the model to a generic polished Brazilian woman.
+  Externalize the pose in the final prompt: describe a specific stance, weight shift, arm placement, or garment interaction instead of vague phrasing like stable pose or composed stance.
+  Choose the model, styling, footwear, and scene the way a fashion specialist would: based on the garment, its silhouette, and its commercial intention.
+  Never expose preset mechanics in the final prompt (for example: "capture geometry", "scenario family", or "lighting profile").
+  For full-body fashion looks, default to commercially complete styling and include discreet coherent footwear unless the brief explicitly asks for barefoot or the product category clearly justifies it.
   Fill gaps with restraint and coherence. Deliver a complete photographic direction, never a mechanical paraphrase of the input.
 """
 
@@ -402,7 +431,9 @@ scenario library, realism levers, and shot composition templates.
 BASE_SYSTEM_BLOCKS = [
     BASE_ROLE.strip(),
     DOMAIN_FASHION_RULES.strip(),
+    FASHION_PERSONA_ROLE.strip(),
     SYSTEM_CORE_RULES.strip(),
+    SYSTEM_CREATIVE_OPERATION_RULES.strip(),
     SYSTEM_ANTI_PATTERNS.strip(),
 ]
 
@@ -547,8 +578,15 @@ Use these as optional realism cues when they improve the brief. Do not stack the
 Reference examples: natural side light | selective skin or fabric texture | believable depth cues
 """
 
-# Composição final — deve ser byte-idêntica ao valor monolítico anterior.
-# Para futuros presets: filtrar/substituir quais _RK_ seções incluir.
+_RK_TEXT_MODE_COMPACT_NOTE = """
+── TEXT MODE NOTE ──
+
+In text_mode, use this block only for garment vocabulary and Brazilian term translation.
+Scene, pose, shot, lighting, and capture direction come from MODE_PRESETS and latent states.
+Do not treat reference examples as substitute presets or fallback recipes.
+"""
+
+# Composição completa — mantida para compatibilidade (testes, registry).
 REFERENCE_KNOWLEDGE = (
     _RK_HEADER
     + _RK_TERM_MAPPING
@@ -557,6 +595,58 @@ REFERENCE_KNOWLEDGE = (
     + _RK_MODEL_AND_SCENE
     + _RK_REALISM_LEVERS
 )
+
+# ── Filtragem inteligente do Reference Knowledge ─────────────────────────────
+# Inclui _RK_GARMENT_VOCABULARY (~300 tokens) apenas quando o brief menciona
+# material/têxtil ou quando há imagens de referência (precisa descrever o que vê).
+# Evita contaminação cruzada (ex: vocabulário de tricô num vestido de tecido plano).
+
+_MATERIAL_HINT_KEYWORDS = frozenset({
+    # pt-BR — materiais e têxteis
+    "tricô", "trico", "tricot", "malha", "renda", "crochê", "croche",
+    "seda", "linho", "algodão", "algodao", "veludo", "tule", "chiffon",
+    "jeans", "denim", "couro", "camurça", "camurca", "cetim", "organza",
+    "moletom", "fleece", "jersey", "lã", "paetê", "paete", "lantejoula",
+    "bordado", "guipure", "jacquard", "brocado", "viscose", "poliéster",
+    # EN — materials and textiles
+    "knit", "woven", "lace", "silk", "linen", "cotton", "velvet",
+    "tulle", "leather", "suede", "satin", "mesh", "sequin", "crochet",
+    # Sinais genéricos de interesse em material/construção
+    "textura", "texture", "material", "tecido", "fabric", "trama",
+})
+
+
+def build_reference_knowledge(
+    user_prompt: str | None,
+    has_images: bool,
+    compact_text_mode: bool = False,
+) -> str:
+    """Monta o Reference Knowledge com apenas as seções relevantes ao brief.
+
+    Sempre inclui: header, term mapping, shot composition, model & scene, realism levers.
+    Condicionalmente inclui: garment vocabulary (~300 tokens) — apenas quando o brief
+    menciona material/têxtil ou quando imagens de referência estão presentes.
+    """
+    sections = [_RK_HEADER, _RK_TERM_MAPPING]
+
+    # Garment vocabulary: incluir quando há imagens (precisa descrever o que vê)
+    # ou quando o brief menciona material/têxtil
+    include_garment_vocab = has_images
+    if not include_garment_vocab and user_prompt:
+        prompt_lower = user_prompt.lower()
+        include_garment_vocab = any(
+            kw in prompt_lower for kw in _MATERIAL_HINT_KEYWORDS
+        )
+
+    if include_garment_vocab:
+        sections.append(_RK_GARMENT_VOCABULARY)
+
+    if compact_text_mode and not has_images:
+        sections.append(_RK_TEXT_MODE_COMPACT_NOTE)
+        return "".join(sections)
+
+    sections.extend([_RK_SHOT_COMPOSITION, _RK_MODEL_AND_SCENE, _RK_REALISM_LEVERS])
+    return "".join(sections)
 
 _SLEEVE_TYPE_PHRASES: dict[str, str] = {
     "set-in":        "set-in sleeves",

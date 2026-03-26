@@ -22,9 +22,9 @@ _last_scene_comp_idx_by_mode: dict[str, int] = {}
 
 
 _TEXT_MODE_SCENE_COMP_POOL = [
-    "setting stays secondary to the garment",
-    "environment remains commercially believable without competing",
-    "background supports the garment without pulling focus",
+    "keep the setting secondary to the garment",
+    "keep the background quiet and commercially unobtrusive",
+    "keep environmental detail restrained around the garment",
 ]
 
 _REFERENCE_MODE_SCENE_COMP_POOL = [
@@ -36,7 +36,7 @@ _REFERENCE_MODE_SCENE_COMP_POOL = [
 _GAZE_POOL = [
     "engaging eye contact",
     "direct confident gaze at camera",
-    "warm near-camera look with relaxed expression",
+    "warm relaxed expression",
 ]
 
 _SENTENCE_SPLIT_RE = re.compile(r'(?<=[.!?])\s+(?=[A-Z\"\']|$)')
@@ -275,9 +275,10 @@ def _compile_prompt_v2(
     elif pipeline_mode == "text_mode":
         if not profile_hint:
             clauses.append((model_presence_clause, 3, "quality_model"))
-        clauses.append((gaze_clause, 3, "quality_gaze"))
-        clauses.append((_scene_composition_clause(base, _guided_scene_type, pipeline_mode), 4, "quality_scene"))
-        clauses.append((_frame_occupancy_clause(aspect_ratio, effective_shot), 3, "frame_occupancy"))
+        # No text_mode, a expressão deve nascer da síntese guiada por casting/pose.
+        # Gaze tail automático aqui volta a deixar o prompt com cara de remendo.
+        # quality_scene e frame_occupancy também ficam fora: essa direção já entra
+        # via MODE_PRESETS + estados latentes.
 
     # ── P3: Pose de referência do grounding ──────────────────────────
     if pose_hint:

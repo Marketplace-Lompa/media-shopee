@@ -15,7 +15,7 @@ from google.genai import types
 
 from create_categories import DEFAULT_CREATE_CATEGORY, normalize_create_category
 from agent_runtime.gemini_client import generate_with_system_instruction
-from agent_runtime.grounding import _run_grounding_research
+
 from agent_runtime.prompt_assets_registry import get_generate_prompt_assets
 from agent_runtime.prompt_context import build_generate_context_text, build_system_instruction
 from agent_runtime.prompt_result import finalize_prompt_agent_result
@@ -24,8 +24,12 @@ from agent_runtime.triage import (
     _infer_text_mode_shot,
     resolve_prompt_agent_visual_triage,
 )
-from agent_runtime.diversity import _sample_diversity_target
-from agent_runtime.constants import AGENT_RESPONSE_SCHEMA
+from agent_runtime.diversity import (
+    _sample_diversity_target,
+    build_mode_diversity_target,
+    harmonize_diversity_target_for_mode,
+)
+from agent_runtime.constants import AGENT_RESPONSE_SCHEMA, build_reference_knowledge
 from agent_runtime.modes import (
     describe_mode_defaults,
     get_mode,
@@ -77,19 +81,54 @@ def run_agent(
     )
     guided_enabled = bool(guided_brief and guided_brief.get("enabled"))
     guided_set_mode = str((((guided_brief or {}).get("garment") or {}).get("set_mode") or "")).strip().lower()
-    triage_result = resolve_prompt_agent_visual_triage(
-        uploaded_images=uploaded_images or [],
-        user_prompt=user_prompt,
-        guided_enabled=guided_enabled,
-        guided_set_mode=guided_set_mode,
-        structural_contract_hint=structural_contract_hint,
-        unified_vision_triage_result=unified_vision_triage_result,
-    )
-    structural_contract = triage_result["structural_contract"]
-    guided_set_detection = triage_result["guided_set_detection"]
-    garment_hint = str(triage_result["garment_hint"] or "")
-    image_analysis = str(triage_result["image_analysis"] or "")
-    look_contract = triage_result["look_contract"] or {}
+    if has_images:
+        triage_result = resolve_prompt_agent_visual_triage(
+            uploaded_images=uploaded_images or [],
+            user_prompt=user_prompt,
+            guided_enabled=guided_enabled,
+            guided_set_mode=guided_set_mode,
+            structural_contract_hint=structural_contract_hint,
+            unified_vision_triage_result=unified_vision_triage_result,
+        )
+        structural_contract = triage_result["structural_contract"]
+        guided_set_detection = triage_result["guided_set_detection"]
+        garment_hint = str(triage_result["garment_hint"] or "")
+        image_analysis = str(triage_result["image_analysis"] or "")
+        look_contract = triage_result["look_contract"] or {}
+    else:
+        structural_contract = {
+            "enabled": False,
+            "confidence": 0.0,
+            "sleeve_type": "unknown",
+            "sleeve_length": "unknown",
+            "front_opening": "unknown",
+            "hem_shape": "unknown",
+            "garment_length": "unknown",
+            "silhouette_volume": "unknown",
+            "must_keep": [],
+        }
+        guided_set_detection = {
+            "is_garment_set": False,
+            "set_pattern_score": 0.0,
+            "detected_garment_roles": [],
+            "set_pattern_cues": [],
+            "set_lock_mode": "off",
+        }
+        garment_hint = ""
+        image_analysis = ""
+        look_contract = {}
+
+    if has_images and effective_mode and not diversity_target:
+        diversity_target = build_mode_diversity_target(
+            effective_mode,
+            user_prompt=(user_prompt or garment_hint or image_analysis or effective_mode.description),
+        )
+    if effective_mode:
+        diversity_target = harmonize_diversity_target_for_mode(
+            effective_mode,
+            diversity_target,
+            user_prompt=user_prompt,
+        )
 
     # Profile via Name Blending — persona anchor para o Gemini.
     # Cenário e pose: no text-only mode, as direções vêm dos presets
@@ -102,53 +141,16 @@ def run_agent(
         fallback_hint, _, _ = _sample_diversity_target()
 
     profile = (diversity_target or {}).get("profile_hint", "") or fallback_hint
-    # No text-only mode, cenário e pose são guiados pelos presets (MODE_PRESETS),
-    # não por frases literais injetadas aqui. Strings vazias = sem override literal.
+    # No text-only mode, cenário e pose são guiados pelos presets e estados latentes.
+    # O compiler ainda recebe scenario_hint por compatibilidade, mas deixamos vazio
+    # para não reintroduzir direção autoral fora da síntese principal.
     scenario = ""
-    pose = ""
 
-    # Grounding: chamada separada de pesquisa antes do agente
+    # Grounding: Camada 2 (pesquisa separada) removida — API-level ImageSearch (Camada 1) é suficiente.
     grounding_research = ""
-    grounding_meta = {
-        "effective": False,
-        "queries": [],
-        "sources": [],
-        "engine": "none",
-        "source_engine": "none",
-        "mode": "off",
-        "grounded_images_count": 0,
-        "visual_ref_engine": "none",
-        "reason_codes": [],
-    }
+    grounding_meta = {"effective": False, "mode": "off", "reason_codes": ["layer2_removed"]}
     grounded_images: List[bytes] = []
     grounding_pose_clause: str = ""
-    if use_grounding:
-        print("[AGENT] 🔍 Running grounding research (separate call)...")
-        try:
-            grounding_data = _run_grounding_research(
-                uploaded_images=uploaded_images or [],
-                user_prompt=user_prompt,
-                mode=grounding_mode,
-                garment_hint_override=garment_hint,
-            )
-            grounding_research = grounding_data.get("text", "")
-            grounding_pose_clause = grounding_data.get("pose_clause", "")
-            grounded_images = list(grounding_data.get("grounded_images", []) or [])
-            grounding_meta = {
-                "effective": bool(grounding_data.get("effective")),
-                "queries": grounding_data.get("queries", []),
-                "sources": grounding_data.get("sources", []),
-                "engine": grounding_data.get("engine", "none"),
-                "source_engine": grounding_data.get("source_engine", grounding_data.get("engine", "none")),
-                "mode": grounding_mode,
-                "grounded_images_count": int(grounding_data.get("grounded_images_count", 0) or 0),
-                "visual_ref_engine": grounding_data.get("visual_ref_engine", "none"),
-                "reason_codes": grounding_data.get("reason_codes", []),
-            }
-        except Exception as e:
-            print(f"[AGENT] ⚠️  Grounding research failed: {e}")
-            grounding_research = ""
-            grounded_images = []
 
     context_text = build_generate_context_text(
         has_images=has_images,
@@ -159,8 +161,6 @@ def run_agent(
         aspect_ratio=aspect_ratio,
         resolution=resolution,
         profile=profile,
-        scenario=scenario,
-        pose=pose,
         diversity_target=diversity_target,
         guided_enabled=guided_enabled,
         guided_brief=guided_brief,
@@ -173,7 +173,11 @@ def run_agent(
         grounding_context_hint=grounding_context_hint,
         grounding_mode=grounding_mode,
         mode_defaults_text=describe_mode_defaults(effective_mode) if effective_mode else None,  # Sempre injetado (text + ref)
-        reference_knowledge=prompt_assets.reference_knowledge,
+        reference_knowledge=build_reference_knowledge(
+            user_prompt,
+            has_images,
+            compact_text_mode=has_prompt and not has_images,
+        ),
     )
 
     def _build_parts(context: str) -> List[types.Part]:
@@ -247,7 +251,7 @@ def run_agent(
         grounding_mode=grounding_mode,
         pipeline_mode=pipeline_mode,
         aspect_ratio=aspect_ratio,
-        pose=pose,
+        pose="",  # legado: MODE_PRESETS cuida da pose
         grounding_pose_clause=grounding_pose_clause,
         profile=profile,
         scenario=scenario,

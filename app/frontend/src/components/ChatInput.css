@@ -24,12 +24,85 @@
     box-shadow: 0 0 24px rgba(255, 255, 255, 0.1);
 }
 
-/* Mode row — always visible above input */
-.mode-selector-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-4);
+/* ── Intent Cards — mode selector ──────────────────── */
+.intent-cards-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-2);
     padding: 0 var(--sp-1);
+}
+
+.intent-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--r-lg);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition:
+        background var(--dur-fast) var(--ease-out),
+        border-color var(--dur-fast) var(--ease-out),
+        color var(--dur-fast) var(--ease-out),
+        box-shadow var(--dur-fast) var(--ease-out),
+        transform var(--dur-fast) var(--ease-spring);
+    text-align: center;
+}
+
+.intent-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.055);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.intent-card--active {
+    background: rgba(139, 92, 246, 0.12);
+    border-color: rgba(139, 92, 246, 0.5);
+    color: #ddd6fe;
+    box-shadow: 0 0 16px rgba(139, 92, 246, 0.15);
+}
+
+.intent-card--active:hover {
+    background: rgba(139, 92, 246, 0.18);
+    border-color: rgba(139, 92, 246, 0.65);
+}
+
+.intent-card-icon {
+    opacity: 0.5;
+    transition: opacity var(--dur-fast);
+}
+
+.intent-card--active .intent-card-icon {
+    opacity: 1;
+    color: #c4b5fd;
+}
+
+.intent-card:hover .intent-card-icon {
+    opacity: 0.8;
+}
+
+.intent-card-label {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+}
+
+.intent-card-desc {
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1.3;
+    opacity: 0.55;
+    white-space: nowrap;
+}
+
+.intent-card--active .intent-card-desc {
+    opacity: 0.75;
 }
 
 .mode-toggle-banner {
@@ -492,12 +565,7 @@
     color: var(--text-primary);
 }
 
-/* ── Mode chips — sem ruído visual extra ───────────────── */
-.chip--mode {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
+
 
 /* Send button em modo edição — destaque diferente */
 .send-btn--edit {
@@ -506,6 +574,18 @@
 }
 
 @media (max-width: 900px) {
+    .intent-cards-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .intent-card {
+        padding: 6px 10px;
+    }
+
+    .intent-card-desc {
+        display: none;
+    }
+
     .mode-toggle-banner {
         gap: var(--sp-2);
         padding: var(--sp-2);
@@ -531,5 +611,25 @@
 
     .send-btn-label {
         display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .intent-cards-row {
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--sp-1);
+    }
+
+    .intent-card {
+        padding: 6px 8px;
+        gap: 6px;
+    }
+
+    .intent-card-icon {
+        display: none;
+    }
+
+    .intent-card-label {
+        font-size: 11px;
     }
 }

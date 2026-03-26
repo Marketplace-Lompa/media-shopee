@@ -87,6 +87,42 @@ def test_run_agent_text_mode_keeps_category_and_compiles_prompt() -> None:
     assert "<OUTPUT_PARAMETERS>" in captured["parts"][-1].text
 
 
+def test_run_agent_text_mode_does_not_call_visual_triage_without_images() -> None:
+    def fake_generate_with_system_instruction(*, parts, system_instruction, schema, temperature, max_tokens):
+        return _FakeResponse(
+            {
+                "prompt": "RAW photo, a commercially natural model wearing an olive green linen dress in a believable urban setting.",
+                "thinking_level": "MINIMAL",
+                "shot_type": "medium",
+                "realism_level": 2,
+            }
+        )
+
+    def fail_visual_triage(**kwargs):
+        raise AssertionError("visual triage must not run in text_mode without images")
+
+    original_generate = agent.generate_with_system_instruction
+    original_triage = agent.resolve_prompt_agent_visual_triage
+    try:
+        agent.generate_with_system_instruction = fake_generate_with_system_instruction
+        agent.resolve_prompt_agent_visual_triage = fail_visual_triage
+        result = agent.run_agent(
+            user_prompt="vestido verde oliva para ecommerce",
+            uploaded_images=None,
+            pool_context="",
+            aspect_ratio="4:5",
+            resolution="1536",
+            category="fashion",
+        )
+    finally:
+        agent.generate_with_system_instruction = original_generate
+        agent.resolve_prompt_agent_visual_triage = original_triage
+
+    assert result["pipeline_mode"] == "text_mode"
+    assert result["structural_contract"]["enabled"] is False
+    assert result["image_analysis"] == ""
+
+
 def test_run_agent_reference_mode_consumes_precomputed_triage() -> None:
     def fake_generate_with_system_instruction(*, parts, system_instruction, schema, temperature, max_tokens):
         return _FakeResponse(
@@ -154,3 +190,82 @@ def test_run_agent_reference_mode_consumes_precomputed_triage() -> None:
     assert result["pipeline_mode"] == "reference_mode"
     assert result["image_analysis"] == "Olive knit cardigan with visible texture and soft drape."
     assert result["structural_contract"]["enabled"] is True
+
+
+def test_run_agent_reference_mode_upgrades_legacy_diversity_target_to_latent_states() -> None:
+    captured: dict = {}
+
+    def fake_generate_with_system_instruction(*, parts, system_instruction, schema, temperature, max_tokens):
+        captured["parts"] = parts
+        return _FakeResponse(
+            {
+                "prompt": "RAW photo, a Brazilian woman wearing the referenced cardigan in a believable refined interior.",
+                "thinking_level": "HIGH",
+                "shot_type": "medium",
+                "realism_level": 2,
+            }
+        )
+
+    precomputed_triage = {
+        "garment_hint": "textured knit cardigan",
+        "image_analysis": "Olive knit cardigan with visible texture and soft drape.",
+        "structural_contract": {
+            "enabled": True,
+            "confidence": 0.91,
+            "garment_subtype": "standard_cardigan",
+            "sleeve_type": "set-in",
+            "sleeve_length": "long",
+            "front_opening": "open",
+            "hem_shape": "straight",
+            "garment_length": "hip",
+            "silhouette_volume": "regular",
+            "must_keep": ["front opening", "long sleeves"],
+        },
+        "set_detection": {
+            "is_garment_set": False,
+            "set_pattern_score": 0.0,
+            "detected_garment_roles": [],
+            "set_pattern_cues": [],
+            "set_lock_mode": "off",
+        },
+        "look_contract": {},
+    }
+    legacy_diversity_target = {
+        "profile_id": "legacy_profile_1",
+        "profile_prompt": "late 20s, warm Brazilian commercial model",
+        "scenario_id": "legacy_scene_1",
+        "scenario_prompt": "believable residential interior",
+        "pose_id": "legacy_pose_1",
+        "pose_prompt": "relaxed standing pose",
+        "age_range": "25-34",
+        "scene_type": "interno",
+        "pose_style": "tradicional",
+        "lighting_hint": "soft daylight from a window",
+    }
+
+    original_generate = agent.generate_with_system_instruction
+    try:
+        agent.generate_with_system_instruction = fake_generate_with_system_instruction
+        result = agent.run_agent(
+            user_prompt="foto premium com a peca fiel",
+            uploaded_images=[b"fake-image-bytes"],
+            pool_context="",
+            aspect_ratio="4:5",
+            resolution="1536",
+            category="fashion",
+            diversity_target=legacy_diversity_target,
+            unified_vision_triage_result=precomputed_triage,
+            mode="natural",
+        )
+    finally:
+        agent.generate_with_system_instruction = original_generate
+
+    context = captured["parts"][-1].text
+    assert "GARMENT-ONLY REFERENCE MODE:" in context
+    assert "CASTING LATENT STATE" in context
+    assert "SCENE LATENT STATE" in context
+    assert "CAPTURE LATENT STATE" in context
+    assert "POSE LATENT STATE" in context
+    assert "STYLING LATENT STATE" in context
+    assert result["diversity_target"]["casting_state"]["age"] == "late 20s to early 30s"
+    assert result["diversity_target"]["legacy_profile_id"] == "legacy_profile_1"

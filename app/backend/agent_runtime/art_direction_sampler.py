@@ -329,8 +329,8 @@ _POSE_FAMILIES: list[dict[str, Any]] = [
         "id": "shoulder_turn_smile",
         "label": "Shoulder Turn Smile",
         "angle_description": "slight shoulder turn with a casual smile as if captured mid-story or mid-reel",
-        "pose_description": "Use a cativating shoulder-turn pose with casual social energy, a small expression, and clear garment readability.",
-        "model_hero_pose": "cativating shoulder-turn with casual social-media expression",
+        "pose_description": "Use a captivating shoulder-turn pose with casual social energy, a small expression, and clear garment readability.",
+        "model_hero_pose": "captivating shoulder-turn with casual social-media expression",
         "tags": ["ugc", "expressive", "lifestyle", "indoor", "outdoor", "creator", "influencer", "social"],
     },
     {

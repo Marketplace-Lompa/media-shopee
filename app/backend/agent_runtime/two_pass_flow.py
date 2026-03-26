@@ -14,63 +14,15 @@ from typing import Any, Optional
 from agent_runtime.structural import get_set_member_labels, get_set_member_keys
 
 
-_SLEEVE_LOCKS = {
-    "set-in": "same set-in sleeve construction",
-    "raglan": "same raglan sleeve construction",
-    "dolman_batwing": "same dolman-batwing sleeve architecture",
-    "drop_shoulder": "same drop-shoulder shoulder fall",
-    "cape_like": "same cape-like arm coverage",
-}
-
-_HEM_LOCKS = {
-    "straight": "same straight hem behavior",
-    "rounded": "same rounded hem behavior",
-    "asymmetric": "same asymmetric hem behavior",
-    "cocoon": "same rounded cocoon hem behavior",
-}
-
-_LENGTH_LOCKS = {
-    "cropped": "keep the garment ending at a cropped length relative to the model body",
-    "waist": "keep the garment ending around the waist relative to the model body",
-    "hip": "keep the garment ending around the hips relative to the model body",
-    "upper_thigh": "keep the garment ending around the upper thigh relative to the model body",
-    "mid_thigh": "keep the garment ending around the mid thigh relative to the model body",
-    "knee_plus": "keep the garment extending to the knee or below relative to the model body",
-}
-
-_VOLUME_LOCKS = {
-    "fitted": "same fitted silhouette",
-    "regular": "same regular-volume silhouette",
-    "oversized": "same oversized silhouette",
-    "draped": "same draped fluid silhouette",
-    "structured": "same structured silhouette",
-}
-
-_EDGE_CONTOUR_LOCKS = {
-    "clean": "keep the outer garment edge visually clean and even, without added waviness or scalloping",
-    "soft_curve": "keep the outer garment edge smooth with a continuous soft curve, without exaggerated ripples or scalloping",
-    "undulating": "keep the outer garment edge with the same gentle undulation seen in the references",
-    "scalloped": "keep the outer garment edge scalloped as in the references",
-    "angular": "keep the outer garment edge crisp and angular where visible",
-}
-
-_DROP_PROFILE_LOCKS = {
-    "even": "keep the hem fall balanced and even across the visible outline",
-    "side_drop": "keep the longest visible fall on the outer side panels, not on the folded inner front edge",
-    "high_low": "keep the high-low outline distribution unchanged",
-    "cocoon_side_drop": "keep the cocoon-like side drop and outer curved fall unchanged",
-}
-
-_OPENING_CONTINUITY_LOCKS = {
-    "continuous": "keep the neckline-to-front opening as one continuous uninterrupted edge",
-    "broken": "keep the opening edge segmented as seen in the references",
-    "lapel_like": "keep the opening edge reading as a lapel-like break rather than a continuous wrap edge",
-}
-
-_FRONT_LOCKS = {
-    "open": "same open-front construction",
-    "partial": "same partially open front behavior",
-    "closed": "same front closure behavior",
+# Mapeamento de comprimento para frase natural — único lock granular que
+# comprovadamente previne drift visual (o Nano tende a mudar o comprimento).
+_LENGTH_PHRASES = {
+    "cropped": "cropped length",
+    "waist": "waist length",
+    "hip": "hip length",
+    "upper_thigh": "upper-thigh length",
+    "mid_thigh": "mid-thigh length",
+    "knee_plus": "knee-or-below length",
 }
 
 _REFERENCE_USAGE_RULES_BASE = [
@@ -327,8 +279,6 @@ def _specialized_structure_guards(
     guards: list[str] = []
     if subtype == "ruana_wrap":
         guards.append("keep this as an open ruana-style wrap and not a closed poncho, sweater, or pullover body")
-    if front == "open":
-        guards.append("keep the front visibly open with a continuous neckline-to-front edge")
     if sleeve == "cape_like":
         guards.append(
             "do not invent separate sewn sleeves, long vertical sleeve slits, or tailored armholes; arm coverage must come from the continuous draped side panel"
@@ -352,80 +302,67 @@ def build_structure_guard_clauses(
 
 
 def _collect_lock_clauses(structural_contract: Optional[dict[str, Any]]) -> list[str]:
+    """Guards prioritários (máx 5) — confia na imagem para o resto.
+
+    Antes havia 14+ locks granulares que diluíam o sinal visual.
+    Agora: 1 anchor de identidade + até 4 guards de drift comprovado.
+    """
     contract = structural_contract or {}
     locks = [
-        "same overall garment identity",
-        "same knit or crochet texture continuity",
-        "same stitch pattern and fiber relief",
-        "same pattern placement and stripe scale if present",
+        "preserve the exact garment identity, shape, and texture visible in the references",
     ]
 
-    front = str(contract.get("front_opening", "") or "").strip().lower()
-    volume = str(contract.get("silhouette_volume", "") or "").strip().lower()
-    sleeve = str(contract.get("sleeve_type", "") or "").strip().lower()
-    hem = str(contract.get("hem_shape", "") or "").strip().lower()
+    # Comprimento: drift mais frequente — o Nano tende a encurtar/alongar.
     length = str(contract.get("garment_length", "") or "").strip().lower()
-    edge_contour = str(contract.get("edge_contour", "") or "").strip().lower()
-    drop_profile = str(contract.get("drop_profile", "") or "").strip().lower()
-    opening_continuity = str(contract.get("opening_continuity", "") or "").strip().lower()
+    if length in _LENGTH_PHRASES:
+        locks.append(f"maintain {_LENGTH_PHRASES[length]} as shown in the reference")
 
-    if front in _FRONT_LOCKS:
-        locks.append(_FRONT_LOCKS[front])
-    if volume in _VOLUME_LOCKS:
-        locks.append(_VOLUME_LOCKS[volume])
-    if sleeve in _SLEEVE_LOCKS:
-        locks.append(_SLEEVE_LOCKS[sleeve])
-    if hem in _HEM_LOCKS:
-        locks.append(_HEM_LOCKS[hem])
-    if length in _LENGTH_LOCKS:
-        locks.append(_LENGTH_LOCKS[length])
-    if edge_contour in _EDGE_CONTOUR_LOCKS:
-        locks.append(_EDGE_CONTOUR_LOCKS[edge_contour])
-    if drop_profile in _DROP_PROFILE_LOCKS:
-        locks.append(_DROP_PROFILE_LOCKS[drop_profile])
-    if opening_continuity in _OPENING_CONTINUITY_LOCKS:
-        locks.append(_OPENING_CONTINUITY_LOCKS[opening_continuity])
+    # Abertura frontal: confusão open/closed é segundo drift mais comum.
+    front = str(contract.get("front_opening", "") or "").strip().lower()
+    if front == "open":
+        locks.append("keep the front visibly open")
+    elif front == "closed":
+        locks.append("keep the front closure intact")
 
+    # must_keep: até 2 anchors visuais do triage (ex: continuous edge, back panel)
     must_keep = [str(item).strip() for item in (contract.get("must_keep", []) or []) if str(item).strip()]
     if must_keep:
-        locks.append("preserve these structural cues: " + ", ".join(must_keep[:4]))
+        locks.append("preserve: " + ", ".join(must_keep[:2]))
+
     return locks
 
 
 def build_structural_hint(structural_contract: Optional[dict[str, Any]]) -> Optional[str]:
+    """Frase curta em prosa descrevendo a identidade da peça.
+
+    Produz linguagem natural ('a draped ruana wrap with three-quarter sleeves at hip length')
+    para orientar o Nano Banana sem jargão técnico.
+    """
     contract = structural_contract or {}
     if not contract.get("enabled"):
         return None
 
-    parts: list[str] = []
-    subtype = str(contract.get("garment_subtype", "") or "").strip().lower()
+    subtype = str(contract.get("garment_subtype", "") or "").strip().lower().replace("_", " ")
     volume = str(contract.get("silhouette_volume", "") or "").strip().lower()
-    sleeve = str(contract.get("sleeve_type", "") or "").strip().lower()
-    hem = str(contract.get("hem_shape", "") or "").strip().lower()
+    sleeve_len = str(contract.get("sleeve_length", "") or "").strip().lower().replace("_", "-")
     length = str(contract.get("garment_length", "") or "").strip().lower()
-    edge_contour = str(contract.get("edge_contour", "") or "").strip().lower()
-    drop_profile = str(contract.get("drop_profile", "") or "").strip().lower()
-    opening_continuity = str(contract.get("opening_continuity", "") or "").strip().lower()
 
-    if subtype and subtype != "unknown":
-        parts.append(subtype)
+    if not subtype or subtype == "unknown":
+        return None
+
+    # "a [volume] [subtype] with [sleeve] sleeves at [length] length"
+    phrase = "a "
     if volume and volume != "unknown":
-        parts.append(f"{volume} silhouette")
-    if sleeve and sleeve != "unknown":
-        parts.append(f"{sleeve} sleeve architecture")
-    if hem and hem != "unknown":
-        parts.append(f"{hem} hem")
-    if length in _LENGTH_LOCKS:
-        parts.append(length.replace("_", "-") + " length")
-    if edge_contour and edge_contour != "unknown":
-        parts.append(edge_contour.replace("_", " ") + " edge contour")
-    if drop_profile and drop_profile != "unknown":
-        parts.append(drop_profile.replace("_", " ") + " drop profile")
-    if opening_continuity and opening_continuity != "unknown":
-        parts.append(opening_continuity.replace("_", " ") + " opening continuity")
+        phrase += f"{volume} "
+    phrase += subtype
+    if sleeve_len and sleeve_len not in ("unknown", "sleeveless"):
+        phrase += f" with {sleeve_len} sleeves"
+    elif sleeve_len == "sleeveless":
+        phrase += ", sleeveless"
+    if length in _LENGTH_PHRASES:
+        phrase += f" at {_LENGTH_PHRASES[length]}"
 
-    hint = ", ".join(parts).strip()
-    return hint or None
+    return phrase
 
 
 def build_two_pass_edit_prompt(

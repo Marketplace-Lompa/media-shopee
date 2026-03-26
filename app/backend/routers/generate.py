@@ -12,7 +12,10 @@ from typing import Any, Callable, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from agent import run_agent
-from agent_runtime.diversity import build_mode_diversity_target
+from agent_runtime.diversity import (
+    build_mode_diversity_target,
+    harmonize_diversity_target_for_mode,
+)
 from agent_runtime.modes import DEFAULT_TEXT_MODE, get_mode
 from agent_runtime.pipeline_v2 import run_pipeline_v2
 from agent_runtime.pipeline_v2_support import (
@@ -199,13 +202,19 @@ def _run_generate_pipeline(
         diversity_target = {}
     elif not uploaded_bytes:
         active_mode = get_mode(mode or DEFAULT_TEXT_MODE)
-        diversity_target = build_mode_diversity_target(active_mode)
+        diversity_target = build_mode_diversity_target(active_mode, user_prompt=prompt)
     else:
-        diversity_target = select_diversity_target(
+        active_mode = get_mode(mode or DEFAULT_TEXT_MODE)
+        legacy_diversity_target = select_diversity_target(
             seed_hint=prompt or "",
             guided_brief=normalized_guided,
             garment_aesthetic=garment_aesthetic,
             structural_contract=structural_contract_for_diversity,
+        )
+        diversity_target = harmonize_diversity_target_for_mode(
+            active_mode,
+            legacy_diversity_target,
+            user_prompt=prompt,
         )
 
     emit(

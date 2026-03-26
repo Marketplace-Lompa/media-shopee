@@ -3,7 +3,8 @@ import type { DragEvent, KeyboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send, ImagePlus, X,
-    SlidersHorizontal, ChevronDown, ChevronUp, Pencil
+    SlidersHorizontal, ChevronDown, ChevronUp, Pencil,
+    LayoutGrid, Sun, TreePalm, Sparkles,
 } from 'lucide-react';
 import { DEFAULT_CREATE_CATEGORY } from '../config/createCategories';
 import type {
@@ -49,11 +50,11 @@ interface Props {
 const AR_OPTIONS: AspectRatio[] = ['4:5', '1:1', '9:16', '16:9', '4:3', '3:4'];
 const RES_OPTIONS: Resolution[] = ['1K', '2K', '4K'];
 const N_OPTIONS = [1, 2, 3, 4];
-const MODE_OPTIONS: Array<{ value: Mode; label: string; description: string }> = [
-    { value: 'catalog_clean', label: 'Catálogo Clean', description: 'Mais limpo, estável e focado na peça.' },
-    { value: 'natural', label: 'Natural', description: 'Comercial e humano, com clima leve.' },
-    { value: 'lifestyle', label: 'Lifestyle', description: 'Mais contexto, movimento e desejo.' },
-    { value: 'editorial_commercial', label: 'Editorial Comercial', description: 'Mais direção, presença e sofisticação.' },
+const MODE_INTENTS: Array<{ value: Mode; label: string; description: string; icon: typeof LayoutGrid }> = [
+    { value: 'catalog_clean', label: 'Catálogo', description: 'Foco total na peça', icon: LayoutGrid },
+    { value: 'natural', label: 'Natural', description: 'Humano e comercial', icon: Sun },
+    { value: 'lifestyle', label: 'Lifestyle', description: 'Contexto e desejo', icon: TreePalm },
+    { value: 'editorial_commercial', label: 'Editorial', description: 'Presença e sofisticação', icon: Sparkles },
 ];
 interface HistoryDragPayload {
     url: string;
@@ -431,24 +432,26 @@ export function ChatInput({
                 </section>
             )}
 
-            {/* Modes — modo livre */}
+            {/* Intent Cards — modo livre */}
             {!editTarget && !isMarketplaceMode && (
-                <div className="mode-selector-row">
-                    <fieldset className="param-group">
-                        <legend className="t-label text-tertiary">Modo</legend>
-                        <div className="param-chips">
-                            {MODE_OPTIONS.map(option => (
-                                <button
-                                    key={option.value}
-                                    className={`chip chip--mode ${mode === option.value ? 'chip--active' : ''}`}
-                                    onClick={() => setMode(option.value)}
-                                    type="button"
-                                    aria-pressed={mode === option.value}
-                                    title={option.description}
-                                >{option.label}</button>
-                            ))}
-                        </div>
-                    </fieldset>
+                <div className="intent-cards-row">
+                    {MODE_INTENTS.map(intent => {
+                        const Icon = intent.icon;
+                        const isActive = mode === intent.value;
+                        return (
+                            <button
+                                key={intent.value}
+                                className={`intent-card ${isActive ? 'intent-card--active' : ''}`}
+                                onClick={() => setMode(intent.value)}
+                                type="button"
+                                aria-pressed={isActive}
+                            >
+                                <Icon size={18} className="intent-card-icon" aria-hidden="true" />
+                                <span className="intent-card-label">{intent.label}</span>
+                                <span className="intent-card-desc">{intent.description}</span>
+                            </button>
+                        );
+                    })}
                 </div>
             )}
 

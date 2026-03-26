@@ -65,11 +65,11 @@ def test_known_content_fingerprints() -> None:
     # Vocabulário de domínio
     assert "flat-knit cotton pullover" in REFERENCE_KNOWLEDGE
     assert "brushed-back fleece cotton sweatshirt" in REFERENCE_KNOWLEDGE
-    # Regra fotográfica
-    assert "85mm lens, f/1.8" in REFERENCE_KNOWLEDGE
-    assert "100mm macro lens" in REFERENCE_KNOWLEDGE
+    # Regras de composição (abstracted, sem specs literais de câmera)
+    assert "garment-readable framing" in REFERENCE_KNOWLEDGE
+    assert "tight observational detail framing" in REFERENCE_KNOWLEDGE
     # Realism lever
-    assert "choose appropriate capture language" in REFERENCE_KNOWLEDGE
+    assert "choose appropriate photographic language" in REFERENCE_KNOWLEDGE
     assert "skin pores" in REFERENCE_KNOWLEDGE
     assert "Reference examples: natural side light" in REFERENCE_KNOWLEDGE
     assert "CAPTURE ARTIFACTS" not in REFERENCE_KNOWLEDGE
@@ -80,7 +80,7 @@ def test_known_content_fingerprints() -> None:
 
 def test_char_count_stable() -> None:
     """O tamanho total não deve mudar sem intenção (± 50 chars de margem)."""
-    EXPECTED_CHARS = 6219
+    EXPECTED_CHARS = 6265
     MARGIN = 50
     actual = len(REFERENCE_KNOWLEDGE)
     assert abs(actual - EXPECTED_CHARS) <= MARGIN, (

@@ -15,9 +15,10 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from config import OUTPUTS_DIR
-
-_CASTING_STATE_FILE = OUTPUTS_DIR / "casting_engine_state.json"
+# Resolve OUTPUTS_DIR localmente para evitar importar config.py
+# (config.py depende de google.genai.types que pode não estar disponível em testes)
+_OUTPUTS_DIR = Path(__file__).resolve().parents[2] / "outputs"
+_CASTING_STATE_FILE = _OUTPUTS_DIR / "casting_engine_state.json"
 
 _DEFAULT_STATE = {
     "history": [],
@@ -43,7 +44,7 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
             "natural chestnut waves with relaxed everyday volume",
         ],
         "makeup_options": ["fresh natural makeup", "soft everyday glam makeup"],
-        "expression_options": ["cativating relaxed expression", "subtle engaging smile", "camera-aware casual confidence"],
+        "expression_options": ["captivating relaxed expression", "subtle engaging smile", "camera-aware casual confidence"],
         "recent_avoid": ["runway severity", "editorial calm expression"],
     },
     {
@@ -63,7 +64,7 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
             "soft natural curls with casual polished definition",
         ],
         "makeup_options": ["fresh natural makeup", "soft everyday glam makeup"],
-        "expression_options": ["cativating relaxed expression", "subtle engaging smile", "camera-aware casual confidence"],
+        "expression_options": ["captivating relaxed expression", "subtle engaging smile", "camera-aware casual confidence"],
         "recent_avoid": ["editorial severity", "overly polished shape"],
     },
     {
@@ -83,7 +84,7 @@ _CASTING_FAMILIES: list[dict[str, Any]] = [
             "natural dark hair with loose lived-in smoothness",
         ],
         "makeup_options": ["fresh natural makeup", "minimal polished makeup"],
-        "expression_options": ["warm engaging smile", "cativating relaxed expression", "quiet camera-aware confidence"],
+        "expression_options": ["warm engaging smile", "captivating relaxed expression", "quiet camera-aware confidence"],
         "recent_avoid": ["formal luxury elegance", "campaign severity"],
     },
     {
@@ -374,6 +375,43 @@ def _family_affinity(user_prompt: Optional[str], family: dict[str, Any]) -> int:
     return score
 
 
+def _profile_family_bias(
+    family_id: str,
+    operational_profile: Optional[dict[str, Any]] = None,
+) -> int:
+    profile = operational_profile or {}
+    guardrail = str(profile.get("guardrail_profile", "") or "")
+    if guardrail == "strict_catalog":
+        if family_id in {"br_minimal_premium", "br_warm_commercial", "br_afro_modern", "br_mature_elegant"}:
+            return 3
+        if family_id.startswith("br_everyday_"):
+            return -1
+    if guardrail == "natural_commercial":
+        if family_id in {"br_everyday_natural", "br_everyday_afro", "br_everyday_mature", "br_social_creator", "br_social_afro", "br_social_mature"}:
+            return 3
+        if family_id in {"br_minimal_premium", "br_soft_editorial"}:
+            return -1
+    if guardrail == "lifestyle_permissive":
+        if family_id in {"br_social_creator", "br_social_afro", "br_social_mature", "br_everyday_natural", "br_everyday_afro", "br_everyday_mature"}:
+            return 3
+    if guardrail == "editorial_controlled":
+        if family_id in {"br_soft_editorial", "br_afro_modern", "br_minimal_premium", "br_mature_elegant"}:
+            return 3
+        if family_id.startswith("br_everyday_"):
+            return -1
+    return 0
+
+
+def _variant_budget_window(variants: list[dict[str, str]], invention_budget: float) -> list[dict[str, str]]:
+    if len(variants) <= 8:
+        return variants
+    if invention_budget < 0.3:
+        return variants[:8]
+    if invention_budget < 0.5:
+        return variants[:16]
+    return variants
+
+
 def _render_identity_sentence(family: dict[str, Any], variant: dict[str, str]) -> str:
     return (
         f"a distinctly different adult Brazilian woman in her {variant['age']} with "
@@ -391,6 +429,7 @@ def select_brazilian_casting_profile(
     avoid_family_ids: Optional[list[str]] = None,
     window: int = 8,
     commit: bool = True,
+    operational_profile: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     state = _safe_state()
     history = list(state.get("history", []))
@@ -405,6 +444,9 @@ def select_brazilian_casting_profile(
         family_id = str(item.get("family_id", "") or "")
         if family_id:
             recent_family_counts[family_id] = recent_family_counts.get(family_id, 0) + 1
+
+    profile = operational_profile or {}
+    invention_budget = float(profile.get("invention_budget", 0.5) or 0.5)
 
     candidates = list(_CASTING_FAMILIES)
     if forced_family_id:
@@ -425,7 +467,7 @@ def select_brazilian_casting_profile(
         key=lambda family: (
             recent_family_counts.get(family["id"], 0),
             1 if family["id"] == last_family_id else 0,
-            -_family_affinity(user_prompt, family),
+            -(_family_affinity(user_prompt, family) + _profile_family_bias(family["id"], profile)),
             family["id"],
         )
     )
@@ -442,11 +484,17 @@ def select_brazilian_casting_profile(
 
     seed = _stable_int(seed_hint or f"{time.time():.0f}")
     cursor = int(state.get("cursor", 0) or 0)
-    best_candidates.sort(key=lambda family: (-_family_affinity(user_prompt, family), family["id"]))
+    best_candidates.sort(
+        key=lambda family: (
+            -(_family_affinity(user_prompt, family) + _profile_family_bias(family["id"], profile)),
+            family["id"],
+        )
+    )
     family = best_candidates[(cursor + seed) % len(best_candidates)]
 
     variants = _build_family_variants(family)
     variants.sort(key=lambda item: item["signature"])
+    variants = _variant_budget_window(variants, invention_budget)
     fresh_variants = [item for item in variants if item["signature"] not in recent_signatures] or variants
     variant = fresh_variants[(cursor + seed) % len(fresh_variants)]
 

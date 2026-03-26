@@ -102,8 +102,6 @@ def _build_output_parameters_block(*, aspect_ratio: str, resolution: str) -> str
 def _build_diversity_target_block(
     *,
     profile: str,
-    scenario: str,  # legado — ignorado (MODE_PRESETS cuida)
-    pose: str,      # legado — ignorado (MODE_PRESETS cuida)
     diversity_target: Optional[dict[str, Any]],
     has_images: bool,
 ) -> str:
@@ -111,6 +109,29 @@ def _build_diversity_target_block(
     profile_hint = dt.get("profile_hint", "") or profile
     presence_energy = dt.get("presence_energy", "")
     presence_tone = dt.get("presence_tone", "")
+    casting_state = dt.get("casting_state") or {}
+    scene_state = dt.get("scene_state") or {}
+    capture_state = dt.get("capture_state") or {}
+    pose_state = dt.get("pose_state") or {}
+    styling_state = dt.get("styling_state") or {}
+    coordination_state = dt.get("coordination_state") or {}
+    operational_profile = dt.get("operational_profile") or {}
+
+    def _budget_label(value: float) -> str:
+        if value < 0.3:
+            return "restrained"
+        if value < 0.55:
+            return "moderate"
+        return "open"
+
+    def _surface_label(value: int) -> str:
+        if value <= 1:
+            return "minimal"
+        if value == 2:
+            return "light"
+        if value == 3:
+            return "present"
+        return "strong"
 
     block = "<DIVERSITY_TARGET>\n"
     if dt.get("profile_id"):
@@ -130,12 +151,122 @@ def _build_diversity_target_block(
         presence_clause = f" Presence: {presence_energy}, {presence_tone}."
     block += (
         f"Model persona anchor: {profile_hint}.{presence_clause}\n"
+        "Keep the model distinctly Brazilian in a believable, non-stereotyped way.\n"
+        "Use the persona anchor consistently in the final prompt instead of dropping it.\n"
         "Invent unique physical characteristics (skin tone, hair, age, build) that complement the garment.\n"
         "Keep the garment as the hero. Model presence is secondary.\n"
         "Scenario, framing, lighting, and pose come from MODE_PRESETS. Follow those directions.\n"
+        "Inside those directions, invent a fresh specific solution instead of repeating a generic safe default.\n"
+        "Never mention preset labels or metatextual terms like capture geometry, scenario family, or lighting profile in the final prompt.\n"
         "Write one canonical final prompt directly usable by the image generator.\n"
-        "</DIVERSITY_TARGET>"
     )
+    if operational_profile:
+        weights = operational_profile.get("engine_weights") or {}
+        surface_budget = operational_profile.get("surface_budget") or {}
+        emphasis_pairs = sorted(
+            [
+                ("casting", float(weights.get("casting", 0.0) or 0.0)),
+                ("scene", float(weights.get("scene", 0.0) or 0.0)),
+                ("capture", float(weights.get("capture", 0.0) or 0.0)),
+                ("styling", float(weights.get("styling", 0.0) or 0.0)),
+                ("pose", float(weights.get("pose", 0.0) or 0.0)),
+            ],
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        emphasis = ", ".join(name for name, _ in emphasis_pairs[:2])
+        block += (
+            "OPERATIONAL DIRECTION (resolved behavioral effect, do not copy as labels):\n"
+            f"  - invention budget: {_budget_label(float(operational_profile.get('invention_budget', 0.5) or 0.5))}\n"
+            f"  - primary emphasis: {emphasis}\n"
+            f"  - subject surface budget: {_surface_label(int(surface_budget.get('subject', 0) or 0))}\n"
+            f"  - scene surface budget: {_surface_label(int(surface_budget.get('scene', 0) or 0))}\n"
+            f"  - capture surface budget: {_surface_label(int(surface_budget.get('capture', 0) or 0))}\n"
+            f"  - styling surface budget: {_surface_label(int(surface_budget.get('styling', 0) or 0))}\n"
+            f"  - pose surface budget: {_surface_label(int(surface_budget.get('pose', 0) or 0))}\n"
+            f"  - guardrail behavior: {operational_profile.get('guardrail_profile', '')}\n"
+            "Let this shape how much each layer appears in the final prompt, without naming modes or preset mechanics.\n"
+        )
+    if casting_state:
+        recent_avoid = ", ".join(casting_state.get("recent_avoid") or []) or "none"
+        block += (
+            "CASTING LATENT STATE (internal creative coordinates, do not copy as a checklist):\n"
+            f"  - age energy: {casting_state.get('age', '')}\n"
+            f"  - face impression: {casting_state.get('face_structure', '')}\n"
+            f"  - skin direction: {casting_state.get('skin', '')}\n"
+            f"  - hair language: {casting_state.get('hair', '')}\n"
+            f"  - polish level: {casting_state.get('makeup', '')}\n"
+            f"  - expression energy: {casting_state.get('expression', '')}\n"
+            f"  - presence: {casting_state.get('presence', '')}\n"
+            f"  - variation rule: {casting_state.get('difference_instruction', '')}\n"
+            f"  - recent avoid: {recent_avoid}\n"
+            "Final prompt surface minimum: explicitly render apparent age, one concrete face impression, and one clear hair description.\n"
+        )
+    if scene_state:
+        block += (
+            "SCENE LATENT STATE (internal world-building coordinates, do not copy as a checklist):\n"
+            f"  - world family: {scene_state.get('world_family', '')}\n"
+            f"  - microcontext: {scene_state.get('microcontext', '')}\n"
+            f"  - emotional register: {scene_state.get('emotional_register', '')}\n"
+            f"  - material language: {scene_state.get('material_language', '')}\n"
+            f"  - background density: {scene_state.get('background_density', '')}\n"
+            f"  - Brazil anchor: {scene_state.get('brazil_anchor', '')}\n"
+            "Use this to invent a specific setting inside the allowed scenario family instead of defaulting to the same generic apartment, street, or premium backdrop.\n"
+        )
+    if capture_state:
+        block += (
+            "CAPTURE LATENT STATE (internal image-direction coordinates, do not copy as a checklist):\n"
+            f"  - framing intent: {capture_state.get('framing_intent', '')}\n"
+            f"  - camera family: {capture_state.get('camera_family', '')}\n"
+            f"  - geometry intent: {capture_state.get('geometry_intent', '')}\n"
+            f"  - capture feel: {capture_state.get('capture_feel', '')}\n"
+            f"  - lens language: {capture_state.get('lens_language', '')}\n"
+            f"  - subject separation: {capture_state.get('subject_separation', '')}\n"
+            f"  - body relation: {capture_state.get('body_relation', '')}\n"
+            f"  - angle logic: {capture_state.get('angle_logic', '')}\n"
+            f"  - garment priority: {capture_state.get('garment_priority', '')}\n"
+            "Use this to choose how the camera should look at the garment, based on silhouette, proportion, and selling points, without exposing preset mechanics.\n"
+        )
+    if pose_state:
+        block += (
+            "POSE LATENT STATE (internal body-direction coordinates, do not copy as a checklist):\n"
+            f"  - pose family: {pose_state.get('pose_family', '')}\n"
+            f"  - stance logic: {pose_state.get('stance_logic', '')}\n"
+            f"  - weight shift: {pose_state.get('weight_shift', '')}\n"
+            f"  - arm logic: {pose_state.get('arm_logic', '')}\n"
+            f"  - torso orientation: {pose_state.get('torso_orientation', '')}\n"
+            f"  - head direction: {pose_state.get('head_direction', '')}\n"
+            f"  - gesture intention: {pose_state.get('gesture_intention', '')}\n"
+            f"  - garment interaction: {pose_state.get('garment_interaction', '')}\n"
+            "Final prompt surface minimum: describe a specific stance or gesture, not only generic wording like stable pose or composed stance.\n"
+        )
+    if styling_state:
+        footwear_required = "yes" if styling_state.get("footwear_required") else "no"
+        block += (
+            "STYLING LATENT STATE (internal fashion-styling coordinates, do not copy as a checklist):\n"
+            f"  - completion level: {styling_state.get('completion_level', '')}\n"
+            f"  - footwear strategy: {styling_state.get('footwear_strategy', '')}\n"
+            f"  - accessory restraint: {styling_state.get('accessory_restraint', '')}\n"
+            f"  - look finish: {styling_state.get('look_finish', '')}\n"
+            f"  - styling interference: {styling_state.get('styling_interference', '')}\n"
+            f"  - garment balance: {styling_state.get('hero_balance', '')}\n"
+            f"  - footwear required: {footwear_required}\n"
+            "Use this to complete the look with fashion judgment, only as much as needed, while keeping the garment visually primary.\n"
+        )
+    if coordination_state:
+        block += (
+            "ART DIRECTION COORDINATION STATE (internal synthesis coordinates, do not copy as a checklist):\n"
+            f"  - master intent: {coordination_state.get('master_intent', '')}\n"
+            f"  - presence/world fusion: {coordination_state.get('presence_world_fusion', '')}\n"
+            f"  - camera/body fusion: {coordination_state.get('camera_body_fusion', '')}\n"
+            f"  - styling/world balance: {coordination_state.get('styling_world_balance', '')}\n"
+            f"  - garment priority rule: {coordination_state.get('garment_priority_rule', '')}\n"
+            f"  - visual tension: {coordination_state.get('visual_tension', '')}\n"
+            f"  - synthesis rule: {coordination_state.get('synthesis_rule', '')}\n"
+            "Use this to make casting, scene, capture, pose, and styling feel like one authored image direction rather than separate good decisions.\n"
+            "Weave at least one natural relational phrase that links body direction, setting, and capture (for example through language like while, keeping, so that, or work together), instead of describing each layer in isolation.\n"
+        )
+    block += "</DIVERSITY_TARGET>"
     return block
 
 
@@ -185,26 +316,52 @@ def _build_structural_contract_block(
     has_images: bool,
     structural_contract: dict[str, Any],
 ) -> Optional[str]:
+    """Prosa orientativa sobre a geometria da peça — sem jargão técnico de moda.
+
+    O agente tende a ecoar termos técnicos (dolman_batwing, cocoon) literalmente
+    no prompt final, o que pode confundir o modelo visual. Usamos linguagem natural
+    de relacionamento: o que preservar, não como classificar.
+    """
     if not has_images or not structural_contract.get("enabled"):
         return None
 
-    cues = ", ".join(structural_contract.get("must_keep", []) or []) or "none"
-    return (
+    # Montar descrição em prosa a partir dos campos estruturais
+    traits: list[str] = []
+
+    subtype = str(structural_contract.get("garment_subtype", "") or "").strip()
+    if subtype and subtype != "unknown":
+        traits.append(subtype.replace("_", " "))
+
+    volume = str(structural_contract.get("silhouette_volume", "") or "").strip()
+    if volume and volume != "unknown":
+        traits.append(f"{volume} silhouette")
+
+    front = str(structural_contract.get("front_opening", "") or "").strip()
+    if front == "open":
+        traits.append("open front")
+    elif front == "partial":
+        traits.append("partially open front")
+
+    length = str(structural_contract.get("garment_length", "") or "").strip()
+    if length and length != "unknown":
+        traits.append(f"{length.replace('_', '-')} length")
+
+    must_keep = [str(c).strip() for c in (structural_contract.get("must_keep", []) or []) if str(c).strip()]
+
+    trait_text = ", ".join(traits) if traits else "the garment as shown"
+    cue_text = "; ".join(must_keep[:3]) if must_keep else ""
+
+    prose = (
         "<STRUCTURAL_CONTRACT>\n"
-        "[Preserve garment geometry from references]\n"
-        f"- garment_subtype: {structural_contract.get('garment_subtype', 'unknown')}\n"
-        f"- sleeve_type: {structural_contract.get('sleeve_type', 'unknown')}\n"
-        f"- sleeve_length: {structural_contract.get('sleeve_length', 'unknown')}\n"
-        f"- front_opening: {structural_contract.get('front_opening', 'unknown')}\n"
-        f"- hem_shape: {structural_contract.get('hem_shape', 'unknown')}\n"
-        f"- garment_length: {structural_contract.get('garment_length', 'unknown')}\n"
-        f"- silhouette_volume: {structural_contract.get('silhouette_volume', 'unknown')}\n"
-        f"- confidence: {structural_contract.get('confidence', 0.0)}\n"
-        f"- must_keep_cues: {cues}\n"
-        "Treat these as shape/proportion constraints. Maintain sleeve/hem proportions exactly. "
-        "Pay special attention to garment_subtype — it defines the construction method.\n"
-        "</STRUCTURAL_CONTRACT>"
+        f"The reference shows a {trait_text}. "
+        "Preserve the overall shape, proportions, sleeve coverage, hem behavior, and construction "
+        "exactly as visible in the reference images. "
+        "Do not redesign, simplify, or reinterpret the garment structure."
     )
+    if cue_text:
+        prose += f"\nKey visual anchors to preserve: {cue_text}."
+    prose += "\n</STRUCTURAL_CONTRACT>"
+    return prose
 
 
 def _build_look_contract_block(look_contract: Optional[dict[str, Any]]) -> Optional[str]:
@@ -302,8 +459,6 @@ def build_generate_context_text(
     aspect_ratio: str,
     resolution: str,
     profile: str,
-    scenario: str,
-    pose: str,
     diversity_target: Optional[dict[str, Any]],
     guided_enabled: bool,
     guided_brief: Optional[dict[str, Any]],
@@ -341,8 +496,6 @@ def build_generate_context_text(
     blocks.append(
         _build_diversity_target_block(
             profile=profile,
-            scenario=scenario,
-            pose=pose,
             diversity_target=diversity_target,
             has_images=has_images,
         )
@@ -388,6 +541,7 @@ def build_generate_context_text(
     if grounding_constraints_block:
         blocks.append(grounding_constraints_block)
 
-    blocks.append(reference_knowledge)
+    if reference_knowledge.strip():
+        blocks.append(reference_knowledge)
     blocks.append("Return ONLY valid JSON matching the schema. No markdown, no explanation.")
     return "\n\n".join(blocks)

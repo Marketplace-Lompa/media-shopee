@@ -77,6 +77,10 @@ _VALID_LIGHTING_DIRECTION = {"frontal", "side", "top", "mixed"}
 _VALID_LIGHTING_CONTRAST = {"low", "medium", "high"}
 _VALID_LIGHTING_RISK = {"low", "medium", "high"}
 
+# Triagem envia no máximo N imagens ao Gemini — 3 ângulos (hero, costas, detalhe)
+# cobrem toda a geometria necessária. Mais que isso é desperdício de tokens.
+_MAX_TRIAGE_IMAGES = 3
+
 
 def _normalize_lighting_signature(payload: Optional[dict]) -> dict:
     raw = payload if isinstance(payload, dict) else {}
@@ -192,7 +196,7 @@ def _infer_garment_hint(uploaded_images: List[bytes]) -> str:
     """Classificação curta da peça para montar queries de grounding quando não há prompt."""
     try:
         parts = []
-        for img_bytes in uploaded_images:
+        for img_bytes in uploaded_images[:_MAX_TRIAGE_IMAGES]:
             parts.append(
                 types.Part(
                     inline_data=types.Blob(mime_type="image/jpeg", data=_compress_for_triage(img_bytes))
@@ -226,7 +230,7 @@ def _infer_structural_contract_from_images(uploaded_images: List[bytes], user_pr
         return _normalize_structural_contract({})
 
     parts: List[types.Part] = []
-    for img_bytes in uploaded_images:
+    for img_bytes in uploaded_images[:_MAX_TRIAGE_IMAGES]:
         parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=_compress_for_triage(img_bytes))))
 
     user_txt = (user_prompt or "").strip()
@@ -286,7 +290,7 @@ def _infer_set_pattern_from_images(uploaded_images: List[bytes], user_prompt: Op
         return _normalize_set_detection({})
 
     parts: List[types.Part] = []
-    for img_bytes in uploaded_images:
+    for img_bytes in uploaded_images[:_MAX_TRIAGE_IMAGES]:
         parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=_compress_for_triage(img_bytes))))
 
     user_txt = (user_prompt or "").strip()
@@ -344,7 +348,7 @@ def _infer_unified_vision_triage(
         return None
 
     parts: List[types.Part] = []
-    for img_bytes in uploaded_images:
+    for img_bytes in uploaded_images[:_MAX_TRIAGE_IMAGES]:
         parts.append(types.Part(inline_data=types.Blob(mime_type="image/jpeg", data=_compress_for_triage(img_bytes))))
 
     user_txt = (user_prompt or "").strip()

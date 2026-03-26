@@ -12,17 +12,20 @@ from agent_runtime.constants import (
     BASE_ROLE,
     BASE_SYSTEM_BLOCKS,
     DOMAIN_FASHION_RULES,
+    FASHION_PERSONA_ROLE,
     OUTPUT_JSON_REQUIREMENT,
     OUTPUT_SYSTEM_BLOCKS,
     POLICY_SYSTEM_BLOCKS,
     SCENARIO_SYSTEM_BLOCKS,
     SYSTEM_ANTI_PATTERNS,
+    SYSTEM_CREATIVE_OPERATION_RULES,
     SYSTEM_CORE_RULES,
     SYSTEM_INSTRUCTION,
     SYSTEM_MODE_1_RULES,
     SYSTEM_MODE_2_RULES,
     SYSTEM_MODE_3_RULES,
     SYSTEM_OUTPUT_JSON_CONTRACT,
+    SYSTEM_PROMPT_CONSOLIDATION,
     SYSTEM_REFERENCE_KNOWLEDGE_NOTE,
     SYSTEM_THINKING_LEVEL,
 )
@@ -37,7 +40,9 @@ def test_system_instruction_keeps_expected_sections_in_order() -> None:
     sections = [
         BASE_ROLE.strip(),
         DOMAIN_FASHION_RULES.strip(),
+        FASHION_PERSONA_ROLE.strip(),
         SYSTEM_CORE_RULES.strip(),
+        SYSTEM_CREATIVE_OPERATION_RULES.strip(),
         SYSTEM_ANTI_PATTERNS.strip(),
         OUTPUT_JSON_REQUIREMENT.strip(),
         SYSTEM_OUTPUT_JSON_CONTRACT.strip(),
@@ -53,23 +58,27 @@ def test_system_instruction_keeps_expected_sections_in_order() -> None:
 
 
 def test_system_instruction_still_contains_key_behavioral_markers() -> None:
-    assert 'Always start base_prompt with "RAW photo,"' in SYSTEM_INSTRUCTION
+    assert 'Always start the canonical final prompt with "RAW photo,"' in SYSTEM_INSTRUCTION
     assert "Brazilian e-commerce fashion catalog photography" in SYSTEM_INSTRUCTION
     # MODE 1 now uses semantic language instead of procedural "Treat"
     assert "Read the user's text as a fashion/e-commerce creative brief" in SYSTEM_INSTRUCTION
     assert "MODE 2 — User sent reference images" in SYSTEM_INSTRUCTION
     assert "Consult the [REFERENCE KNOWLEDGE] block" in SYSTEM_INSTRUCTION
+    assert "Always create a fresh solution inside the allowed territory" in SYSTEM_INSTRUCTION
 
 
 def test_system_instruction_exposes_compositional_layers() -> None:
     assert BASE_SYSTEM_BLOCKS == [
         BASE_ROLE.strip(),
         DOMAIN_FASHION_RULES.strip(),
+        FASHION_PERSONA_ROLE.strip(),
         SYSTEM_CORE_RULES.strip(),
+        SYSTEM_CREATIVE_OPERATION_RULES.strip(),
         SYSTEM_ANTI_PATTERNS.strip(),
     ]
     assert OUTPUT_SYSTEM_BLOCKS == [
         OUTPUT_JSON_REQUIREMENT.strip(),
+        SYSTEM_PROMPT_CONSOLIDATION.strip(),
         SYSTEM_OUTPUT_JSON_CONTRACT.strip(),
     ]
     assert SCENARIO_SYSTEM_BLOCKS == [
@@ -148,7 +157,7 @@ def test_build_si_text_only_still_has_base_and_policy() -> None:
     """Mesmo filtrando modos, base + output + policy continuam presentes."""
     si = build_system_instruction(has_images=False, has_prompt=True)
     assert "Brazilian e-commerce fashion catalog photography" in si
-    assert 'Always start base_prompt with "RAW photo,"' in si
+    assert 'Always start the canonical final prompt with "RAW photo,"' in si
     assert "Consult the [REFERENCE KNOWLEDGE] block" in si
 
 

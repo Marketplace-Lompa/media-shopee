@@ -12,6 +12,8 @@ from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 
 from agent import run_agent
+from agent_runtime.diversity import harmonize_diversity_target_for_mode
+from agent_runtime.modes import DEFAULT_TEXT_MODE, get_mode
 from agent_runtime.pipeline_v2 import run_pipeline_v2
 from agent_runtime.pipeline_v2_support import (
     build_v2_response_payload,
@@ -219,11 +221,17 @@ async def generate_stream(
                 print(f"Erro na triagem visual unificada antecipada: {e}")
 
         # Diversidade garment-aware: usa estética da peça para casting inteligente
-        diversity_target = select_diversity_target(
+        active_mode = get_mode(DEFAULT_TEXT_MODE)
+        legacy_diversity_target = select_diversity_target(
             seed_hint=prompt or "",
             guided_brief=normalized_guided,
             garment_aesthetic=garment_aesthetic,
             structural_contract=structural_contract_for_diversity,
+        )
+        diversity_target = harmonize_diversity_target_for_mode(
+            active_mode,
+            legacy_diversity_target,
+            user_prompt=prompt,
         )
 
         yield _sse_event("mode_selected", {
@@ -234,41 +242,46 @@ async def generate_stream(
         })
 
         strategy = normalize_grounding_strategy(grounding_strategy, use_grounding)
-        yield _sse_event("analyzing", {
-            "message": f"Agente analisando {len(analysis_images or curated_images)} imagem(ns) curada(s)…" if n_uploads > 0 else "Agente criando prompt…",
-            "n_uploads": n_uploads,
-        })
 
+        # Defaults — usados tanto no text-only quanto no reference_mode
         applied_mode = "off"
         triage = {}
         classifier_summary = {}
-        decision = {"reason_codes": [], "trigger_reason": "unknown"}
+        decision: dict = {"reason_codes": [], "trigger_reason": "unknown"}
 
-        try:
-            triage = compute_grounding_triage(
-                user_prompt=prompt,
-                image_analysis=image_analysis_text,
-                has_images=n_uploads > 0,
-            )
-            classifier_summary = classify_visual_context(
-                user_prompt=prompt,
-                image_analysis=image_analysis_text,
-                has_images=n_uploads > 0,
-                reference_pack_stats=reference_pack_stats,
-            )
-            decision = decide_grounding_mode(
-                strategy=strategy,
-                has_images=n_uploads > 0,
-                triage=triage,
-                classifier_summary=classifier_summary,
-            )
-            applied_mode = decision.get("grounding_mode", "off")
-            if strategy == "auto" and applied_mode == "off" and guided_force_grounding_floor(
-                normalized_guided, n_uploads > 0
-            ):
-                applied_mode = "lexical"
-                decision["trigger_reason"] = "guided_floor_forced_grounding"
-                decision["reason_codes"] = sorted(set((decision.get("reason_codes", []) or []) + ["guided_floor_forced_grounding"]))
+        if n_uploads > 0:
+            yield _sse_event("analyzing", {
+                "message": f"Agente analisando {len(analysis_images or curated_images)} imagem(ns) curada(s)…",
+                "n_uploads": n_uploads,
+            })
+
+            try:
+                triage = compute_grounding_triage(
+                    user_prompt=prompt,
+                    image_analysis=image_analysis_text,
+                    has_images=True,
+                )
+                classifier_summary = classify_visual_context(
+                    user_prompt=prompt,
+                    image_analysis=image_analysis_text,
+                    has_images=True,
+                    reference_pack_stats=reference_pack_stats,
+                )
+                decision = decide_grounding_mode(
+                    strategy=strategy,
+                    has_images=True,
+                    triage=triage,
+                    classifier_summary=classifier_summary,
+                )
+                applied_mode = decision.get("grounding_mode", "off")
+                if strategy == "auto" and applied_mode == "off" and guided_force_grounding_floor(
+                    normalized_guided, True
+                ):
+                    applied_mode = "lexical"
+                    decision["trigger_reason"] = "guided_floor_forced_grounding"
+                    decision["reason_codes"] = sorted(set((decision.get("reason_codes", []) or []) + ["guided_floor_forced_grounding"]))
+            except Exception as e:
+                print(f"[STREAM] ⚠️ Grounding triage failed: {e}")
 
             yield _sse_event("triage_done", {
                 "message": "Triage de grounding concluído",
@@ -290,6 +303,8 @@ async def generate_stream(
                     "grounding_mode": applied_mode,
                 })
 
+        # ── Prompt Agent: executa para AMBOS os caminhos ──────────────────
+        try:
             try:
                 agent_result = await asyncio.to_thread(
                     run_agent,
