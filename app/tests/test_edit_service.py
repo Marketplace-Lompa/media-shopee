@@ -74,10 +74,10 @@ sys.modules["google.genai"] = genai_mod
 sys.modules["google.genai.types"] = genai_types_mod
 
 
+import agent_runtime.editing.executor as executor
+import agent_runtime.editing.freeform_flow as freeform_flow
+import agent_runtime.editing.guided_angle_flow as guided_angle_flow
 from agent_runtime.editing.contracts import ImageEditExecutionRequest, PreparedEditPrompt
-from agent_runtime.editing import executor
-from agent_runtime.editing import freeform_flow
-from agent_runtime.editing import guided_angle_flow
 
 
 def test_prepare_freeform_edit_prompt_maps_agent_result(monkeypatch) -> None:
