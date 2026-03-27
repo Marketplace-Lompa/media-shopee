@@ -1,33 +1,21 @@
 """
-Diversity sampling — diretivas abstratas para casting, cenário e pose.
+Creative Brief Builder — diretivas abstratas para casting, cenário e pose.
 
-Gera direções de diversidade via Name Blending + eixos semânticos.
-NÃO injeta frases literais de cenário, pose ou lighting — essas direções
-já vivem nos presets via MODE_PRESETS (describe_mode_defaults).
-
-O papel deste módulo é exclusivamente gerar:
-  1. Name Blending — ancora persona no espaço latente do modelo
-  2. Presence axis — energia + tom (1 palavra cada)
-  3. Preset resolution — resolve qual preset concreto usar por mode
-
-Princípio: se o texto pode ser lido como frase de prompt, está errado.
-O preset é uma intenção que o agente *resolve*, não um fragmento que ele *cola*.
+Este módulo substitui o antigo `target_builder.py` como fonte do contrato
+criativo usado pelo Prompt Agent. A implementação preserva o comportamento
+estável enquanto migra a nomenclatura para `creative_brief`.
 """
+from __future__ import annotations
+
 import random
 from typing import Any, Optional
 
-# casting_engine removido — model_soul é a única fonte de casting
 from agent_runtime.coordination_engine import select_coordination_state
 from agent_runtime.capture_engine import select_capture_state
 from agent_runtime.mode_profile import resolve_operational_profile
-from agent_runtime.modes import (
-    CastingProfile,
-    ModeConfig,
-    PoseEnergy,
-    ScenarioPool,
-)
-from agent_runtime.preset_patch import PresetPatch
+from agent_runtime.modes import CastingProfile, ModeConfig
 from agent_runtime.pose_engine import select_pose_state
+from agent_runtime.preset_patch import PresetPatch
 from agent_runtime.scene_engine import select_scene_direction, select_scene_state
 from agent_runtime.styling_completion_engine import select_styling_completion_state
 
@@ -37,9 +25,9 @@ _last_preset_choice_by_key: dict[str, int] = {}
 
 
 _FIRST_NAMES = [
-    "Camila", "Dandara", "Isadora", "Juliana", "Taís", "Valentina",
+    "Camila", "Dandara", "Isadora", "Juliana", "Tais", "Valentina",
     "Yasmin", "Nayara", "Marina", "Luiza", "Bruna", "Aline",
-    "Letícia", "Sofia", "Gabriela", "Fernanda", "Renata", "Bianca",
+    "Leticia", "Sofia", "Gabriela", "Fernanda", "Renata", "Bianca",
 ]
 
 _SURNAMES = [
@@ -47,61 +35,19 @@ _SURNAMES = [
     "Ferreira", "Lima", "Gomes", "Macedo", "Coutinho",
 ]
 
-# Eixos de presença — UMA PALAVRA cada. Sem frases.
-# O agente cruza energia + tom + name blending para resolver a persona.
 _PRESENCE_ENERGY = {
-    "polished_commercial": [
-        "refined",
-        "composed",
-        "elevated",
-        "polished",
-    ],
-    "natural_commercial": [
-        "warm",
-        "fresh",
-        "grounded",
-        "approachable",
-    ],
-    "editorial_presence": [
-        "elevated",
-        "intentional",
-        "fashion-aware",
-        "assured",
-    ],
+    "polished_commercial": ("refined", "composed", "elevated", "polished"),
+    "natural_commercial": ("warm", "fresh", "grounded", "approachable"),
+    "editorial_presence": ("elevated", "intentional", "fashion-aware", "assured"),
 }
 
 _PRESENCE_TONE = {
-    "polished_commercial": [
-        "premium",
-        "polished",
-        "commercial",
-        "refined",
-    ],
-    "natural_commercial": [
-        "believable",
-        "softly-premium",
-        "commercial",
-        "natural",
-    ],
-    "editorial_presence": [
-        "editorial",
-        "fashion-aware",
-        "composed",
-        "premium",
-    ],
+    "polished_commercial": ("premium", "polished", "commercial", "refined"),
+    "natural_commercial": ("believable", "softly-premium", "commercial", "natural"),
+    "editorial_presence": ("editorial", "fashion-aware", "composed", "premium"),
 }
 
-
-# _CASTING_FAMILY_BIASES removido — casting_engine depreciado, model_soul é a fonte de casting
-
-
-# ─── Preset pool por mode ─────────────────────────────────────────────
-# Cada mode define QUAIS valores de preset são possíveis.
-# O preset é um EIXO SEMÂNTICO, não texto de prompt.
-
 _MODE_PRESET_POOLS: dict[str, dict[str, tuple[str, ...]]] = {
-    # ── CATÁLOGO ─────────────────────────────────────────────
-    # Alma: "A peça é a estrela." Tudo fixo, zero variação.
     "catalog_clean": {
         "scenario_pool": ("studio_minimal",),
         "pose_energy": ("static",),
@@ -111,10 +57,6 @@ _MODE_PRESET_POOLS: dict[str, dict[str, tuple[str, ...]]] = {
         "capture_geometry": ("full_body_neutral",),
         "lighting_profile": ("studio_even",),
     },
-    # ── NATURAL ──────────────────────────────────────────────
-    # Alma: "Pessoa real vestindo." Cenários QUIETOS e discretos
-    # que apoiam sem competir. Pose = relaxed ONLY (candid é lifestyle).
-    # Cenários exclusivos: residential, café, curated_interior, hotel, neighborhood.
     "natural": {
         "scenario_pool": (
             "residential_daylight",
@@ -130,11 +72,6 @@ _MODE_PRESET_POOLS: dict[str, dict[str, tuple[str, ...]]] = {
         "capture_geometry": ("three_quarter_eye_level", "three_quarter_slight_angle", "full_body_neutral"),
         "lighting_profile": ("natural_soft", "directional_daylight"),
     },
-    # ── LIFESTYLE ────────────────────────────────────────────
-    # Alma: "Vivendo o momento." Cenários PROTAGONISTAS com narrativa.
-    # Pose = candid + directed (NUNCA relaxed, que é natural).
-    # Câmera phone-first = DNA de UGC/influencer.
-    # Casting ampliado com editorial_presence para mais diversidade.
     "lifestyle": {
         "scenario_pool": (
             "textured_city",
@@ -151,9 +88,6 @@ _MODE_PRESET_POOLS: dict[str, dict[str, tuple[str, ...]]] = {
         "capture_geometry": ("environmental_wide_observer", "three_quarter_slight_angle"),
         "lighting_profile": ("ambient_lifestyle", "directional_daylight"),
     },
-    # ── EDITORIAL ────────────────────────────────────────────
-    # Alma: "Moda como arte." Cenários premium e intencionais.
-    # Sem hotel_pousada (pertence ao Natural). Pose = directed first.
     "editorial_commercial": {
         "scenario_pool": (
             "architecture_premium",
@@ -169,6 +103,7 @@ _MODE_PRESET_POOLS: dict[str, dict[str, tuple[str, ...]]] = {
         "lighting_profile": ("architectural_diffused", "directional_daylight"),
     },
 }
+
 
 def _pick_non_repeating_index(length: int, last_idx: int) -> int:
     if length <= 1:
@@ -190,17 +125,6 @@ def _sample_diversity_target(
     *,
     casting_profile: CastingProfile = "natural_commercial",
 ) -> tuple[str, str, str]:
-    """
-    Latent Space Casting via Name Blending.
-
-    Retorna:
-      - profile_hint: Name Blending (nomes brasileiros para ancorar persona)
-      - presence_energy: 1 palavra de energia (ex: "warm", "refined")
-      - presence_tone: 1 palavra de tom (ex: "commercial", "editorial")
-
-    NÃO retorna cenário, pose ou lighting — essas direções vivem nos presets
-    e são entregues ao agente via MODE_PRESETS (describe_mode_defaults).
-    """
     presence_energies = _PRESENCE_ENERGY[casting_profile]
     presence_tones = _PRESENCE_TONE[casting_profile]
 
@@ -215,12 +139,7 @@ def _sample_diversity_target(
     surname = random.choice(_SURNAMES)
     presence = presence_energies[presence_idx]
     tone = presence_tones[tone_idx]
-
-    # Name Blending — o formato que o Gemini reconhece para ancorar persona
-    profile_hint = (
-        f"features blend '{n1}' and '{n2} {surname}'"
-    )
-
+    profile_hint = f"features blend '{n1}' and '{n2} {surname}'"
     return profile_hint, presence, tone
 
 
@@ -258,23 +177,11 @@ def _resolve_mode_presets(mode_config: ModeConfig) -> dict[str, str]:
     }
 
 
-def build_mode_diversity_target(
+def build_creative_brief_for_mode(
     mode_config: ModeConfig,
     user_prompt: Optional[str] = None,
     preset_patch: Optional[PresetPatch | str] = None,
 ) -> dict:
-    """
-    Monta o diversity_target para um mode.
-
-    Retorna apenas:
-      - Name Blending (profile_hint) para persona
-      - Eixos de presença (energy + tone)
-      - Presets resolvidos (para uso interno do pipeline)
-      - profile_id, mode (para telemetria)
-
-    NÃO retorna cenário/pose/lighting como texto — essas direções
-    já são entregues ao agente via describe_mode_defaults() no MODE_PRESETS.
-    """
     resolved_presets = _resolve_mode_presets(mode_config)
     operational_profile = resolve_operational_profile(
         mode_id=mode_config.id,
@@ -283,8 +190,6 @@ def build_mode_diversity_target(
     profile_dict = operational_profile.to_dict()
     casting_key = resolved_presets["casting_profile"]
 
-    # Soul-first: casting_engine depreciado. model_soul.py é a única
-    # fonte de verdade para identidade da modelo em todos os modes.
     casting_state: dict[str, Any] = {}
 
     scene_state = select_scene_state(
@@ -351,8 +256,6 @@ def build_mode_diversity_target(
         operational_profile=profile_dict,
     )
 
-    # Alma pura: modes criativos usam MODEL SOUL para identidade da modelo.
-    # Name blending (profile_hint) conflita com a alma — desativado para criativos.
     if mode_config.id != "catalog_clean":
         profile_hint = ""
         presence_energy = ""
@@ -362,7 +265,6 @@ def build_mode_diversity_target(
             casting_profile=casting_key,  # type: ignore[arg-type]
         )
 
-    # Para modes criativos, gerar scene_direction guideline-driven
     scene_direction = None
     if mode_config.id != "catalog_clean":
         pools = _MODE_PRESET_POOLS.get(mode_config.id, {})
@@ -392,7 +294,7 @@ def build_mode_diversity_target(
     }
 
 
-def _is_modern_prompt_agent_diversity_target(target: Optional[dict]) -> bool:
+def _is_modern_creative_brief(target: Optional[dict]) -> bool:
     payload = target or {}
     return any(
         key in payload
@@ -419,29 +321,20 @@ def _map_legacy_age_range(age_range: Optional[str]) -> str:
     }.get(normalized, "")
 
 
-def harmonize_diversity_target_for_mode(
+def harmonize_creative_brief_for_mode(
     mode_config: ModeConfig,
-    diversity_target: Optional[dict],
+    creative_brief: Optional[dict],
     *,
     user_prompt: Optional[str] = None,
     preset_patch: Optional[PresetPatch | str] = None,
 ) -> dict:
-    """
-    Bridge de compatibilidade para o Prompt Agent.
-
-    - Se já receber o contrato novo (states latentes + profile_hint), mantém como está.
-    - Se receber o contrato antigo do fluxo com imagens (profile/scenario/pose prompts),
-      gera os states modernos a partir do mode atual e preserva metadados legados úteis.
-
-    Objetivo: alinhar o norte novo de abstração sem quebrar callers antigos.
-    """
-    incoming = dict(diversity_target or {})
+    incoming = dict(creative_brief or {})
     if not incoming:
         return {}
-    if _is_modern_prompt_agent_diversity_target(incoming):
+    if _is_modern_creative_brief(incoming):
         return incoming
 
-    modern = build_mode_diversity_target(
+    modern = build_creative_brief_for_mode(
         mode_config,
         user_prompt=user_prompt,
         preset_patch=preset_patch,
@@ -462,7 +355,8 @@ def harmonize_diversity_target_for_mode(
 
     merged.update(modern)
 
-    # age_override legado desativado — model_soul decide a idade
-    # age_override = _map_legacy_age_range(incoming.get("age_range"))
+    age_override = _map_legacy_age_range(incoming.get("age_range"))
+    if age_override:
+        merged["legacy_age_override"] = age_override
 
     return merged

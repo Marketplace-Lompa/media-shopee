@@ -436,7 +436,7 @@ def build_stage1_prompt(
     *,
     set_detection: Optional[dict[str, Any]] = None,
     fidelity_mode: str = "balanceada",
-    preset: str = "",
+    mode: str = "natural",
     angle_directive: str = "",
     look_contract: Optional[dict[str, Any]] = None,
     use_image_grounding: bool = False,
@@ -447,7 +447,7 @@ def build_stage1_prompt(
         structural_contract, set_detection=set_detection,
     )
     set_info = set_detection or {}
-    preset_hint = str(preset or "").strip().lower()
+    mode_hint = str(mode or "").strip().lower()
     included_labels = get_set_member_labels(
         set_info,
         include_policies={"must_include", "optional"},
@@ -477,22 +477,14 @@ def build_stage1_prompt(
         "completely ignore their face, skin tone, hair color, hair style, body type, age, and ethnicity. "
         "Create a clearly different adult Brazilian woman for this photo."
     )
-    if preset_hint == "ugc_real_br":
-        parts = [
-            "Ultra-realistic fashion photo of a natural adult woman wearing the garment.",
-            _identity_guard,
-            "Realistic skin texture, natural body proportions, relaxed readable stance, full garment clearly visible.",
-            "Neutral believable real-life indoor composition with ordinary soft light and no campaign polish.",
-            "Preserve exact garment geometry, texture continuity, and construction details.",
-        ]
-    else:
-        parts = [
-            "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment.",
-            _identity_guard,
-            "Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible.",
-            "Clean premium indoor composition, soft natural daylight.",
-            "Preserve exact garment geometry, texture continuity, and construction details.",
-        ]
+    # Todos os modes usam o prompt padrão premium
+    parts = [
+        "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment.",
+        _identity_guard,
+        "Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible.",
+        "Clean premium indoor composition, soft natural daylight.",
+        "Preserve exact garment geometry, texture continuity, and construction details.",
+    ]
     if angle_directive:
         parts.insert(1, angle_directive)
     if structural_hint:
@@ -505,16 +497,10 @@ def build_stage1_prompt(
     )
     if str(fidelity_mode).strip().lower() == "estrita":
         parts.append("Prioritize exact garment fidelity over editorial variation and avoid any reinterpretation of silhouette, length, or stitch logic.")
-    if preset_hint == "ugc_real_br":
-        styling_intro = (
-            "Keep styling simple, believable, and secondary to the garment. "
-            "Avoid showroom polish or campaign props. "
-        )
-    else:
-        styling_intro = (
-            "Catalog-ready minimal styling with the garment as the hero piece. "
-            "Keep accessories subtle and secondary to the garment. "
-        )
+    styling_intro = (
+        "Catalog-ready minimal styling with the garment as the hero piece. "
+        "Keep accessories subtle and secondary to the garment. "
+    )
     parts.append(
         styling_intro
         + accessory_guard

@@ -15,148 +15,148 @@ from typing import Any, Optional
 _POSE_LIBRARY: dict[str, dict[str, tuple[str, ...]]] = {
     "static": {
         "stance_logic": (
-            "stable grounded stance with garment-first readability",
-            "rooted catalog stance with calm body control",
-            "quiet upright stance with deliberate stillness",
+            "grounded presence that makes the garment the focal point",
+            "rooted foundation emphasizing vertical clarity",
+            "quiet structure supporting the clothing architecture",
         ),
         "weight_shift": (
-            "soft weight balance through both feet",
-            "slight weight settlement into one leg without distorting the silhouette",
-            "even lower-body support with quiet natural asymmetry",
+            "balanced stability prioritizing silhouette symmetry",
+            "subtle ease that prevents stiffness without distorting fit",
+            "even support ensuring clear read of long geometric lines",
         ),
         "arm_logic": (
-            "one arm resting naturally along the body while the other stays slightly released from the waistline",
-            "arms kept quiet and unobtrusive, leaving the waist and side seam visible",
-            "hands relaxed at the sides with gentle separation from the skirt",
+            "arm placement that avoids obscuring key construction details",
+            "limbs kept quiet to preserve the waistline and chest view",
+            "negative space maintained between arms and torso",
         ),
         "torso_orientation": (
-            "front-facing torso with a subtle natural turn",
-            "mostly frontal body alignment with a soft shoulder angle",
-            "clean body alignment with restrained torso twist",
+            "clean forward alignment to showcase the front features",
+            "slight depth angle that remains completely legible",
+            "controlled presentation maximizing garment surface visibility",
         ),
         "head_direction": (
-            "calm head direction toward camera",
-            "steady near-camera head position",
-            "quiet front-facing head placement",
+            "steady engagement that doesn't distract from the style",
+            "calm focus radiating commercial reliability",
+            "quiet presence framing the upper garment area",
         ),
         "gesture_intention": (
             "controlled commercial stillness",
-            "quiet premium composure",
-            "stable catalog clarity",
+            "premium composure focused entirely on the product",
+            "catalog clarity without artificial tension",
         ),
     },
     "relaxed": {
         "stance_logic": (
-            "grounded relaxed stance with breathable body space",
-            "soft natural stance with lived-in ease",
-            "easy balanced stance with commercial warmth",
+            "approachable posture with breathable physical space",
+            "soft foundation implying lived-in ease",
+            "easy equilibrium carrying warmth and comfort",
         ),
         "weight_shift": (
-            "gentle weight shift into one hip",
-            "soft weight placement through one leg with relaxed balance",
-            "subtle off-center balance that keeps the silhouette clear",
+            "gentle shift creating natural fabric drape",
+            "relaxed support that softens the overall silhouette",
+            "off-center harmony preventing structural rigidity",
         ),
         "arm_logic": (
-            "one hand relaxed near the side seam while the other hangs naturally",
-            "arms resting loosely with one hand lightly clearing the waistline",
-            "one hand relaxed near the skirt while the opposite arm falls naturally",
+            "arms adopting a comfortable, uncontrived arrangement",
+            "limbs arranged organically while keeping key design points visible",
+            "casual limb positioning that supports the mood without blocking details",
         ),
         "torso_orientation": (
-            "slight torso turn that keeps the garment readable",
-            "gentle shoulder angle with open upper body",
-            "soft three-quarter torso orientation without hiding the front",
+            "welcoming angle that introduces conversational depth",
+            "soft rotation that highlights how the fabric moves",
+            "three-quarter implied motion retaining primary visibility",
         ),
         "head_direction": (
-            "head open toward camera with relaxed attention",
-            "near-camera head turn with a warm relaxed expression",
-            "soft head angle that stays commercially approachable",
+            "warm attention aimed at the viewer",
+            "relaxed and engaging focal point",
+            "approachable orientation supporting an everyday narrative",
         ),
         "gesture_intention": (
             "easy commercial warmth",
-            "relaxed human presence",
-            "soft premium naturalness",
+            "relaxed human presence validating the comfort",
+            "soft premium naturalness meant for lifestyle bridging",
         ),
     },
     "candid": {
         "stance_logic": (
-            "paused mid-step stance with natural garment movement",
-            "light walking gesture frozen at a believable moment",
-            "spontaneous everyday stance with subtle motion",
+            "moment captured in mid-transition to show clothing dynamics",
+            "spontaneous foundation implying immediate action",
+            "everyday forward-moving energy",
         ),
         "weight_shift": (
-            "weight passing naturally through one leg during a small step",
-            "dynamic but controlled lower-body shift that lets the hem move",
-            "off-center balance suggesting real movement without blur logic",
+            "transitional weight that animates the fabric",
+            "dynamic support letting the hem or silhouette naturally sway",
+            "active balance suggesting progress rather than stillness",
         ),
         "arm_logic": (
-            "one hand lightly grazing the skirt while the other swings softly",
-            "arms moving naturally with one hand kept clear of the garment's key construction",
-            "one hand relaxed near the waist while the opposite arm follows the step",
+            "arms in natural mid-motion, safely clearing key focal points",
+            "limbs following organic movement patterns",
+            "unstudied arm positions that emphasize candid authenticity",
         ),
         "torso_orientation": (
-            "slight body turn that introduces directional energy",
-            "soft angled torso with lived-in movement",
-            "walk-oriented torso rotation that preserves the front read",
+            "spirited angle providing directional energy to the look",
+            "lived-in rotation proving the clothing's real-world viability",
+            "active orientation that retains the commercial read",
         ),
         "head_direction": (
-            "slightly off-camera head direction with natural engagement",
-            "softly turned head that feels caught mid-moment",
-            "casual near-camera glance with everyday spontaneity",
+            "caught-in-the-moment glance or distraction",
+            "spontaneous engagement breaking the fourth wall softly",
+            "off-camera attention implying a broader environment",
         ),
         "gesture_intention": (
-            "commercial spontaneity",
-            "lived-in motion with garment clarity",
-            "approachable candid energy",
+            "commercial spontaneity making the fashion tangible",
+            "lived-in motion validating the real-world use",
+            "approachable candid energy connecting with the consumer",
         ),
     },
     "directed": {
         "stance_logic": (
-            "confident contrapposto with one hip pushed out and clear vertical line",
-            "strong S-curve stance with pronounced hip displacement and elongated torso",
-            "power stride pose — one foot slightly forward, body angled like mid-walk on a runway",
-            "architectural lean against a surface with one leg crossed over the other creating diagonal tension",
-            "commanding three-quarter stance with shoulder leading toward camera and hip angled away",
-            "bold wide stance with weight planted and body owning maximum frame space",
+            "architectural foundation commanding the frame space",
+            "bold stance defining a strong stylistic narrative",
+            "sculptural base elevating the garment into a fashion statement",
+            "tension-driven base highlighting the cut and structure",
+            "authoritative posture anchoring a premium visual",
+            "commanding spatial ownership maximizing physical impact",
         ),
         "weight_shift": (
-            "dramatic weight drop into one hip creating a pronounced S-line through the body",
-            "assertive weight transfer to one leg with the free leg creating negative space",
-            "pronounced contrapposto weight shift that makes the waist and hip line sculptural",
-            "dynamic forward-leaning weight that suggests motion and energy",
-            "controlled hip push to one side with upper body compensating in the opposite direction",
-            "grounded power stance with weight evenly distributed and strong planted presence",
+            "dramatic transfer defining an assertive body line",
+            "pronounced hip or leg engagement creating sculptural curves",
+            "intentional imbalance producing graphic tension",
+            "forward-driven energy implying power and purpose",
+            "controlled asymmetry emphasizing the tailoring",
+            "grounded power distribution radiating elite confidence",
         ),
         "arm_logic": (
-            "one hand placed firmly on hip with elbow angled outward, the other arm hanging with editorial control",
-            "one hand touching the side of the neck or jaw while the other arm creates a clean line along the body",
-            "both hands adjusting the garment — one at the collar, one at the hem — in a styled editorial gesture",
-            "one arm extended to touch a surface or prop with fashion authority while the other rests at the hip",
-            "one hand running through or holding hair back from the face while the opposite arm stays structured",
-            "arms crossed loosely at waist level or one hand gripping the opposite elbow with relaxed confidence",
+            "decisive arm geometry creating bold negative space",
+            "intentional limb placement interacting with the garment respectfully",
+            "highly styled hand or arm positioning that adds high-fashion flair",
+            "arms framing the body to guide the viewer's eye to the key details",
+            "structured limb tension complementing the apparel's shape",
+            "deliberate crossing or anchoring to exude sophisticated control",
         ),
         "torso_orientation": (
-            "sculpted three-quarter torso angle with shoulder blade tension visible and deliberate spinal line",
-            "dramatic shoulder rotation — one shoulder advanced toward camera creating depth and dimension",
-            "strong angular torso twist that creates graphic shadow play across the garment surface",
-            "elongated upright torso with ribcage lifted and deliberate posture authority",
-            "slightly forward-leaning torso with controlled chin position creating editorial intensity",
-            "powerful open chest orientation with shoulders pulled back and collarbones prominent",
+            "sculpted torso rotation demanding visual attention",
+            "dramatic angle producing graphic light and shadow across the piece",
+            "elongated presentation exuding posture authority",
+            "challenging orientation introducing edge and mystery",
+            "powerful chest prominence projecting luxury presence",
+            "intentional twist defining the silhouette with exact precision",
         ),
         "head_direction": (
-            "chin lifted at 15 degrees with eyes locked directly on camera — commanding, not passive",
-            "head turned to three-quarter profile with a sharp knowing gaze back toward camera",
-            "slightly downward gaze with chin parallel to shoulder, creating editorial mystery",
-            "head tilted subtly with an expression of confident self-awareness and magnetic presence",
-            "strong profile angle with jaw defined and neck elongated — pure fashion authority",
-            "direct forward-facing head position with an intense, fashion-editorial stare that commands attention",
+            "commanding focal connection directly demanding attention",
+            "sharp profile or three-quarter gaze exuding knowing confidence",
+            "deliberately elevated or lowered angle adding editorial edge",
+            "magnetic awareness unbothered by the camera's presence",
+            "strong definition of jaw and neck supporting the fashion narrative",
+            "intense visual lock intended to stop the viewer completely",
         ),
         "gesture_intention": (
-            "magazine-cover authority with every body line deliberate and powerful",
-            "runway-to-editorial energy — the model is not posing, she is PERFORMING for the camera",
-            "fashion-forward command — the body communicates status, confidence, and deliberate style",
-            "editorial precision with controlled intensity — every angle earns its place in the frame",
-            "haute couture presence — sculptural body language that elevates the garment to art",
-            "power-editorial magnetism — the viewer cannot look away because the pose demands attention",
+            "magazine-cover authority with every visual line deliberate",
+            "performative energy transcending simple wearability",
+            "fashion-forward command signaling elite status",
+            "editorial precision validating the premium tier",
+            "haute-inspired presence making the clothing art",
+            "magnetic tension ensuring the image is unforgettable",
         ),
     },
 }
@@ -178,27 +178,27 @@ def _pose_affinity(user_prompt: str, framing_profile: str, mode_id: str) -> dict
     }
 
     if any(token in text for token in ("vestido", "dress", "saia", "skirt", "evasê", "evase", "bufante", "puff")):
-        affinity["arm_logic"] = "one hand lightly grazing the skirt while the other stays relaxed and clear of the waistline"
-        affinity["surface_direction"] = "with a soft weight shift, one hand lightly grazing the skirt, and a slight torso turn that keeps the waist and sleeves visible"
+        affinity["arm_logic"] = "arms placed to allow the lower garment volume to breathe and expand naturally"
+        affinity["surface_direction"] = "with an implicit fluid motion prioritizing the hemline and volume spread"
     elif any(token in text for token in ("blazer", "alfaiat", "tailored", "structured", "lapela", "lapel")):
-        affinity["arm_logic"] = "one arm relaxed while the other stays slightly set away from the torso to preserve the lapel and shoulder line"
-        affinity["surface_direction"] = "with a composed stance, shoulders aligned, and one arm kept slightly away from the torso to preserve the tailoring line"
+        affinity["arm_logic"] = "arms positioned to preserve the tailoring, ensuring lapels and shoulder lines remain uninterrupted"
+        affinity["surface_direction"] = "with architectural alignment that respects the tailored structuring of the upper body"
 
     if framing_profile == "full_body" and not affinity["surface_direction"]:
-        affinity["surface_direction"] = "with a grounded stance, a subtle weight shift through one leg, and arms kept quiet so the full silhouette remains clear"
+        affinity["surface_direction"] = "anchoring the full vertical line clearly to communicate head-to-toe proportions"
     elif framing_profile == "three_quarter" and not affinity["surface_direction"]:
-        affinity["surface_direction"] = "with a relaxed torso turn, one hand kept clear of the waistline, and a natural head direction that keeps the upper-to-skirt transition readable"
+        affinity["surface_direction"] = "creating engaging depth that connects the torso naturally down past the waistline"
     elif framing_profile == "editorial_mid" and not affinity["surface_direction"]:
-        affinity["surface_direction"] = "with an intentional torso angle, controlled arm placement, and a head direction that reinforces the image line"
+        affinity["surface_direction"] = "using deliberate angles to maximize the graphic impact of the upper body structure"
 
     if mode_id == "catalog_clean":
-        affinity["gesture_intention"] = "quiet premium composure"
+        affinity["gesture_intention"] = "premium composure focused strictly on product clarity"
     elif mode_id == "natural":
-        affinity["gesture_intention"] = "relaxed human presence"
+        affinity["gesture_intention"] = "relaxed human presence bridging everyday lifestyle"
     elif mode_id == "lifestyle":
-        affinity["gesture_intention"] = "approachable candid energy"
+        affinity["gesture_intention"] = "approachable candid energy implying movement"
     elif mode_id == "editorial_commercial":
-        affinity["gesture_intention"] = "fashion-aware intention"
+        affinity["gesture_intention"] = "fashion-aware intention validating a higher tier"
 
     return affinity
 

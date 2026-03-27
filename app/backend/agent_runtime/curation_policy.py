@@ -3,17 +3,12 @@ from __future__ import annotations
 import os
 from typing import Any, Optional, TypedDict
 
+from agent_runtime.mode_identity_soul import get_mode_soul_statement
 from agent_runtime.structural import (
     is_selfie_capture_compatible,
     is_spatially_sensitive_garment,
 )
 
-_PRESET_AFFINITY: dict[str, str] = {
-    "catalog_clean": "catalog showroom premium indoor stable pose full garment readability",
-    "marketplace_lifestyle": "marketplace lifestyle brazilian authentic environment natural movement pose",
-    "premium_lifestyle": "premium lifestyle brazilian editorial curated interior or architecture",
-    "ugc_real_br": "brazilian influencer social-commerce creator content authentic phone photo expressive confident pose imperfect lighting believable local everyday scene varied scenario",
-}
 
 _SCENE_AFFINITY: dict[str, str] = {
     "auto_br": "",
@@ -106,15 +101,15 @@ def apply_selection_policy(
 
 def build_affinity_prompt(
     user_prompt: Optional[str],
-    preset: str,
+    mode: str,
     scene_preference: str,
 ) -> Optional[str]:
     parts = []
     if user_prompt and user_prompt.strip():
         parts.append(user_prompt.strip())
-    preset_kw = _PRESET_AFFINITY.get(preset, "")
-    if preset_kw:
-        parts.append(preset_kw)
+    mode_soul = get_mode_soul_statement(mode)
+    if mode_soul:
+        parts.append(mode_soul)
     scene_kw = _SCENE_AFFINITY.get(scene_preference, "")
     if scene_kw:
         parts.append(scene_kw)
@@ -180,16 +175,12 @@ def resolve_auto_pose_flex_mode(
     structural_contract: Optional[dict[str, Any]],
     selector_stats: Optional[dict[str, Any]],
     fidelity_mode: str,
-    preset: str = "",
+    mode: str = "natural",
 ) -> str:
     text = str(user_prompt or "").strip().lower()
     spatially_sensitive = is_spatially_sensitive_garment(
         structural_contract,
         selector_stats=selector_stats,
-    )
-    preset_hint = str(preset or "").strip().lower()
-    ugc_like = preset_hint == "ugc_real_br" or any(
-        token in text for token in ("ugc", "influencer", "creator", "criadora", "selfie", "social")
     )
 
     if any(token in text for token in ("tradicional", "catalog", "catálogo", "estavel", "estável", "parada", "static", "still")):
@@ -197,10 +188,6 @@ def resolve_auto_pose_flex_mode(
     if any(token in text for token in ("movimento", "dinam", "walking", "stride", "editorial", "lookbook", "fashion pose", "criativa", "creative")):
         return "dynamic"
 
-    if ugc_like:
-        if spatially_sensitive:
-            return "balanced"
-        return "dynamic"
     if str(fidelity_mode).strip().lower() == "estrita":
         return "controlled"
     if spatially_sensitive:
@@ -255,10 +242,10 @@ def derive_art_direction_selection_policy(
     ).lower()
 
     strict_mode = str(fidelity_mode).strip().lower() == "estrita"
-    ugc_like = preset == "ugc_real_br" or any(
+    ugc_like = any(
         token in text for token in ("ugc", "cliente real", "review real", "depoimento", "social proof")
     )
-    premium_like = not ugc_like and (preset in {"premium_lifestyle", "catalog_clean"} or any(
+    premium_like = not ugc_like and (preset in {"editorial_commercial", "catalog_clean"} or any(
         token in text for token in ("premium", "editorial", "catalog", "sofistic", "ensaio")
     ))
     outdoor_like = scene_preference == "outdoor_br" or any(

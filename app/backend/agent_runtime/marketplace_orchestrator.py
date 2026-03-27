@@ -335,7 +335,7 @@ def _process_slot_sync(
 ) -> dict[str, Any]:
     """Processa um slot individual — versão sync."""
     from agent_runtime.generation_flow import run_generation_flow as run_pipeline_v2
-    from agent_runtime.pipeline_v2_support import persist_v2_history
+    from agent_runtime.generation_flow import persist_generation_history
 
     slot_id = str(slot["slot_id"])
     slot_type = str(slot["slot_type"])
@@ -412,7 +412,7 @@ def _process_slot_sync(
         art_direction_request=slot_art_request if slot_art_request else None,
         on_stage=None,
     )
-    persist_v2_history(
+    persist_generation_history(
         raw,
         aspect_ratio=aspect_ratio,
         resolution=resolution,

@@ -12,17 +12,16 @@ from typing import Any, Callable, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from agent import run_agent
-from agent_runtime.target_builder import (
-    build_mode_diversity_target,
-    harmonize_diversity_target_for_mode,
+from agent_runtime.creative_brief_builder import (
+    build_creative_brief_for_mode,
+    harmonize_creative_brief_for_mode,
 )
 from agent_runtime.modes import DEFAULT_TEXT_MODE, get_mode
-from agent_runtime.generation_flow import run_generation_flow as run_pipeline_v2
-from agent_runtime.pipeline_v2_support import (
-    build_v2_generate_response,
-    normalize_v2_options,
-    persist_v2_history,
-    should_use_v2,
+from agent_runtime.generation_flow import (
+    run_generation_flow as run_pipeline_v2,
+    build_generation_response,
+    normalize_generation_options,
+    persist_generation_history,
 )
 from create_categories import normalize_create_category
 from config import (
@@ -51,6 +50,24 @@ from pipeline_effectiveness import (
 from request_validation import validate_generation_params
 
 router = APIRouter(prefix="/generate", tags=["generate"])
+
+
+_LEGACY_PRESET_TO_MODE = {
+    "catalog_clean": "catalog_clean",
+    "marketplace_lifestyle": "natural",
+    "premium_lifestyle": "editorial_commercial",
+    "ugc_real_br": "lifestyle",
+}
+
+
+def _resolve_requested_mode(mode: Optional[str], preset: Optional[str]) -> Optional[str]:
+    normalized_mode = str(mode or "").strip()
+    if normalized_mode:
+        return normalized_mode
+    normalized_preset = str(preset or "").strip().lower()
+    if not normalized_preset:
+        return None
+    return _LEGACY_PRESET_TO_MODE.get(normalized_preset, normalized_preset)
 
 
 def _is_strict_reference_mode(guided_brief: Optional[dict], uploaded_bytes: List[bytes]) -> bool:
@@ -202,7 +219,7 @@ def _run_generate_pipeline(
         diversity_target = {}
     elif not uploaded_bytes:
         active_mode = get_mode(mode or DEFAULT_TEXT_MODE)
-        diversity_target = build_mode_diversity_target(active_mode, user_prompt=prompt)
+        diversity_target = build_creative_brief_for_mode(active_mode, user_prompt=prompt)
     else:
         active_mode = get_mode(mode or DEFAULT_TEXT_MODE)
         diversity_context_prompt = prompt or image_analysis_text or active_mode.description
@@ -212,7 +229,7 @@ def _run_generate_pipeline(
             garment_aesthetic=garment_aesthetic,
             structural_contract=structural_contract_for_diversity,
         )
-        diversity_target = harmonize_diversity_target_for_mode(
+        diversity_target = harmonize_creative_brief_for_mode(
             active_mode,
             legacy_diversity_target,
             user_prompt=diversity_context_prompt,
@@ -638,42 +655,27 @@ async def generate(
     limited_images = images[:14]
     uploaded_bytes = [await img.read() for img in limited_images]
     uploaded_filenames = [str(img.filename or "").strip() for img in limited_images]
-    use_v2 = should_use_v2(preset, uploaded_bytes)
+    requested_mode = _resolve_requested_mode(mode, preset)
+    normalized_mode, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_generation_options(
+        mode=requested_mode,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+        pose_flex_mode=pose_flex_mode,
+    )
     try:
-        if use_v2:
-            normalized_preset, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_v2_options(
-                preset=preset,
-                scene_preference=scene_preference,
-                fidelity_mode=fidelity_mode,
-                pose_flex_mode=pose_flex_mode,
-            )
-            return await asyncio.to_thread(
-                _run_v2_pipeline_and_persist,
-                category=normalized_category,
-                uploaded_bytes=uploaded_bytes,
-                uploaded_filenames=uploaded_filenames,
-                prompt=prompt,
-                preset=normalized_preset,
-                scene_preference=normalized_scene_preference,
-                fidelity_mode=normalized_fidelity_mode,
-                pose_flex_mode=normalized_pose_flex_mode,
-                n_images=n_images,
-                aspect_ratio=aspect_ratio,
-                resolution=resolution,
-                on_stage=None,
-            )
         return await asyncio.to_thread(
-            _run_generate_pipeline,
+            _run_v2_pipeline_and_persist,
             category=normalized_category,
+            uploaded_bytes=uploaded_bytes,
+            uploaded_filenames=uploaded_filenames,
             prompt=prompt,
-            mode=mode,
+            mode=normalized_mode,
+            scene_preference=normalized_scene_preference,
+            fidelity_mode=normalized_fidelity_mode,
+            pose_flex_mode=normalized_pose_flex_mode,
+            n_images=n_images,
             aspect_ratio=aspect_ratio,
             resolution=resolution,
-            n_images=n_images,
-            grounding_strategy=grounding_strategy,
-            use_grounding=use_grounding,
-            guided_brief=guided_brief,
-            uploaded_bytes=uploaded_bytes,
             on_stage=None,
         )
     except ValueError as e:
@@ -688,7 +690,7 @@ def _run_v2_pipeline_and_persist(
     uploaded_bytes: List[bytes],
     uploaded_filenames: Optional[List[str]],
     prompt: Optional[str],
-    preset: str,
+    mode: str,
     scene_preference: str,
     fidelity_mode: str,
     pose_flex_mode: str,
@@ -702,7 +704,7 @@ def _run_v2_pipeline_and_persist(
         uploaded_bytes=uploaded_bytes,
         uploaded_filenames=uploaded_filenames,
         prompt=prompt,
-        preset=preset,
+        mode=mode,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
         pose_flex_mode=pose_flex_mode,
@@ -711,20 +713,20 @@ def _run_v2_pipeline_and_persist(
         resolution=resolution,
         on_stage=on_stage,
     )
-    persist_v2_history(
+    persist_generation_history(
         raw,
         aspect_ratio=aspect_ratio,
         resolution=resolution,
-        preset=preset,
+        mode=mode,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
         pose_flex_mode=pose_flex_mode,
     )
-    return build_v2_generate_response(
+    return build_generation_response(
         raw,
         aspect_ratio=aspect_ratio,
         resolution=resolution,
-        preset=preset,
+        preset=mode,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
         pose_flex_mode=pose_flex_mode,
@@ -762,12 +764,18 @@ async def generate_async(
     limited_images = images[:14]
     uploaded_bytes = [await img.read() for img in limited_images]
     uploaded_filenames = [str(img.filename or "").strip() for img in limited_images]
-    use_v2 = should_use_v2(preset, uploaded_bytes)
+    requested_mode = _resolve_requested_mode(mode, preset)
+    normalized_mode, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_generation_options(
+        mode=requested_mode,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+        pose_flex_mode=pose_flex_mode,
+    )
     _prompt_short = (prompt or "")[:120].strip() or None
     job_id = create_job(
         meta={
             # ── Identificação do pipeline ──
-            "pipeline_version": "v2" if use_v2 else "v1",
+            "pipeline_version": "v2",
             "category": normalized_category,
             # ── Parâmetros de geração ──
             "prompt": _prompt_short,
@@ -775,8 +783,7 @@ async def generate_async(
             "n_images": n_images,
             "aspect_ratio": aspect_ratio,
             "resolution": resolution,
-            "mode": mode,
-            # ── Preset & modos (v2) ──
+            "mode": normalized_mode,
             "preset": preset,
             "scene_preference": scene_preference,
             "fidelity_mode": fidelity_mode,
@@ -798,41 +805,20 @@ async def generate_async(
             update_stage(job_id, stage, data)
 
         try:
-            if use_v2:
-                normalized_preset, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_v2_options(
-                    preset=preset,
-                    scene_preference=scene_preference,
-                    fidelity_mode=fidelity_mode,
-                    pose_flex_mode=pose_flex_mode,
-                )
-                response = _run_v2_pipeline_and_persist(
-                    category=normalized_category,
-                    uploaded_bytes=uploaded_bytes,
-                    uploaded_filenames=uploaded_filenames,
-                    prompt=prompt,
-                    preset=normalized_preset,
-                    scene_preference=normalized_scene_preference,
-                    fidelity_mode=normalized_fidelity_mode,
-                    pose_flex_mode=normalized_pose_flex_mode,
-                    n_images=n_images,
-                    aspect_ratio=aspect_ratio,
-                    resolution=resolution,
-                    on_stage=_stage_cb,
-                )
-            else:
-                response = _run_generate_pipeline(
-                    category=normalized_category,
-                    prompt=prompt,
-                    mode=mode,
-                    aspect_ratio=aspect_ratio,
-                    resolution=resolution,
-                    n_images=n_images,
-                    grounding_strategy=grounding_strategy,
-                    use_grounding=use_grounding,
-                    guided_brief=guided_brief,
-                    uploaded_bytes=uploaded_bytes,
-                    on_stage=_stage_cb,
-                )
+            response = _run_v2_pipeline_and_persist(
+                category=normalized_category,
+                uploaded_bytes=uploaded_bytes,
+                uploaded_filenames=uploaded_filenames,
+                prompt=prompt,
+                mode=normalized_mode,
+                scene_preference=normalized_scene_preference,
+                fidelity_mode=normalized_fidelity_mode,
+                pose_flex_mode=normalized_pose_flex_mode,
+                n_images=n_images,
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                on_stage=_stage_cb,
+            )
             stage = "done_partial" if response.failed_indices else "done"
             complete_job(job_id, response.model_dump(), stage=stage)
         except Exception as e:

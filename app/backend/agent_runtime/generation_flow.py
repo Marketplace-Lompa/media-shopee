@@ -1,10 +1,16 @@
 """
-Generation Flow — orquestrador enxuto de criação com imagem de referência.
+Generation Flow — túnel unificado de criação.
 
-Fluxo two-pass:
-  1. reference_selector classifica uploads por role visual
-  2. generate_images() cria base fiel da peça (stage 1, locks fortes)
-  3. edit_image() cria imagem final (stage 2, soul criativo + fidelidade)
+Suporta dois caminhos dentro da mesma espinha dorsal:
+
+  A) Reference mode (com uploads):
+    1. reference_selector classifica uploads por role visual
+    2. generate_images() cria base fiel da peça (stage 1, locks fortes)
+    3. edit_image() cria imagem final (stage 2, soul criativo + fidelidade)
+
+  B) Text-only mode (sem uploads):
+    1. Prompt Agent (run_agent) gera prompt criativo com Soul/Presets do Mode
+    2. generate_images() executa direto sem referência
 
 Este módulo NÃO contém lógica de negócio — delega para:
   - fidelity.py: prompts, guards, classificação
@@ -12,6 +18,7 @@ Este módulo NÃO contém lógica de negócio — delega para:
   - reference_selector.py: triagem, merge de referências
   - curation_policy.py: budgets, pose flex, guard config
   - generator.py: execução Nano Banana
+  - agent.py (run_agent): síntese criativa text-only
 """
 from __future__ import annotations
 
@@ -48,6 +55,7 @@ from agent_runtime.fidelity_gate import (
     stage1_selection_key,
     suggest_retry_pose_flex_mode,
 )
+from agent_runtime.creative_brief_builder import build_creative_brief_for_mode
 from agent_runtime.modes import describe_mode_defaults, get_mode
 from agent_runtime.pipeline_v2_observability import (
     persist_review_inputs,
@@ -60,20 +68,309 @@ from agent_runtime.reference_selector import (
     select_reference_subsets,
 )
 from generator import edit_image, generate_images
+from history import add_entry as history_add, purge_oldest as history_purge
+from models import GenerateResponse, GeneratedImage
 from pipeline_effectiveness import assess_generated_image
 from request_validation import validate_generation_params
 
-# Mapeamento preset → mode (mesmos souls criativos)
-_PRESET_TO_MODE: dict[str, str] = {
-    "catalog_clean": "catalog_clean",
-    "marketplace_lifestyle": "natural",
-    "premium_lifestyle": "editorial_commercial",
-    "ugc_real_br": "lifestyle",
-}
+# ── Constantes de validação ──────────────────────────────────────────────────
+VALID_MODES = {"catalog_clean", "natural", "lifestyle", "editorial_commercial"}
+VALID_SCENE_PREFS = {"auto_br", "indoor_br", "outdoor_br"}
+DEFAULT_MODE = "natural"
+
+
+def should_use_generation_flow(mode: Optional[str], uploaded_bytes: list[bytes]) -> bool:
+    """Sempre True — o generation_flow é o túnel unificado para todos os modos."""
+    return True
+
+
+def normalize_generation_options(
+    *,
+    mode: Optional[str] = None,
+    scene_preference: str = "auto_br",
+    fidelity_mode: str = "balanceada",
+    pose_flex_mode: Optional[str] = None,
+) -> tuple[str, str, str, str]:
+    """Normaliza opções de geração. Mode é a fonte da verdade."""
+    resolved_mode = mode if mode in VALID_MODES else DEFAULT_MODE
+    return (
+        resolved_mode,
+        scene_preference if scene_preference in VALID_SCENE_PREFS else "auto_br",
+        fidelity_mode or "balanceada",
+        pose_flex_mode or "auto",
+    )
+
+
+# ── Persistência de histórico ────────────────────────────────────────────────
+
+def persist_generation_history(
+    raw: dict[str, Any],
+    *,
+    aspect_ratio: str,
+    resolution: str,
+    mode: Optional[str] = None,
+    preset: Optional[str] = None,
+    scene_preference: Optional[str] = None,
+    fidelity_mode: Optional[str] = None,
+    pose_flex_mode: Optional[str] = None,
+    pipeline_mode: Optional[str] = None,
+    marketplace_channel: Optional[str] = None,
+    marketplace_operation: Optional[str] = None,
+    slot_id: Optional[str] = None,
+) -> None:
+    session_id = str(raw.get("session_id", "") or "")
+    if not session_id:
+        return
+
+    resolved_preset = preset or raw.get("preset")
+    resolved_scene_preference = scene_preference or raw.get("scene_preference")
+    resolved_fidelity_mode = fidelity_mode or raw.get("fidelity_mode")
+    resolved_pose_flex_mode = pose_flex_mode or raw.get("pose_flex_mode")
+    resolved_marketplace_channel = marketplace_channel or raw.get("marketplace_channel")
+    resolved_marketplace_operation = marketplace_operation or raw.get("marketplace_operation")
+    resolved_slot_id = slot_id or raw.get("slot_id")
+    art_direction_summary = raw.get("art_direction_summary") or {}
+    camera_profile = art_direction_summary.get("camera_profile") if isinstance(art_direction_summary, dict) else None
+    reference_urls = list(raw.get("review_reference_urls", []) or [])
+    optimized_prompt = raw.get("optimized_prompt") or None
+    resolved_pipeline_mode = pipeline_mode or raw.get("pipeline_mode") or None
+
+    for img in raw.get("images", []) or []:
+        try:
+            history_add(
+                session_id=session_id,
+                filename=img["filename"],
+                url=img["url"],
+                prompt=optimized_prompt or "",
+                thinking_level="MINIMAL",
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                references=reference_urls,
+                base_prompt=raw.get("stage1_prompt"),
+                camera_profile=camera_profile,
+                mode=mode,
+                preset=resolved_preset,
+                scene_preference=resolved_scene_preference,
+                fidelity_mode=resolved_fidelity_mode,
+                pose_flex_mode=resolved_pose_flex_mode,
+                pipeline_mode=resolved_pipeline_mode,
+                optimized_prompt=optimized_prompt,
+                marketplace_channel=resolved_marketplace_channel,
+                marketplace_operation=resolved_marketplace_operation,
+                slot_id=resolved_slot_id,
+            )
+        except Exception as hist_err:
+            print(f"[HISTORY] generation persist error: {hist_err}")
+    try:
+        history_purge()
+    except Exception:
+        pass
+
+
+# ── Build response ───────────────────────────────────────────────────────────
+
+def build_generation_response_payload(
+    raw: dict[str, Any],
+    *,
+    aspect_ratio: str,
+    resolution: str,
+    preset: str,
+    scene_preference: str,
+    fidelity_mode: str,
+    pose_flex_mode: str,
+) -> dict[str, Any]:
+    return {
+        "session_id": raw.get("session_id"),
+        "optimized_prompt": raw.get("optimized_prompt", ""),
+        "pipeline_mode": raw.get("pipeline_mode", "reference_mode_strict"),
+        "pipeline_version": "v2",
+        "thinking_level": "MINIMAL",
+        "thinking_reason": "pipeline_v2",
+        "user_intent": raw.get("user_intent"),
+        "aspect_ratio": aspect_ratio,
+        "resolution": resolution,
+        "images": raw.get("images", []),
+        "failed_indices": raw.get("failed_indices"),
+        "pool_refs_used": 0,
+        "art_direction_summary": raw.get("art_direction_summary"),
+        "lighting_signature": raw.get("lighting_signature"),
+        "action_context": raw.get("action_context"),
+        "preset": preset,
+        "scene_preference": scene_preference,
+        "fidelity_mode": fidelity_mode,
+        "pose_flex_mode": raw.get("pose_flex_mode", pose_flex_mode),
+        "pose_flex_guideline": raw.get("pose_flex_guideline"),
+        "generation_time": raw.get("generation_time"),
+        "reference_pack_stats": raw.get("selector_stats"),
+        "repair_applied": raw.get("repair_applied"),
+        "reason_codes": raw.get("reason_codes"),
+        "debug_report_url": raw.get("report_url"),
+        "debug_report_path": raw.get("report_path"),
+    }
+
+
+def build_generation_response(
+    raw: dict[str, Any],
+    *,
+    aspect_ratio: str,
+    resolution: str,
+    preset: str,
+    scene_preference: str,
+    fidelity_mode: str,
+    pose_flex_mode: str,
+) -> GenerateResponse:
+    payload = build_generation_response_payload(
+        raw,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        preset=preset,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+        pose_flex_mode=pose_flex_mode,
+    )
+    return GenerateResponse(
+        session_id=payload.get("session_id"),
+        optimized_prompt=payload.get("optimized_prompt", ""),
+        pipeline_mode=payload.get("pipeline_mode", "reference_mode_strict"),
+        thinking_level="MINIMAL",
+        thinking_reason="pipeline_v2",
+        user_intent=payload.get("user_intent"),
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        images=[GeneratedImage(**img) for img in raw.get("images", [])],
+        failed_indices=payload.get("failed_indices") or None,
+        pipeline_version="v2",
+        art_direction_summary=payload.get("art_direction_summary"),
+        lighting_signature=payload.get("lighting_signature"),
+        action_context=payload.get("action_context"),
+        preset=preset,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+        pose_flex_mode=payload.get("pose_flex_mode"),
+        pose_flex_guideline=payload.get("pose_flex_guideline"),
+        generation_time=payload.get("generation_time"),
+        reference_pack_stats=payload.get("reference_pack_stats"),
+        repair_applied=payload.get("repair_applied"),
+        reason_codes=payload.get("reason_codes"),
+        debug_report_url=payload.get("debug_report_url"),
+        debug_report_path=payload.get("debug_report_path"),
+    )
 
 
 def _targeted_stage2_repair_enabled() -> bool:
     return os.getenv("ENABLE_TARGETED_STAGE2_REPAIR", "true").strip().lower() != "false"
+
+
+# ── Text-only flow (sem referências) ─────────────────────────────────────
+
+def _run_text_only_flow(
+    *,
+    prompt: Optional[str],
+    mode: str,
+    n_images: int,
+    aspect_ratio: str,
+    resolution: str,
+    session_id: str,
+    started: float,
+    on_stage: Optional[Callable[[str, dict[str, Any]], None]] = None,
+) -> dict[str, Any]:
+    """Caminho text-only dentro do túnel unificado.
+
+    1. Prompt Agent (run_agent) sintetiza o prompt criativo usando
+       Soul + Presets do Mode selecionado.
+    2. generate_images() executa direto no Nano Banana sem referência.
+    """
+    def _emit(stage: str, data: Optional[dict[str, Any]] = None) -> None:
+        if on_stage:
+            on_stage(stage, data or {})
+
+    _emit("text_only_start", {"message": "Modo text-only: sintetizando prompt criativo..."})
+
+    from agent import run_agent
+
+    _mode_config = get_mode(mode)
+    creative_brief = build_creative_brief_for_mode(_mode_config, user_prompt=prompt)
+
+    agent_result = run_agent(
+        user_prompt=prompt or "",
+        uploaded_images=None,
+        pool_context="",
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        category="moda_feminina",
+        diversity_target=creative_brief,
+        mode=_mode_config.id,
+    )
+    optimized_prompt = agent_result.get("prompt") or prompt or ""
+
+    _emit("generating_images", {"message": f"Gerando {n_images} imagem(ns)..."})
+
+    all_results: list[dict[str, Any]] = []
+    failed_indices: list[int] = []
+
+    for img_idx in range(n_images):
+        try:
+            results = generate_images(
+                prompt=optimized_prompt,
+                thinking_level="HIGH",
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                n_images=1,
+                uploaded_images=[],
+                session_id=f"v2txt_{session_id}_{img_idx + 1}",
+            )
+            if results:
+                result = results[0]
+                result["index"] = img_idx + 1
+                all_results.append(result)
+            else:
+                failed_indices.append(img_idx + 1)
+        except Exception as gen_exc:
+            import traceback
+            print(f"\n[DEBUG GF] Text-only generation error (idx {img_idx}): {gen_exc}")
+            traceback.print_exc()
+            failed_indices.append(img_idx + 1)
+
+    if not all_results:
+        raise RuntimeError("Text-only flow falhou: nenhuma imagem gerada")
+
+    elapsed = round(time.time() - started, 2)
+    from agent_runtime.normalize_user_intent import normalize_user_intent
+    user_intent_payload = normalize_user_intent(prompt or "")
+
+    return {
+        "session_id": session_id,
+        "pipeline_version": "v2",
+        "pipeline_mode": "text_mode",
+        "optimized_prompt": optimized_prompt,
+        "stage1_prompt": "",
+        "edit_prompt": optimized_prompt,
+        "user_intent": user_intent_payload,
+        "images": all_results,
+        "failed_indices": failed_indices,
+        "generation_time": elapsed,
+        "aspect_ratio": aspect_ratio,
+        "resolution": resolution,
+        "thinking_level": "HIGH",
+        "stage2_thinking_level": "",
+        "art_direction_summary": {"mode": "text_only", "mode_id": mode},
+        "action_context": None,
+        "structural_hint": "",
+        "lighting_signature": {},
+        "selector_stats": {},
+        "review_reference_urls": [],
+        "review_input_assets": {},
+        "pose_flex_mode": "auto",
+        "pose_flex_requested": "auto",
+        "pose_flex_guideline": "",
+        "mode": mode,
+        "scene_preference": "auto_br",
+        "fidelity_mode": "balanceada",
+        "base_image": None,
+        "repair_applied": False,
+        "reason_codes": [],
+        "fidelity_gate": {"enabled": False, "reasons": [], "stage1": None, "stage1_recovery": None},
+    }
 
 
 # ── Orquestrador principal ───────────────────────────────────────────────
@@ -83,7 +380,7 @@ def run_generation_flow(
     uploaded_bytes: list[bytes],
     uploaded_filenames: Optional[list[str]] = None,
     prompt: Optional[str] = None,
-    preset: str = "marketplace_lifestyle",
+    mode: str = "natural",
     scene_preference: str = "auto_br",
     fidelity_mode: str = "balanceada",
     pose_flex_mode: str = "auto",
@@ -93,7 +390,7 @@ def run_generation_flow(
     art_direction_request: Optional[dict[str, Any]] = None,
     on_stage: Optional[Callable[[str, dict[str, Any]], None]] = None,
 ) -> dict[str, Any]:
-    """Orquestrador principal de geração com imagem de referência.
+    """Túnel unificado de geração — reference mode ou text-only.
 
     Returns dict compatível com GenerateResponse.
     """
@@ -110,8 +407,18 @@ def run_generation_flow(
         n_images=n_images,
     )
 
+    # ── Text-only: bypass Stages 1 e 2, usa Prompt Agent + generate direto ──
     if not uploaded_bytes:
-        raise ValueError("Generation flow requer pelo menos 1 imagem de referência")
+        return _run_text_only_flow(
+            prompt=prompt,
+            mode=mode,
+            n_images=n_images,
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            session_id=session_id,
+            started=started,
+            on_stage=on_stage,
+        )
 
     # ── 1. Reference selection ────────────────────────────────────────────
     _emit("preparing_references", {"message": "Classificando referências..."})
@@ -174,7 +481,7 @@ def run_generation_flow(
     if requested_pose_flex_mode == "auto":
         resolved_pose_flex_mode = resolve_auto_pose_flex_mode(
             user_prompt=prompt, structural_contract=structural_contract,
-            selector_stats=selector_stats, fidelity_mode=fidelity_mode, preset=preset,
+            selector_stats=selector_stats, fidelity_mode=fidelity_mode, mode=mode,
         )
     else:
         resolved_pose_flex_mode = requested_pose_flex_mode
@@ -245,7 +552,7 @@ def run_generation_flow(
     # Art direction request
     effective_art_direction_request = dict(art_direction_request or {})
     effective_art_direction_request.setdefault("scene_preference", scene_preference)
-    effective_art_direction_request.setdefault("preset", preset)
+    effective_art_direction_request.setdefault("mode", mode)
     effective_art_direction_request.setdefault("fidelity_mode", fidelity_mode)
     effective_art_direction_request.setdefault("pose_flex_mode", resolved_pose_flex_mode)
     effective_art_direction_request.setdefault("selector_stats", selector_stats)
@@ -281,7 +588,7 @@ def run_generation_flow(
     stage1_prompt = build_stage1_prompt(
         structural_contract, structural_hint,
         set_detection=set_detection, fidelity_mode=fidelity_mode,
-        preset=preset, angle_directive=_stage1_angle_directive,
+        mode=mode, angle_directive=_stage1_angle_directive,
         look_contract=look_contract, use_image_grounding=_use_image_grounding,
         image_analysis=image_analysis,
     )
@@ -368,7 +675,7 @@ def run_generation_flow(
         _emit("creating_listing", {"message": f"Criando anúncio {img_idx + 1}/{n_images}...", "current": img_idx + 1, "total": n_images})
         try:
             result_data = _run_stage2_iteration(
-                img_idx=img_idx, session_id=session_id, preset=preset,
+                img_idx=img_idx, session_id=session_id, mode=mode,
                 structural_contract=structural_contract, set_detection=set_detection,
                 image_analysis=image_analysis, effective_art_direction_request=effective_art_direction_request,
                 directive_hints=directive_hints, fidelity_mode=fidelity_mode,
@@ -447,7 +754,7 @@ def run_generation_flow(
         "pose_flex_mode": resolved_pose_flex_mode,
         "pose_flex_requested": requested_pose_flex_mode,
         "pose_flex_guideline": pose_flex_hint,
-        "preset": preset,
+        "mode": mode,
         "scene_preference": scene_preference,
         "fidelity_mode": fidelity_mode,
         "base_image": selected_base_result,
@@ -465,7 +772,7 @@ def run_generation_flow(
         "fidelity_gate": gate_policy,
         "request": {
             "prompt": prompt, "user_intent": user_intent_payload,
-            "preset": preset, "scene_preference": scene_preference,
+            "mode": mode, "scene_preference": scene_preference,
             "fidelity_mode": fidelity_mode, "n_images": n_images,
             "aspect_ratio": aspect_ratio, "resolution": resolution,
             "uploaded_count": len(uploaded_bytes), "uploaded_filenames": filenames,
@@ -602,7 +909,7 @@ def _run_stage2_iteration(
     *,
     img_idx: int,
     session_id: str,
-    preset: str,
+    mode: str,
     structural_contract: dict[str, Any],
     set_detection: dict[str, Any],
     image_analysis: str,
@@ -635,13 +942,14 @@ def _run_stage2_iteration(
 
     Retorna dict com result, art_direction, prompts, observability, ou None se falhou.
     """
-    _mode_id = _PRESET_TO_MODE.get(preset, "natural")
-    _mode_config = get_mode(_mode_id)
+    _mode_config = get_mode(mode)
+    _creative_brief = build_creative_brief_for_mode(_mode_config, user_prompt=prompt)
     art_soul_briefing = describe_mode_defaults(_mode_config)
 
     art_direction: dict[str, Any] = {
         "art_direction_soul": art_soul_briefing,
-        "summary": {"mode": "soul_driven", "mode_id": _mode_id, "preset": preset},
+        "creative_brief": _creative_brief,
+        "summary": {"mode": "soul_driven", "mode_id": _mode_config.id},
     }
 
     garment_material = derive_garment_material_text(structural_contract, image_analysis)

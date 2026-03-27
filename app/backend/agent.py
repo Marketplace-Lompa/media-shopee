@@ -24,10 +24,9 @@ from agent_runtime.triage import (
     _infer_text_mode_shot,
     resolve_prompt_agent_visual_triage,
 )
-from agent_runtime.target_builder import (
-    _sample_diversity_target,
-    build_mode_diversity_target,
-    harmonize_diversity_target_for_mode,
+from agent_runtime.creative_brief_builder import (
+    build_creative_brief_for_mode,
+    harmonize_creative_brief_for_mode,
 )
 from agent_runtime.constants import AGENT_RESPONSE_SCHEMA, build_reference_knowledge
 from agent_runtime.fidelity import (
@@ -128,31 +127,18 @@ def run_agent(
     )
 
     if has_images and effective_mode and not diversity_target:
-        diversity_target = build_mode_diversity_target(
+        diversity_target = build_creative_brief_for_mode(
             effective_mode,
             user_prompt=diversity_context_prompt,
         )
     if effective_mode:
-        diversity_target = harmonize_diversity_target_for_mode(
+        diversity_target = harmonize_creative_brief_for_mode(
             effective_mode,
             diversity_target,
             user_prompt=diversity_context_prompt,
         )
 
-    # Profile via Name Blending — persona anchor para o Gemini.
-    # Modes criativos: identidade vem da MODEL SOUL, sem name blending.
-    # Catalog_clean: mantém name blending para ancoragem determinística.
-    is_creative = effective_mode and effective_mode.id != "catalog_clean"
-    if is_creative:
-        fallback_hint = ""
-    elif effective_mode:
-        fallback_hint, _, _ = _sample_diversity_target(
-            casting_profile=effective_mode.presets.casting_profile,
-        )
-    else:
-        fallback_hint, _, _ = _sample_diversity_target()
-
-    profile = (diversity_target or {}).get("profile_hint", "") or fallback_hint
+    profile = (diversity_target or {}).get("profile_hint", "")
     # No text-only mode, cenário e pose são guiados pelos presets e estados latentes.
     # O compiler ainda recebe scenario_hint por compatibilidade, mas deixamos vazio
     # para não reintroduzir direção autoral fora da síntese principal.
@@ -190,6 +176,7 @@ def run_agent(
             has_images,
             compact_text_mode=has_prompt and not has_images,
         ),
+        mode_id=effective_mode.id if effective_mode else None,
         garment_hint=garment_hint,
     )
 

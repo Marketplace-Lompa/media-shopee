@@ -96,6 +96,15 @@ def _build_mode_presets_block(mode_defaults_text: Optional[str]) -> Optional[str
     return f"<MODE_PRESETS>\n{mode_defaults_text}\n</MODE_PRESETS>"
 
 
+def _build_mode_identity_block(mode_id: Optional[str]) -> Optional[str]:
+    """Bloco de identidade criativa do mode — simétrico ao model_soul."""
+    from agent_runtime.mode_identity_soul import get_mode_identity_soul
+    lines = get_mode_identity_soul(mode_id)
+    if not lines:
+        return None
+    return f"<MODE_IDENTITY>\n" + "\n".join(lines) + "\n</MODE_IDENTITY>"
+
+
 def _build_output_parameters_block(*, aspect_ratio: str, resolution: str) -> str:
     return f"<OUTPUT_PARAMETERS>\naspect_ratio={aspect_ratio}\nresolution={resolution}\n</OUTPUT_PARAMETERS>"
 
@@ -494,6 +503,7 @@ def build_generate_context_text(
     grounding_mode: str,
     mode_defaults_text: Optional[str],
     reference_knowledge: str,
+    mode_id: Optional[str] = None,
     garment_hint: str = "",
 ) -> str:
     # A ordem dos blocos e deliberada: primeiro tarefa/constraints de alto nivel,
@@ -511,6 +521,10 @@ def build_generate_context_text(
     mode_presets_block = _build_mode_presets_block(mode_defaults_text)
     if mode_presets_block:
         blocks.append(mode_presets_block)
+
+    mode_identity_block = _build_mode_identity_block(mode_id)
+    if mode_identity_block:
+        blocks.append(mode_identity_block)
 
     if pool_context.strip():
         blocks.append(f"<POOL_CONTEXT>\n{pool_context}\n</POOL_CONTEXT>")
