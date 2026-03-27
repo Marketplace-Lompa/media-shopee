@@ -57,7 +57,7 @@ from agent_runtime.fidelity_gate import (
 )
 from agent_runtime.creative_brief_builder import build_creative_brief_for_mode
 from agent_runtime.modes import describe_mode_defaults, get_mode
-from agent_runtime.pipeline_v2_observability import (
+from agent_runtime.generation_observability import (
     persist_review_inputs,
     write_v2_observability_report,
 )
@@ -77,13 +77,6 @@ from request_validation import validate_generation_params
 VALID_MODES = {"catalog_clean", "natural", "lifestyle", "editorial_commercial"}
 VALID_SCENE_PREFS = {"auto_br", "indoor_br", "outdoor_br"}
 DEFAULT_MODE = "natural"
-
-
-def should_use_generation_flow(mode: Optional[str], uploaded_bytes: list[bytes]) -> bool:
-    """Sempre True — o generation_flow é o túnel unificado para todos os modos."""
-    return True
-
-
 def normalize_generation_options(
     *,
     mode: Optional[str] = None,
