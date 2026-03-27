@@ -134,7 +134,7 @@ def _safe_context_excerpt(report: dict[str, Any]) -> str:
         "preset": request.get("preset"),
         "scene_preference": request.get("scene_preference"),
         "fidelity_mode": request.get("fidelity_mode"),
-        "pose_flex_mode": request.get("pose_flex_mode"),
+
         "reference_guard_strength": request.get("reference_guard_strength"),
         "uploaded_filenames": request.get("uploaded_filenames"),
         "selector_stats": selector.get("stats"),
@@ -297,7 +297,7 @@ def _build_review_gate_payload(
             set_detection=set_detection,
             selector_stats=selector_stats,
             fidelity_mode=str(request.get("fidelity_mode", "balanceada") or "balanceada"),
-            pose_flex_mode=str(request.get("pose_flex_mode", "auto") or "auto"),
+
         )
 
     reference_bytes = [path.read_bytes() for path in original_refs[:4] if path.exists()]
@@ -481,7 +481,7 @@ def review_job_session(session_id: str, *, refresh: bool = False) -> dict[str, A
             "preset": request.get("preset"),
             "scene_preference": request.get("scene_preference"),
             "fidelity_mode": request.get("fidelity_mode"),
-            "pose_flex_mode": request.get("pose_flex_mode"),
+
             "reference_guard_strength": request.get("reference_guard_strength"),
             "selected_names": selected_names,
             "structural_contract": (selector.get("unified_triage") or {}).get("structural_contract"),

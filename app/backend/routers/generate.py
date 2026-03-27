@@ -61,7 +61,7 @@ async def generate(
     preset: Optional[str] = Form(default=None),
     scene_preference: str = Form(default="auto_br"),
     fidelity_mode: str = Form(default="balanceada"),
-    pose_flex_mode: str = Form(default="auto"),
+
     images: List[UploadFile] = File(default=[]),
 ):
     try:
@@ -79,11 +79,10 @@ async def generate(
     uploaded_bytes = [await img.read() for img in limited_images]
     uploaded_filenames = [str(img.filename or "").strip() for img in limited_images]
     requested_mode = _resolve_requested_mode(mode, preset)
-    normalized_mode, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_generation_options(
+    normalized_mode, normalized_scene_preference, normalized_fidelity_mode = normalize_generation_options(
         mode=requested_mode,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
-        pose_flex_mode=pose_flex_mode,
     )
     try:
         return await asyncio.to_thread(
@@ -95,7 +94,7 @@ async def generate(
             mode=normalized_mode,
             scene_preference=normalized_scene_preference,
             fidelity_mode=normalized_fidelity_mode,
-            pose_flex_mode=normalized_pose_flex_mode,
+
             n_images=n_images,
             aspect_ratio=aspect_ratio,
             resolution=resolution,
@@ -116,7 +115,7 @@ def _run_v2_pipeline_and_persist(
     mode: str,
     scene_preference: str,
     fidelity_mode: str,
-    pose_flex_mode: str,
+
     n_images: int,
     aspect_ratio: str,
     resolution: str,
@@ -130,7 +129,7 @@ def _run_v2_pipeline_and_persist(
         mode=mode,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
-        pose_flex_mode=pose_flex_mode,
+
         n_images=n_images,
         aspect_ratio=aspect_ratio,
         resolution=resolution,
@@ -143,7 +142,7 @@ def _run_v2_pipeline_and_persist(
         mode=mode,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
-        pose_flex_mode=pose_flex_mode,
+
     )
     return build_generation_response(
         raw,
@@ -152,7 +151,7 @@ def _run_v2_pipeline_and_persist(
         preset=mode,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
-        pose_flex_mode=pose_flex_mode,
+
     ).model_copy(update={"category": category})
 
 
@@ -170,7 +169,7 @@ async def generate_async(
     preset: Optional[str] = Form(default=None),
     scene_preference: str = Form(default="auto_br"),
     fidelity_mode: str = Form(default="balanceada"),
-    pose_flex_mode: str = Form(default="auto"),
+
     images: List[UploadFile] = File(default=[]),
 ):
     try:
@@ -188,11 +187,10 @@ async def generate_async(
     uploaded_bytes = [await img.read() for img in limited_images]
     uploaded_filenames = [str(img.filename or "").strip() for img in limited_images]
     requested_mode = _resolve_requested_mode(mode, preset)
-    normalized_mode, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = normalize_generation_options(
+    normalized_mode, normalized_scene_preference, normalized_fidelity_mode = normalize_generation_options(
         mode=requested_mode,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
-        pose_flex_mode=pose_flex_mode,
     )
     _prompt_short = (prompt or "")[:120].strip() or None
     job_id = create_job(
@@ -210,7 +208,7 @@ async def generate_async(
             "preset": preset,
             "scene_preference": scene_preference,
             "fidelity_mode": fidelity_mode,
-            "pose_flex_mode": pose_flex_mode,
+
             # ── Grounding ──
             "grounding_strategy": grounding_strategy,
             "use_grounding": use_grounding,
@@ -236,7 +234,7 @@ async def generate_async(
                 mode=normalized_mode,
                 scene_preference=normalized_scene_preference,
                 fidelity_mode=normalized_fidelity_mode,
-                pose_flex_mode=normalized_pose_flex_mode,
+
                 n_images=n_images,
                 aspect_ratio=aspect_ratio,
                 resolution=resolution,

@@ -177,6 +177,79 @@ def _resolve_mode_presets(mode_config: ModeConfig) -> dict[str, str]:
     }
 
 
+def _build_catalog_clean_semantic_briefs(
+    *,
+    scene_state: dict[str, Any],
+    capture_state: dict[str, Any],
+    pose_state: dict[str, Any],
+    styling_state: dict[str, Any],
+) -> dict[str, str]:
+    scene_microcontext = str(scene_state.get("microcontext", "") or "").strip()
+    scene_material = str(scene_state.get("material_language", "") or "").strip()
+    scene_density = str(scene_state.get("background_density", "") or "").strip()
+    stance_logic = str(pose_state.get("stance_logic", "") or "").strip()
+    arm_logic = str(pose_state.get("arm_logic", "") or "").strip()
+    body_relation = str(capture_state.get("body_relation", "") or "").strip()
+    angle_logic = str(capture_state.get("angle_logic", "") or "").strip()
+    capture_feel = str(capture_state.get("capture_feel", "") or "").strip()
+    lens_language = str(capture_state.get("lens_language", "") or "").strip()
+    subject_separation = str(capture_state.get("subject_separation", "") or "").strip()
+    look_finish = str(styling_state.get("look_finish", "") or "").strip()
+
+    scene_brief = (
+        "Create a neutral, controlled catalog environment that exists only to support garment readability. "
+        "Keep contextual storytelling near zero and make the background intentionally forgettable, "
+        "with minimal tonal variation, restrained texture, and low visual competition. "
+        f"Resolve the setting as {scene_microcontext} with {scene_material}, keeping the background {scene_density}."
+    )
+    model_brief = (
+        "Create a polished Brazilian commercial woman with composed, premium presence that supports the garment "
+        "instead of competing with it. She should feel professionally cast, commercially credible, and visually calm, "
+        f"with a {look_finish or 'quiet premium catalog finish'} rather than editorial attitude or influencer energy."
+    )
+    pose_brief = (
+        "Resolve a stable, commercially human stance with low movement, low occlusion, and clear front garment readability. "
+        f"Use {stance_logic.lower()} and {arm_logic.lower()} so the garment stays fully legible. "
+        "Avoid stride, theatrical gesture, aggressive asymmetry, or expressive torso twist."
+    )
+    angle_brief = (
+        "Keep the body-to-camera relation neutral and product-first. "
+        f"Favor {body_relation.lower()} with {angle_logic.lower()}, so the full silhouette, hem behavior, neckline, "
+        "and surface pattern remain easy to read."
+    )
+    camera_brief = (
+        "Use a clean premium commercial camera language with even studio readability and restrained depth. "
+        f"Favor {capture_feel.lower()}, {lens_language.lower()}, and {subject_separation.lower()} "
+        "so the garment remains the visual hero."
+    )
+
+    return {
+        "scene_brief": scene_brief,
+        "model_brief": model_brief,
+        "pose_brief": pose_brief,
+        "angle_brief": angle_brief,
+        "camera_brief": camera_brief,
+    }
+
+
+def _build_semantic_briefs(
+    *,
+    mode_config: ModeConfig,
+    scene_state: dict[str, Any],
+    capture_state: dict[str, Any],
+    pose_state: dict[str, Any],
+    styling_state: dict[str, Any],
+) -> dict[str, str]:
+    if mode_config.id == "catalog_clean":
+        return _build_catalog_clean_semantic_briefs(
+            scene_state=scene_state,
+            capture_state=capture_state,
+            pose_state=pose_state,
+            styling_state=styling_state,
+        )
+    return {}
+
+
 def build_creative_brief_for_mode(
     mode_config: ModeConfig,
     user_prompt: Optional[str] = None,
@@ -255,6 +328,13 @@ def build_creative_brief_for_mode(
         user_prompt=user_prompt,
         operational_profile=profile_dict,
     )
+    semantic_briefs = _build_semantic_briefs(
+        mode_config=mode_config,
+        scene_state=scene_state,
+        capture_state=capture_state,
+        pose_state=pose_state,
+        styling_state=styling_state,
+    )
 
     if mode_config.id != "catalog_clean":
         profile_hint = ""
@@ -288,6 +368,7 @@ def build_creative_brief_for_mode(
         "pose_state": pose_state,
         "styling_state": styling_state,
         "coordination_state": coordination_state,
+        "semantic_briefs": semantic_briefs,
         "mode": mode_config.id,
         "operational_profile": profile_dict,
         "preset_defaults": resolved_presets,
@@ -307,6 +388,7 @@ def _is_modern_creative_brief(target: Optional[dict]) -> bool:
             "styling_state",
             "coordination_state",
             "operational_profile",
+            "semantic_briefs",
         )
     )
 

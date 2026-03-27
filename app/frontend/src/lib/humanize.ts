@@ -23,13 +23,6 @@ const FIDELITY_LABELS: Record<string, string> = {
   balanceada: 'Fidelidade equilibrada',
 };
 
-const POSE_LABELS: Record<string, string> = {
-  auto: 'Pose automática',
-  controlled: 'Pose estável',
-  balanced: 'Pose equilibrada',
-  dynamic: 'Pose dinâmica',
-};
-
 const PIPELINE_LABELS: Record<string, string> = {
   reference_mode_strict: 'Modo referência (estrito)',
   reference_mode: 'Modo referência',
@@ -85,10 +78,6 @@ export function humanizeScenePreference(value?: string | null): string {
 
 export function humanizeFidelityMode(value?: string | null): string {
   return labelFor(FIDELITY_LABELS, value);
-}
-
-export function humanizePoseFlexMode(value?: string | null): string {
-  return labelFor(POSE_LABELS, value);
 }
 
 export function humanizePipelineMode(value?: string | null): string {

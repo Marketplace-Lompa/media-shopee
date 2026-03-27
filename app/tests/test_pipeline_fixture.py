@@ -144,7 +144,6 @@ def run_generate(product: str, prompt: str | None) -> None:
     print(f"  preset        : {result.get('preset')}")
     print(f"  fidelity_mode : {result.get('fidelity_mode')}")
     print(f"  scene_pref    : {result.get('scene_preference')}")
-    print(f"  pose_flex     : {result.get('pose_flex_mode')}")
     print(f"  pipeline_mode : {result.get('pipeline_mode')}")
 
     images_out = result.get("images") or []

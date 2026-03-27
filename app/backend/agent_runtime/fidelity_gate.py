@@ -372,7 +372,6 @@ def build_visual_fidelity_gate_policy(
     set_detection: Optional[dict[str, Any]],
     selector_stats: Optional[dict[str, Any]],
     fidelity_mode: str,
-    pose_flex_mode: str,
 ) -> dict[str, Any]:
     contract = structural_contract or {}
     set_info = set_detection or {}
@@ -402,8 +401,7 @@ def build_visual_fidelity_gate_policy(
         reasons.append(f"sleeve_architecture:{sleeve}")
     if lock_mode != "off" or must_include_labels:
         reasons.append(f"coordinated_set:{lock_mode}")
-    if str(pose_flex_mode).strip().lower() == "dynamic":
-        reasons.append("dynamic_pose")
+
 
     enabled = bool(reasons)
     return {
@@ -501,23 +499,6 @@ def _summarize_score(
     return round(min(garment_fidelity, weighted), 3)
 
 
-def suggest_retry_pose_flex_mode(
-    *,
-    current_pose_flex_mode: Optional[str],
-    issue_codes: list[str],
-) -> Optional[str]:
-    pose_mode = str(current_pose_flex_mode or "").strip().lower()
-    issues = set(issue_codes)
-    if not pose_mode:
-        return None
-    if issues & {"pose_over_occlusion", "low_garment_readability"}:
-        if pose_mode == "dynamic":
-            return "balanced"
-        if pose_mode == "balanced":
-            return "controlled"
-    if issues & {"closed_front_error", "invented_sleeve_slit", "invented_sleeves"} and pose_mode == "dynamic":
-        return "balanced"
-    return pose_mode
 
 
 def classify_stage2_repair_strategy(

@@ -10,7 +10,6 @@ from routers import (
     edit as edit_router,
     generate,
     history as history_router,
-    marketplace as marketplace_router,
     pool as pool_router,
     review as review_router,
     stream,
@@ -36,7 +35,6 @@ app.add_middleware(
 app.include_router(generate.router)
 app.include_router(stream.router)
 app.include_router(edit_router.router)
-app.include_router(marketplace_router.router)
 app.include_router(pool_router.router)
 app.include_router(history_router.router)
 app.include_router(review_router.router)
@@ -55,8 +53,6 @@ async def root():
         "endpoints": {
             "POST /generate": "Gera imagens via Agent → Nano Banana 2",
             "POST /generate/stream": "SSE stream com progresso real",
-            "POST /marketplace/async": "Submete fluxo marketplace (slots independentes)",
-            "GET  /marketplace/jobs/{job_id}": "Polling de job do fluxo marketplace",
             "GET  /pool":     "Lista dataset pool (cadastro local)",
             "POST /pool/add": "Adiciona imagem ao pool de dataset (modelo/roupa/cenario)",
             "DELETE /pool/{id}": "Remove referência do pool",

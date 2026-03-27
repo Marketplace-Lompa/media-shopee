@@ -12,7 +12,6 @@ import {
     humanizeFidelityMode,
     humanizeMarketplaceChannel,
     humanizeMarketplaceOperation,
-    humanizePoseFlexMode,
     humanizePreset,
     humanizeScenePreference,
     humanizeSlotId,
@@ -625,7 +624,6 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
         preset?: string;
         scene_preference?: string;
         fidelity_mode?: string;
-        pose_flex_mode?: string;
         repair_applied?: boolean;
     } | null = null;
 
@@ -642,7 +640,6 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
             preset: resp.preset,
             scene_preference: resp.scene_preference,
             fidelity_mode: resp.fidelity_mode,
-            pose_flex_mode: resp.pose_flex_mode,
             repair_applied: resp.repair_applied,
         };
     }
@@ -699,13 +696,12 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
                             </p>
                         </div>
                     ) : null}
-                    {(promptInfo.mode || promptInfo.preset || promptInfo.scene_preference || promptInfo.fidelity_mode || promptInfo.pose_flex_mode) && (
+                    {(promptInfo.mode || promptInfo.preset || promptInfo.scene_preference || promptInfo.fidelity_mode) && (
                         <div className="prompt-meta-badges">
                             {promptInfo.mode && <span className="badge badge--sm badge--accent" title={promptInfo.mode}>{humanizeMode(promptInfo.mode)}</span>}
                             {promptInfo.preset && <span className="badge badge--sm" title={promptInfo.preset}>{humanizePreset(promptInfo.preset)}</span>}
                             {promptInfo.scene_preference && <span className="badge badge--sm" title={promptInfo.scene_preference}>{humanizeScenePreference(promptInfo.scene_preference)}</span>}
                             {promptInfo.fidelity_mode && <span className="badge badge--sm" title={promptInfo.fidelity_mode}>{humanizeFidelityMode(promptInfo.fidelity_mode)}</span>}
-                            {promptInfo.pose_flex_mode && <span className="badge badge--sm" title={promptInfo.pose_flex_mode}>{humanizePoseFlexMode(promptInfo.pose_flex_mode)}</span>}
                             {promptInfo.repair_applied && <span className="badge badge--sm">recovery: on</span>}
                         </div>
                     )}

@@ -10,7 +10,6 @@ export type Mode = 'catalog_clean' | 'natural' | 'lifestyle' | 'editorial_commer
 export type Preset = 'catalog_clean' | 'marketplace_lifestyle' | 'premium_lifestyle' | 'ugc_real_br';
 export type ScenePreference = 'auto_br' | 'indoor_br' | 'outdoor_br';
 export type FidelityMode = 'balanceada' | 'estrita';
-export type PoseFlexMode = 'auto' | 'controlled' | 'balanced' | 'dynamic';
 
 // ── Marketplace types ──
 export type MarketplaceChannel = 'shopee' | 'mercado_livre';
@@ -86,7 +85,6 @@ export interface GenerateRequest {
     preset?: Preset;
     scene_preference?: ScenePreference;
     fidelity_mode?: FidelityMode;
-    pose_flex_mode?: PoseFlexMode;
 }
 
 export interface GeneratedImage {
@@ -200,8 +198,6 @@ export interface GenerateResponse {
     preset?: Preset;
     scene_preference?: ScenePreference;
     fidelity_mode?: FidelityMode;
-    pose_flex_mode?: PoseFlexMode;
-    pose_flex_guideline?: string;
     debug_report_url?: string;
     debug_report_path?: string;
 }
@@ -245,7 +241,6 @@ export interface JobReviewPayload {
         preset?: string | null;
         scene_preference?: string | null;
         fidelity_mode?: string | null;
-        pose_flex_mode?: string | null;
         reference_guard_strength?: string | null;
         selected_names?: Record<string, string[]>;
         structural_contract?: Record<string, unknown> | null;
@@ -292,7 +287,6 @@ export interface MediaHistoryItem {
     preset?: string;
     scene_preference?: string;
     fidelity_mode?: string;
-    pose_flex_mode?: string;
     pipeline_mode?: string;
     // Marketplace
     marketplace_channel?: string;

@@ -46,7 +46,6 @@ _LOG_META_KEYS = [
     "resolution",
     "scene_preference",
     "fidelity_mode",
-    "pose_flex_mode",
     "grounding_strategy",
     "use_grounding",
     "has_images",

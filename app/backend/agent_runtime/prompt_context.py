@@ -105,6 +105,29 @@ def _build_mode_identity_block(mode_id: Optional[str]) -> Optional[str]:
     return f"<MODE_IDENTITY>\n" + "\n".join(lines) + "\n</MODE_IDENTITY>"
 
 
+def _build_semantic_briefs_block(diversity_target: Optional[dict[str, Any]]) -> Optional[str]:
+    dt = diversity_target or {}
+    semantic_briefs = dt.get("semantic_briefs") or {}
+    if not isinstance(semantic_briefs, dict) or not semantic_briefs:
+        return None
+
+    ordered_briefs = [
+        ("SCENE_BRIEF", semantic_briefs.get("scene_brief")),
+        ("MODEL_BRIEF", semantic_briefs.get("model_brief")),
+        ("POSE_BRIEF", semantic_briefs.get("pose_brief")),
+        ("ANGLE_BRIEF", semantic_briefs.get("angle_brief")),
+        ("CAMERA_BRIEF", semantic_briefs.get("camera_brief")),
+    ]
+    lines: list[str] = []
+    for label, value in ordered_briefs:
+        text = str(value or "").strip()
+        if text:
+            lines.append(f"{label}: {text}")
+    if not lines:
+        return None
+    return "<SEMANTIC_BRIEFS>\n" + "\n".join(lines) + "\n</SEMANTIC_BRIEFS>"
+
+
 def _build_output_parameters_block(*, aspect_ratio: str, resolution: str) -> str:
     return f"<OUTPUT_PARAMETERS>\naspect_ratio={aspect_ratio}\nresolution={resolution}\n</OUTPUT_PARAMETERS>"
 
@@ -174,7 +197,8 @@ def _build_diversity_target_block(
         "Keep the model distinctly Brazilian in a believable, non-stereotyped way.\n"
         f"{persona_creation_rule}"
         "Keep the garment as the hero. Model presence is secondary.\n"
-        "Scenario, framing, lighting, and pose come from MODE_PRESETS. Follow those directions.\n"
+        "Scenario, model, pose, angle, and camera direction come first from MODE_IDENTITY and SEMANTIC_BRIEFS.\n"
+        "Use MODE_PRESETS only as operational defaults and guardrails, not as the creative author of the image.\n"
         "Inside those directions, invent a fresh specific solution instead of repeating a generic safe default.\n"
         "Never mention preset labels or metatextual terms like capture geometry, scenario family, or lighting profile in the final prompt.\n"
         "Write one canonical final prompt directly usable by the image generator.\n"
@@ -223,16 +247,16 @@ def _build_diversity_target_block(
 
     scene_direction = dt.get("scene_direction") or {}
     if scene_state and not scene_direction:
-        # ── CATALOG_CLEAN: prescritivo → cenário fixo de estúdio ──
+        # ── CATALOG_CLEAN: estado operacional do briefing de cenário ──
         block += (
-            "SCENE LATENT STATE (prescriptive — follow this scene direction precisely):\n"
+            "SCENE LATENT STATE (operational resolution of the active scene brief):\n"
             f"  - world family: {scene_state.get('world_family', '')}\n"
             f"  - microcontext: {scene_state.get('microcontext', '')}\n"
             f"  - emotional register: {scene_state.get('emotional_register', '')}\n"
             f"  - material language: {scene_state.get('material_language', '')}\n"
             f"  - background density: {scene_state.get('background_density', '')}\n"
             f"  - Brazil anchor: {scene_state.get('brazil_anchor', '')}\n"
-            "Follow this scene specification precisely. Do not deviate.\n"
+            "Use this as the concrete scene realization while keeping the environment quiet, controlled, and subordinate to the garment.\n"
         )
     if capture_state:
         block += (
@@ -518,13 +542,17 @@ def build_generate_context_text(
         )
     ]
 
-    mode_presets_block = _build_mode_presets_block(mode_defaults_text)
-    if mode_presets_block:
-        blocks.append(mode_presets_block)
-
     mode_identity_block = _build_mode_identity_block(mode_id)
     if mode_identity_block:
         blocks.append(mode_identity_block)
+
+    semantic_briefs_block = _build_semantic_briefs_block(diversity_target)
+    if semantic_briefs_block:
+        blocks.append(semantic_briefs_block)
+
+    mode_presets_block = _build_mode_presets_block(mode_defaults_text)
+    if mode_presets_block:
+        blocks.append(mode_presets_block)
 
     if pool_context.strip():
         blocks.append(f"<POOL_CONTEXT>\n{pool_context}\n</POOL_CONTEXT>")

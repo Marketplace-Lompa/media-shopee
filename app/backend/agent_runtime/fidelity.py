@@ -29,7 +29,7 @@ _LENGTH_PHRASES = {
 _REFERENCE_USAGE_RULES_BASE = [
     "Use all references only as GARMENT references for shape, fabric, stitch, and color behavior.",
     "Never transfer identity from references: do not copy face, skin tone, body type, hairline, hairstyle, or age impression.",
-    "Never repeat the exact composition, framing, or dominant gesture from the references. Keep the garment completely faithful, but create an entirely new context and physical presence.",
+    "Keep the garment completely faithful, but create an entirely new person and physical presence around it.",
 ]
 
 _REFERENCE_USAGE_RULES_STRICT = [
@@ -41,6 +41,132 @@ _REFERENCE_USAGE_RULES_HIGH_GUARD = [
     "Use references for garment-only visual evidence; identity transfer from references is strictly forbidden.",
     "Deliberately separate facial geometry from references by changing jawline, eye spacing, nose bridge, lip shape, and hairline.",
 ]
+
+
+# ── Guardrails de modo ───────────────────────────────────────────────────
+
+def _guardrail_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _build_mode_guardrail_clauses(mode_guardrails: Optional[dict[str, Any]]) -> list[str]:
+    if not isinstance(mode_guardrails, dict):
+        return []
+
+    clauses: list[str] = []
+    guardrail_profile = _guardrail_text(mode_guardrails.get("guardrail_profile"))
+    if guardrail_profile:
+        clauses.append(f"Mode guardrail profile: {guardrail_profile}.")
+
+    mode_hard_rules = [
+        _guardrail_text(item)
+        for item in (mode_guardrails.get("mode_hard_rules") or [])
+        if _guardrail_text(item)
+    ]
+    if mode_hard_rules:
+        clauses.append("Mode hard rules: " + "; ".join(mode_hard_rules) + ".")
+
+    scene = mode_guardrails.get("scene_constraints") or {}
+    if isinstance(scene, dict):
+        backdrop = _guardrail_text(scene.get("backdrop")) or _guardrail_text(scene.get("backdrop_mode"))
+        if backdrop:
+            clauses.append(f"Scene constraint: {backdrop}.")
+        scene_role = _guardrail_text(scene.get("role"))
+        if scene_role:
+            clauses.append(f"Scene role: {scene_role}.")
+        rigidity = _guardrail_text(scene.get("rigidity")) or _guardrail_text(scene.get("context_rigidity"))
+        if rigidity:
+            clauses.append(f"Scene rigidity: {rigidity}.")
+        environment_competition = _guardrail_text(scene.get("environment_competition"))
+        if environment_competition:
+            clauses.append(f"Environment competition tolerance: {environment_competition}.")
+        if scene.get("needs_piece_first_readability"):
+            clauses.append("Prioritize piece-first readability over environmental storytelling.")
+        if _guardrail_text(scene.get("detail_preservation")):
+            clauses.append(f"Scene detail preservation: {_guardrail_text(scene.get('detail_preservation'))}.")
+
+    pose = mode_guardrails.get("pose_constraints") or {}
+    if isinstance(pose, dict):
+        pose_bits: list[str] = []
+        movement_budget = _guardrail_text(pose.get("movement_budget"))
+        if movement_budget:
+            pose_bits.append(f"movement budget {movement_budget}")
+        frontality_bias = _guardrail_text(pose.get("frontality_bias"))
+        if frontality_bias:
+            pose_bits.append(f"frontality bias {frontality_bias}")
+        occlusion_tolerance = _guardrail_text(pose.get("occlusion_tolerance"))
+        if occlusion_tolerance:
+            pose_bits.append(f"occlusion tolerance {occlusion_tolerance}")
+        allowed_variation = _guardrail_text(pose.get("allowed_variation"))
+        if allowed_variation:
+            pose_bits.append(f"allowed variation {allowed_variation}")
+        gesture_range = _guardrail_text(pose.get("gesture_range"))
+        if gesture_range:
+            pose_bits.append(f"gesture range {gesture_range}")
+        silhouette_priority = _guardrail_text(pose.get("silhouette_priority"))
+        if silhouette_priority:
+            pose_bits.append(f"silhouette priority {silhouette_priority}")
+        if pose_bits:
+            clauses.append("Pose guardrails: " + ", ".join(pose_bits) + ".")
+        if movement_budget == "low" and frontality_bias == "front":
+            clauses.append("Keep the stance quiet, frontal, and catalog-stable with minimal motion.")
+
+    capture = mode_guardrails.get("capture_constraints") or {}
+    if isinstance(capture, dict):
+        capture_bits = [
+            _guardrail_text(capture.get("framing_profile")) or _guardrail_text(capture.get("framing_priority")),
+            _guardrail_text(capture.get("camera_type")) or _guardrail_text(capture.get("camera_language")),
+            _guardrail_text(capture.get("capture_geometry")) or _guardrail_text(capture.get("angle_bias")),
+            _guardrail_text(capture.get("lighting_profile")) or _guardrail_text(capture.get("depth_context")),
+        ]
+        capture_bits = [item for item in capture_bits if item]
+        if capture_bits:
+            clauses.append("Capture guardrails: " + ", ".join(capture_bits) + ".")
+
+    identity_guard = mode_guardrails.get("identity_guard") or {}
+    if isinstance(identity_guard, dict):
+        identity_bits: list[str] = []
+        scope = _guardrail_text(identity_guard.get("identity_scope"))
+        if scope:
+            identity_bits.append(f"scope {scope}")
+        reference_use = _guardrail_text(identity_guard.get("reference_use"))
+        if reference_use:
+            identity_bits.append(f"reference use {reference_use}")
+        if identity_guard.get("transfer_allowed") is False:
+            identity_bits.append("no identity transfer")
+        if identity_guard.get("strict") is True:
+            identity_bits.append("strict identity lock")
+        if identity_bits:
+            clauses.append("Identity guard: " + ", ".join(identity_bits) + ".")
+
+    return clauses
+
+
+def _build_reference_usage_clauses(mode_guardrails: Optional[dict[str, Any]]) -> list[str]:
+    if not isinstance(mode_guardrails, dict):
+        return []
+
+    identity_guard = mode_guardrails.get("identity_guard") or {}
+    guardrail_profile = _guardrail_text(mode_guardrails.get("guardrail_profile"))
+    clauses: list[str] = []
+
+    forbid_pose_clone = bool(identity_guard.get("forbid_pose_clone"))
+    forbid_composition_clone = bool(identity_guard.get("forbid_composition_clone"))
+
+    if forbid_pose_clone:
+        clauses.append(
+            "Do not copy the dominant gesture from references unless the user brief explicitly requires it."
+        )
+    if forbid_composition_clone:
+        clauses.append(
+            "Avoid repeating the exact composition or framing from references when a fresh composition can preserve garment readability."
+        )
+    elif guardrail_profile == "strict_catalog":
+        clauses.append(
+            "You may keep a commercially familiar catalog composition when it best preserves garment readability, but do not clone the reference person's exact body language."
+        )
+
+    return clauses
 
 
 # ── Guards de estrutura ──────────────────────────────────────────────────
@@ -178,9 +304,11 @@ def build_reference_policy(
     *,
     strength: str = "standard",
     extra_rules: Optional[list[str]] = None,
+    mode_guardrails: Optional[dict[str, Any]] = None,
 ) -> str:
     """Monta a política de uso de referências por nível de proteção."""
     dynamic_rules = list(extra_rules or [])
+    dynamic_rules.extend(_build_reference_usage_clauses(mode_guardrails))
     base_rules = list(_REFERENCE_USAGE_RULES_BASE)
     level = str(strength).strip().lower()
     if level in {"strict", "high"}:
@@ -329,7 +457,8 @@ def compile_edit_prompt(
     garment_color: str = "the garment colors and yarn tones",
     reference_guard_strength: str = "standard",
     reference_usage_rules: Optional[list[str]] = None,
-    pose_flex_guideline: Optional[str] = None,
+    mode_guardrails: Optional[dict[str, Any]] = None,
+
     user_prompt: Optional[str] = None,
     image_analysis: Optional[str] = None,
     look_contract: Optional[dict[str, Any]] = None,
@@ -355,7 +484,11 @@ def compile_edit_prompt(
     reference_policy = build_reference_policy(
         strength=reference_guard_strength,
         extra_rules=reference_usage_rules,
+        mode_guardrails=mode_guardrails,
     )
+
+    # 4. Mode guardrails
+    mode_guardrail_clauses = _build_mode_guardrail_clauses(mode_guardrails)
 
     # 4. Neckline guard
     neckline_guard = _closed_neckline_guard(structural_contract)
@@ -374,21 +507,15 @@ def compile_edit_prompt(
                 f"(styling incoherence): {items}."
             )
 
-    # 6. Pose flex
-    pose_flex = (
-        str(pose_flex_guideline).strip()
-        if str(pose_flex_guideline or "").strip()
-        else "Allow a naturally varied pose while preserving garment silhouette and readability."
-    )
 
-    # 7. Texture fidelity
+    # 6. Texture fidelity
     texture_clause = (
         f"Render the garment with macro-accurate {garment_material}, "
         f"correct fabric weight, consistent stitch definition, "
         f"and realistic light absorption across {garment_color}."
     )
 
-    # 8. Compile: deterministic shell + creative soul
+    # 7. Compile: deterministic shell + creative soul
     sentences = [
         str(angle_directive or "").strip(),
         (
@@ -406,7 +533,8 @@ def compile_edit_prompt(
             "locked garment object. Only the model identity, pose, camera, "
             "and environment may change."
         ),
-        pose_flex,
+        *mode_guardrail_clauses,
+
         # Creative direction (SOUL — from mode, LLM invents freely)
         art_direction_soul,
         neckline_guard,

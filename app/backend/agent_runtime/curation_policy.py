@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any, Optional, TypedDict
 
-from agent_runtime.mode_identity_soul import get_mode_soul_statement
+from agent_runtime.mode_profile import get_mode_profile
 from agent_runtime.structural import (
     is_selfie_capture_compatible,
     is_spatially_sensitive_garment,
@@ -12,16 +12,10 @@ from agent_runtime.structural import (
 
 _SCENE_AFFINITY: dict[str, str] = {
     "auto_br": "",
-    "indoor_br": "indoor brazilian apartment loft showroom",
-    "outdoor_br": "outdoor brazilian street balcony boardwalk architecture",
+    "indoor_br": "indoor_br",
+    "outdoor_br": "outdoor_br",
 }
 
-POSE_FLEX_HINTS: dict[str, str] = {
-    "controlled": "stable catalog pose with low occlusion and clear front garment readability",
-    "balanced": "natural varied pose with mild movement while keeping silhouette readability",
-    "dynamic": "dynamic lifestyle pose with stride, half-turn, or gesture while preserving garment geometry",
-}
-POSE_FLEX_MODES = {"auto", "controlled", "balanced", "dynamic"}
 
 _STABLE_POSE_IDS = [
     "front_relaxed_hold",
@@ -48,6 +42,57 @@ _MOVEMENT_POSE_IDS = [
     "twist_step_forward",
 ]
 
+_CATALOG_SCENES = ["br_showroom_sp", "br_brasilia_concrete_gallery"]
+_INDOOR_COMMERCIAL_SCENES = ["br_pinheiros_living", "br_rio_art_loft", "br_porto_alegre_bookstore"]
+_OUTDOOR_COMMERCIAL_SCENES = ["br_recife_balcony", "br_floripa_boardwalk", "br_salvador_colonial_street"]
+_UGC_INDOOR_SCENES = ["br_boutique_floor", "br_fitting_room_mirror", "br_elevator_mirror", "br_bedroom_window"]
+_UGC_OUTDOOR_SCENES = ["br_bairro_sidewalk", "br_recife_balcony"]
+
+_PREMIUM_CASTING = ["br_minimal_premium", "br_soft_editorial", "br_afro", "br_mature_elegante"]
+_NATURAL_CASTING = ["br_everyday_natural", "br_warm_commercial", "br_morena_clara", "br_afro"]
+_UGC_CASTING = ["br_social_creator", "br_everyday_natural", "br_loira_natural", "br_morena_clara"]
+
+_COMMERCIAL_CAMERAS = ["canon_balanced", "sony_documentary"]
+_NATURAL_CAMERAS = ["sony_documentary", "fujifilm_candid", "canon_balanced"]
+_PHONE_CAMERAS = ["phone_cameraroll", "phone_clean", "phone_direct_flash"]
+
+_CATALOG_LIGHTING = ["clean_showroom", "window_daylight"]
+_NATURAL_LIGHTING = ["window_daylight", "open_shade_daylight", "cloudy_tropical"]
+_EDITORIAL_LIGHTING = ["window_daylight", "mixed_window_lamp", "open_shade_daylight"]
+_UGC_LIGHTING = ["phone_practical_mixed", "phone_flash_direct", "window_daylight"]
+
+
+class IdentityGuard(TypedDict):
+    strength: str
+    risk: str
+    forbid_identity_transfer: bool
+    forbid_pose_clone: bool
+    forbid_composition_clone: bool
+    prioritize_identity_safe_refs: bool
+    rules: list[str]
+
+
+class SceneConstraints(TypedDict):
+    context_rigidity: str
+    backdrop_mode: str
+    allow_context_invention: bool
+    environment_competition: str
+
+
+class PoseConstraints(TypedDict):
+    movement_budget: str
+    frontality_bias: str
+    occlusion_tolerance: str
+    gesture_range: str
+    silhouette_priority: str
+
+
+class CaptureConstraints(TypedDict):
+    camera_language: str
+    framing_priority: str
+    angle_bias: str
+    depth_context: str
+
 
 class ArtDirectionSelectionPolicy(TypedDict):
     preferred_scene_ids: list[str]
@@ -61,6 +106,13 @@ class ArtDirectionSelectionPolicy(TypedDict):
     preferred_pose_ids: list[str]
     avoid_pose_ids: list[str]
     ugc_intent: str
+    identity_guard: IdentityGuard
+    scene_constraints: SceneConstraints
+    pose_constraints: PoseConstraints
+    capture_constraints: CaptureConstraints
+    movement_budget: str
+    frontality_bias: str
+    occlusion_tolerance: str
 
 
 def _lighting_signature_policy_enabled() -> bool:
@@ -99,21 +151,81 @@ def apply_selection_policy(
     return ids
 
 
+def _mode_guardrail_profile(mode: Optional[str]) -> str:
+    return get_mode_profile(mode).guardrail_profile
+
+
+def _movement_budget_from_guardrail(
+    *,
+    guardrail_profile: str,
+    strict_mode: bool,
+    spatially_sensitive: bool,
+) -> str:
+    """Derive movement budget from guardrail_profile (Soul-First)."""
+    if guardrail_profile == "strict_catalog" or strict_mode:
+        return "low"
+    if spatially_sensitive:
+        return "medium"
+    if guardrail_profile == "lifestyle_permissive":
+        return "medium-high"
+    if guardrail_profile == "editorial_controlled":
+        return "medium"
+    return "medium"
+
+
+def _frontality_bias_from_guardrail(*, guardrail_profile: str, scene_preference: str) -> str:
+    if guardrail_profile == "strict_catalog":
+        return "front"
+    if guardrail_profile == "editorial_controlled":
+        return "slight_angle"
+    if guardrail_profile == "natural_commercial":
+        return "slight_angle"
+    if scene_preference == "outdoor_br":
+        return "free"
+    return "slight_angle"
+
+
+def _occlusion_tolerance_from_guardrail(
+    *,
+    guardrail_profile: str,
+    strict_mode: bool,
+    spatially_sensitive: bool,
+) -> str:
+    if guardrail_profile == "strict_catalog" or strict_mode or spatially_sensitive:
+        return "low"
+    if guardrail_profile == "lifestyle_permissive":
+        return "medium"
+    return "medium"
+
+
+def _ugc_intent(
+    *,
+    text: str,
+    spatially_sensitive: bool,
+    selfie_compatible: bool,
+) -> str:
+    ugc_like = any(token in text for token in ("ugc", "cliente real", "review real", "depoimento", "social proof"))
+    if not ugc_like:
+        return "none"
+    if any(token in text for token in ("selfie", "mirror selfie", "espelho", "mirror")) and selfie_compatible:
+        return "mirror_tryon"
+    if any(token in text for token in ("boutique", "loja", "store", "provador", "fitting room", "creator", "influencer")):
+        return "boutique_creator"
+    if any(token in text for token in ("casa", "quarto", "closet", "apartamento", "janela")):
+        return "at_home_creator"
+    if spatially_sensitive:
+        return "boutique_creator"
+    return "friend_shot_review"
+
+
 def build_affinity_prompt(
     user_prompt: Optional[str],
     mode: str,
     scene_preference: str,
 ) -> Optional[str]:
-    parts = []
-    if user_prompt and user_prompt.strip():
-        parts.append(user_prompt.strip())
-    mode_soul = get_mode_soul_statement(mode)
-    if mode_soul:
-        parts.append(mode_soul)
-    scene_kw = _SCENE_AFFINITY.get(scene_preference, "")
-    if scene_kw:
-        parts.append(scene_kw)
-    return " ".join(parts) if parts else None
+    del mode, scene_preference
+    prompt = str(user_prompt or "").strip()
+    return prompt or None
 
 
 def derive_reference_budget(
@@ -143,63 +255,66 @@ def derive_reference_budget(
     }
 
 
-def derive_reference_guard_config(
+def derive_reference_guard_bundle(
     *,
     selector_stats: Optional[dict[str, Any]],
     fidelity_mode: str,
-) -> tuple[str, list[str]]:
+    mode: Optional[str] = None,
+) -> IdentityGuard:
     stats = selector_stats or {}
     risk = str(stats.get("identity_reference_risk", "low") or "low").strip().lower()
-    if str(fidelity_mode).strip().lower() == "estrita":
-        guard = "strict"
+    guardrail_profile = _mode_guardrail_profile(mode)
+    strict_mode = str(fidelity_mode).strip().lower() == "estrita" or guardrail_profile == "strict_catalog"
+
+    if strict_mode:
+        strength = "strict"
     elif risk == "high":
-        guard = "high"
+        strength = "high"
     elif risk == "medium":
-        guard = "strict"
+        strength = "strict"
     else:
-        guard = "standard"
+        strength = "standard"
+
     rules = [
         "References are visual evidence for garment fidelity only.",
         "Do not copy any human identity traits from references.",
     ]
+    if guardrail_profile != "strict_catalog":
+        rules.append(
+            "Do not repeat the dominant gesture from references unless the user brief explicitly requires it."
+        )
     if risk in {"medium", "high"}:
-        rules.append("Prioritize detail anchors and identity-safe references over worn references when conflicts appear.")
+        rules.append(
+            "Prioritize detail anchors and identity-safe references over worn references when conflicts appear."
+        )
     if risk == "high":
         rules.append("If a reference has a visible face, treat that face as forbidden content for transfer.")
-    return guard, rules
+
+    return {
+        "strength": strength,
+        "risk": risk,
+        "forbid_identity_transfer": True,
+        "forbid_pose_clone": True,
+        "forbid_composition_clone": guardrail_profile != "strict_catalog",
+        "prioritize_identity_safe_refs": risk in {"medium", "high"},
+        "rules": rules,
+    }
 
 
-def resolve_auto_pose_flex_mode(
+def derive_reference_guard_config(
     *,
-    user_prompt: Optional[str],
-    structural_contract: Optional[dict[str, Any]],
     selector_stats: Optional[dict[str, Any]],
     fidelity_mode: str,
-    mode: str = "natural",
-) -> str:
-    text = str(user_prompt or "").strip().lower()
-    spatially_sensitive = is_spatially_sensitive_garment(
-        structural_contract,
+    mode: Optional[str] = None,
+) -> tuple[str, list[str]]:
+    bundle = derive_reference_guard_bundle(
         selector_stats=selector_stats,
+        fidelity_mode=fidelity_mode,
+        mode=mode,
     )
-
-    if any(token in text for token in ("tradicional", "catalog", "catálogo", "estavel", "estável", "parada", "static", "still")):
-        return "controlled"
-    if any(token in text for token in ("movimento", "dinam", "walking", "stride", "editorial", "lookbook", "fashion pose", "criativa", "creative")):
-        return "dynamic"
-
-    if str(fidelity_mode).strip().lower() == "estrita":
-        return "controlled"
-    if spatially_sensitive:
-        return "balanced"
-    return "dynamic"
+    return bundle["strength"], bundle["rules"]
 
 
-def normalize_pose_flex_mode(raw_mode: Optional[str]) -> str:
-    mode = str(raw_mode or "auto").strip().lower()
-    if mode in POSE_FLEX_MODES:
-        return mode
-    return "auto"
 
 
 def stage1_candidate_count(
@@ -223,43 +338,25 @@ def derive_art_direction_selection_policy(
     lighting_signature: Optional[dict[str, Any]] = None,
     user_prompt: Optional[str],
     fidelity_mode: str,
-    pose_flex_mode: str,
     selector_stats: Optional[dict[str, Any]] = None,
     structural_contract: Optional[dict[str, Any]] = None,
 ) -> ArtDirectionSelectionPolicy:
     stats = selector_stats or {}
     text = " ".join(
-        part for part in [
+        part
+        for part in [
             str(user_prompt or "").strip(),
             image_analysis_hint,
             structural_hint,
             preset,
             scene_preference,
             fidelity_mode,
-            pose_flex_mode,
         ]
         if part
     ).lower()
 
-    strict_mode = str(fidelity_mode).strip().lower() == "estrita"
-    ugc_like = any(
-        token in text for token in ("ugc", "cliente real", "review real", "depoimento", "social proof")
-    )
-    premium_like = not ugc_like and (preset in {"editorial_commercial", "catalog_clean"} or any(
-        token in text for token in ("premium", "editorial", "catalog", "sofistic", "ensaio")
-    ))
-    outdoor_like = scene_preference == "outdoor_br" or any(
-        token in text for token in ("outdoor", "balcony", "street", "boardwalk", "coastal", "architecture")
-    )
-    detail_sensitive_garment = any(
-        token in text for token in ("crochet", "knit", "textured", "ruana", "poncho", "cape", "kimono", "modal", "pullover")
-    )
-    complex_garment = bool(stats.get("complex_garment"))
-    wants_selfie = any(token in text for token in ("selfie", "mirror selfie", "espelho", "mirror", "provador", "fitting room"))
-    wants_boutique = any(token in text for token in ("boutique", "loja", "store", "provador", "fitting room"))
-    wants_creator_energy = any(token in text for token in ("influencer", "creator", "criadora", "cativante", "impactante", "expressiv", "social-commerce", "social"))
-    identity_risk = str(stats.get("identity_reference_risk", "low") or "low").strip().lower()
-    front_opening = str((structural_contract or {}).get("front_opening", "") or "").strip().lower()
+    guardrail_profile = _mode_guardrail_profile(preset)
+    strict_mode = str(fidelity_mode).strip().lower() == "estrita" or guardrail_profile == "strict_catalog"
     spatially_sensitive = is_spatially_sensitive_garment(
         structural_contract,
         set_detection=None,
@@ -269,327 +366,183 @@ def derive_art_direction_selection_policy(
         structural_contract,
         selector_stats=selector_stats,
     )
+    ugc_intent = _ugc_intent(
+        text=text,
+        spatially_sensitive=spatially_sensitive,
+        selfie_compatible=selfie_compatible,
+    )
+    ugc_like = ugc_intent != "none"
     lighting = lighting_signature if isinstance(lighting_signature, dict) else {}
     lighting_style = str(lighting.get("source_style", "") or "").strip().lower()
-    light_hardness = str(lighting.get("light_hardness", "") or "").strip().lower()
-    light_direction = str(lighting.get("light_direction", "") or "").strip().lower()
     integration_risk = str(lighting.get("integration_risk", "") or "").strip().lower()
-    contrast_level = str(lighting.get("contrast_level", "") or "").strip().lower()
-    ugc_intent = "none"
-    if ugc_like:
-        if wants_selfie and selfie_compatible:
-            ugc_intent = "mirror_tryon"
-        elif wants_boutique or wants_creator_energy:
-            ugc_intent = "boutique_creator"
-        elif any(token in text for token in ("review", "provando", "mostrando", "look do dia", "recomend", "depoimento")):
-            ugc_intent = "friend_shot_review"
-        elif any(token in text for token in ("casa", "quarto", "closet", "apartamento", "janela")):
-            ugc_intent = "at_home_creator"
-        elif spatially_sensitive:
-            ugc_intent = "boutique_creator"
-        else:
-            ugc_intent = "friend_shot_review"
 
-    scene_preferred: list[str] = []
-    scene_avoid: list[str] = []
-    camera_preferred: list[str] = []
-    camera_avoid: list[str] = []
-    lighting_preferred: list[str] = []
-    lighting_avoid: list[str] = []
-    casting_preferred: list[str] = []
-    casting_avoid: list[str] = []
-    pose_preferred: list[str] = []
-    pose_avoid: list[str] = []
+    movement_budget = _movement_budget_from_guardrail(
+        guardrail_profile=guardrail_profile,
+        strict_mode=strict_mode,
+        spatially_sensitive=spatially_sensitive,
+    )
+    frontality_bias = _frontality_bias_from_guardrail(
+        guardrail_profile=guardrail_profile,
+        scene_preference=scene_preference,
+    )
+    occlusion_tolerance = _occlusion_tolerance_from_guardrail(
+        guardrail_profile=guardrail_profile,
+        strict_mode=strict_mode,
+        spatially_sensitive=spatially_sensitive,
+    )
 
-    if ugc_like:
-        scene_avoid.extend(["br_showroom_sp", "br_bh_rooftop_lounge", "br_rio_art_loft", "br_brasilia_concrete_gallery"])
-        lighting_preferred.extend(["open_shade_daylight", "cloudy_tropical", "window_daylight", "overcast_cafe", "mixed_window_lamp", "phone_practical_mixed"])
-        lighting_avoid.extend(["clean_showroom"])
-
-        casting_preferred.extend([
-            "br_social_creator",
-            "br_morena_clara",
-            "br_nordestina",
-            "br_everyday_natural",
-            "br_mulata_cacheada",
-            "br_cabocla",
-            "br_warm_commercial",
-            "br_soft_editorial",
-            "br_loira_natural",
-            "br_afro",
-        ])
-        casting_avoid.extend(["br_minimal_premium", "br_mature_elegante"])
-        if strict_mode or detail_sensitive_garment:
-            if selfie_compatible:
-                camera_preferred.extend(["phone_front_selfie", "phone_cameraroll", "phone_direct_flash", "sony_documentary", "fujifilm_candid"])
-            else:
-                camera_preferred.extend(["phone_cameraroll", "sony_documentary", "fujifilm_candid", "canon_balanced"])
-        else:
-            camera_preferred.extend(["phone_front_selfie", "phone_cameraroll", "phone_direct_flash", "phone_clean", "sony_documentary", "fujifilm_candid", "nikon_street"])
-            camera_avoid.append("canon_balanced")
-        if scene_preference == "indoor_br":
-            scene_preferred.extend(["br_boutique_floor", "br_fitting_room_mirror", "br_elevator_mirror", "br_condo_hallway", "br_bedroom_window", "br_curitiba_cafe"])
-            if selfie_compatible:
-                lighting_preferred.append("phone_flash_direct")
-        elif scene_preference == "outdoor_br":
-            scene_preferred.extend(["br_bairro_sidewalk", "br_salvador_colonial_street", "br_floripa_boardwalk", "br_recife_balcony"])
-        else:
-            scene_preferred.extend([
-                "br_boutique_floor",
-                "br_fitting_room_mirror",
-                "br_elevator_mirror",
-                "br_condo_hallway",
-                "br_bedroom_window",
-                "br_curitiba_cafe",
-                "br_bairro_sidewalk",
-                "br_salvador_colonial_street",
-                "br_floripa_boardwalk",
-                "br_recife_balcony",
-            ])
-
-        if wants_creator_energy:
-            casting_preferred = dedupe_preserve_order([
-                "br_social_creator",
-                "br_morena_clara",
-                "br_loira_natural",
-                *casting_preferred,
-            ])
-
-        if wants_boutique:
-            scene_preferred = dedupe_preserve_order([
-                "br_boutique_floor",
-                "br_fitting_room_mirror",
-                "br_elevator_mirror",
-                *scene_preferred,
-            ])
-            lighting_preferred = dedupe_preserve_order([
-                "phone_practical_mixed",
-                "phone_flash_direct",
-                "window_daylight",
-                *lighting_preferred,
-            ])
-            pose_preferred.extend(["influencer_hip_pop", "shoulder_turn_smile", "one_hand_hair_glance", "phone_low_hand_snapshot"])
-
-        if wants_selfie and selfie_compatible:
-            scene_preferred = dedupe_preserve_order([
-                "br_fitting_room_mirror",
-                "br_elevator_mirror",
-                "br_boutique_floor",
-                *scene_preferred,
-            ])
-            camera_preferred = dedupe_preserve_order([
-                "phone_front_selfie",
-                "phone_direct_flash",
-                "phone_cameraroll",
-                *camera_preferred,
-            ])
-            lighting_preferred = dedupe_preserve_order([
-                "phone_flash_direct",
-                "phone_practical_mixed",
-                *lighting_preferred,
-            ])
-            pose_preferred.extend(["mirror_selfie_offset", "one_hand_hair_glance", "influencer_hip_pop"])
-            pose_avoid.extend(["standing_3q_relaxed", "front_relaxed_hold"])
-
-        if ugc_intent == "mirror_tryon":
-            scene_preferred = dedupe_preserve_order([
-                "br_fitting_room_mirror",
-                "br_elevator_mirror",
-                "br_boutique_floor",
-                *scene_preferred,
-            ])
-            camera_preferred = dedupe_preserve_order([
-                "phone_front_selfie",
-                "phone_direct_flash",
-                "phone_cameraroll",
-                *camera_preferred,
-            ])
-            lighting_preferred = dedupe_preserve_order([
-                "phone_flash_direct",
-                "phone_practical_mixed",
-                *lighting_preferred,
-            ])
-            pose_preferred.extend(["mirror_selfie_offset", "one_hand_hair_glance", "influencer_hip_pop", "shoulder_turn_smile"])
-            pose_avoid.extend(["standing_3q_relaxed", "front_relaxed_hold"])
-        elif ugc_intent == "boutique_creator":
-            scene_preferred = [
-                "br_boutique_floor",
-                "br_fitting_room_mirror",
-                "br_elevator_mirror",
-            ]
-            camera_preferred = dedupe_preserve_order([
-                "phone_cameraroll",
-                "phone_direct_flash",
-                *(["phone_front_selfie"] if selfie_compatible else []),
-            ])
-            lighting_preferred = dedupe_preserve_order([
-                "phone_practical_mixed",
-                "phone_flash_direct",
-                "window_daylight",
-            ])
-            if spatially_sensitive or front_opening == "open":
-                pose_preferred = dedupe_preserve_order([
-                    "phone_low_hand_snapshot",
-                    "shoulder_turn_smile",
-                    "doorway_pause_candid",
-                    "half_turn_lookback",
-                ])
-                pose_avoid.extend(["mirror_selfie_offset", "walking_stride_controlled", "standing_full_shift", "front_relaxed_hold", "standing_3q_relaxed"])
-            else:
-                pose_preferred = dedupe_preserve_order([
-                    "influencer_hip_pop",
-                    "shoulder_turn_smile",
-                    "one_hand_hair_glance",
-                    "phone_low_hand_snapshot",
-                    "mirror_selfie_offset",
-                    "half_turn_lookback",
-                    "casual_walkby_glance",
-                    "doorway_pause_candid",
-                ])
-                pose_avoid.extend(["standing_full_shift", "front_relaxed_hold", "soft_wall_lean"])
-        elif ugc_intent == "friend_shot_review":
-            scene_preferred = dedupe_preserve_order([
-                "br_boutique_floor",
-                "br_condo_hallway",
-                "br_curitiba_cafe",
-                "br_bedroom_window",
-                "br_bairro_sidewalk",
-                *scene_preferred,
-            ])
-            camera_preferred = dedupe_preserve_order([
-                "phone_cameraroll",
-                "phone_clean",
-                "sony_documentary",
-                *camera_preferred,
-            ])
-            pose_preferred.extend(["phone_low_hand_snapshot", "shoulder_turn_smile", "doorway_pause_candid", "casual_walkby_glance", "half_turn_lookback", "paused_mid_step", "one_hand_hair_glance", "influencer_hip_pop"])
-        elif ugc_intent == "at_home_creator":
-            scene_preferred = dedupe_preserve_order([
-                "br_bedroom_window",
-                "br_pinheiros_living",
-                "br_condo_hallway",
-                *scene_preferred,
-            ])
-            camera_preferred = dedupe_preserve_order([
-                "phone_cameraroll",
-                "phone_direct_flash",
-                "phone_clean",
-                *camera_preferred,
-            ])
-            pose_preferred.extend(["one_hand_hair_glance", "phone_low_hand_snapshot", "shoulder_turn_smile", "doorway_pause_candid", "casual_walkby_glance", "influencer_hip_pop", "mirror_selfie_offset"])
-
-    if premium_like or ((detail_sensitive_garment or strict_mode) and not ugc_like):
-        camera_preferred.extend(["canon_balanced", "sony_documentary", "fujifilm_candid"])
-        camera_avoid.append("phone_clean")
-        casting_preferred.extend(["br_minimal_premium", "br_soft_editorial", "br_afro", "br_mature_elegante", "br_sulista"])
-        if preset != "marketplace_lifestyle":
-            casting_avoid.append("br_warm_commercial")
-
-    if outdoor_like and (premium_like or detail_sensitive_garment or strict_mode):
-        lighting_preferred.extend(["open_shade_daylight", "cloudy_tropical"])
-        lighting_avoid.append("coastal_late_morning")
-    elif premium_like or strict_mode:
-        lighting_preferred.extend(["window_daylight", "clean_showroom", "mixed_window_lamp"])
-
-    if identity_risk == "high":
-        camera_preferred.insert(0, "canon_balanced")
-        casting_preferred.extend(["br_mature_elegante", "br_soft_editorial"])
-
-    if _lighting_signature_policy_enabled() and integration_risk == "high":
-        camera_preferred = ["canon_balanced", "sony_documentary", *camera_preferred]
-        camera_avoid.extend(["phone_clean", "fujifilm_candid"])
-        if scene_preference == "outdoor_br":
-            scene_preferred.extend(["br_brasilia_concrete_gallery", "br_recife_balcony", "br_floripa_boardwalk"])
-            scene_avoid.extend(["br_salvador_colonial_street", "br_bh_rooftop_lounge"])
-            lighting_preferred.extend(["open_shade_daylight", "cloudy_tropical"])
-            lighting_avoid.extend(["golden_hour_soft", "coastal_late_morning"])
-        else:
-            scene_preferred.extend(["br_showroom_sp", "br_pinheiros_living", "br_rio_art_loft", "br_porto_alegre_bookstore"])
-            scene_avoid.extend(["br_salvador_colonial_street", "br_bh_rooftop_lounge"])
-            lighting_preferred.extend(["clean_showroom", "window_daylight", "mixed_window_lamp"])
-            lighting_avoid.extend(["golden_hour_soft"])
+    if guardrail_profile == "strict_catalog":
+        preferred_scene_ids = list(_CATALOG_SCENES)
+        avoid_scene_ids = dedupe_preserve_order(_UGC_INDOOR_SCENES + _UGC_OUTDOOR_SCENES + _OUTDOOR_COMMERCIAL_SCENES)
+        preferred_camera_ids = list(_COMMERCIAL_CAMERAS)
+        avoid_camera_ids = list(_PHONE_CAMERAS)
+        preferred_lighting_ids = list(_CATALOG_LIGHTING)
+        avoid_lighting_ids = ["golden_hour_soft", "coastal_late_morning", "phone_practical_mixed", "phone_flash_direct"]
+        preferred_casting_family_ids = list(_PREMIUM_CASTING)
+        avoid_casting_family_ids = ["br_social_creator", "br_warm_commercial"]
+        preferred_pose_ids = list(_STABLE_POSE_IDS)
+        avoid_pose_ids = list(_MOVEMENT_POSE_IDS)
+        scene_constraints: SceneConstraints = {
+            "context_rigidity": "locked",
+            "backdrop_mode": "studio_minimal",
+            "allow_context_invention": False,
+            "environment_competition": "low",
+        }
+        pose_constraints: PoseConstraints = {
+            "movement_budget": "low",
+            "frontality_bias": "front",
+            "occlusion_tolerance": "low",
+            "gesture_range": "quiet",
+            "silhouette_priority": "high",
+        }
+        capture_constraints: CaptureConstraints = {
+            "camera_language": "clean_commercial",
+            "framing_priority": "full_body_readability",
+            "angle_bias": "front_or_neutral",
+            "depth_context": "minimal",
+        }
+    elif ugc_like:
+        preferred_scene_ids = list(_UGC_INDOOR_SCENES if scene_preference != "outdoor_br" else _UGC_OUTDOOR_SCENES)
+        avoid_scene_ids = list(_CATALOG_SCENES)
+        preferred_camera_ids = list(_PHONE_CAMERAS + _NATURAL_CAMERAS[:1])
+        avoid_camera_ids = ["canon_balanced"] if ugc_intent == "mirror_tryon" else []
+        preferred_lighting_ids = list(_UGC_LIGHTING)
+        avoid_lighting_ids = ["clean_showroom"]
+        preferred_casting_family_ids = list(_UGC_CASTING)
+        avoid_casting_family_ids = ["br_minimal_premium", "br_mature_elegante"]
+        preferred_pose_ids = list(_BALANCED_POSE_IDS)
+        avoid_pose_ids = list(_MOVEMENT_POSE_IDS if spatially_sensitive else ["contrapposto_editorial"])
+        scene_constraints = {
+            "context_rigidity": "guided",
+            "backdrop_mode": "ugc_local",
+            "allow_context_invention": False,
+            "environment_competition": "medium",
+        }
+        pose_constraints = {
+            "movement_budget": "medium",
+            "frontality_bias": "slight_angle",
+            "occlusion_tolerance": "medium",
+            "gesture_range": "everyday",
+            "silhouette_priority": "high" if spatially_sensitive else "medium",
+        }
+        capture_constraints = {
+            "camera_language": "phone_or_documentary",
+            "framing_priority": "commercial_readability",
+            "angle_bias": "natural_observer",
+            "depth_context": "lived_in",
+        }
+    elif guardrail_profile == "lifestyle_permissive":
+        preferred_scene_ids = list(_OUTDOOR_COMMERCIAL_SCENES if scene_preference == "outdoor_br" else _INDOOR_COMMERCIAL_SCENES + _OUTDOOR_COMMERCIAL_SCENES[:1])
+        avoid_scene_ids = list(_CATALOG_SCENES)
+        preferred_camera_ids = list(_NATURAL_CAMERAS)
+        avoid_camera_ids = []
+        preferred_lighting_ids = list(_NATURAL_LIGHTING)
+        avoid_lighting_ids = ["clean_showroom"]
+        preferred_casting_family_ids = list(_NATURAL_CASTING)
+        avoid_casting_family_ids = []
+        preferred_pose_ids = list(_BALANCED_POSE_IDS if spatially_sensitive else _MOVEMENT_POSE_IDS + _BALANCED_POSE_IDS[:2])
+        avoid_pose_ids = [] if not spatially_sensitive else ["walking_stride_controlled", "twist_step_forward"]
+        scene_constraints = {
+            "context_rigidity": "open",
+            "backdrop_mode": _SCENE_AFFINITY.get(scene_preference, "auto_br"),
+            "allow_context_invention": True,
+            "environment_competition": "medium",
+        }
+        pose_constraints = {
+            "movement_budget": "high" if not spatially_sensitive else "medium",
+            "frontality_bias": "free",
+            "occlusion_tolerance": "medium",
+            "gesture_range": "open",
+            "silhouette_priority": "high" if spatially_sensitive else "medium",
+        }
+        capture_constraints = {
+            "camera_language": "natural_commercial",
+            "framing_priority": "readability_with_context",
+            "angle_bias": "observer_or_slight_angle",
+            "depth_context": "ambient",
+        }
+    else:
+        preferred_scene_ids = list(_OUTDOOR_COMMERCIAL_SCENES if scene_preference == "outdoor_br" else _INDOOR_COMMERCIAL_SCENES)
+        avoid_scene_ids = list(_CATALOG_SCENES) if scene_preference == "outdoor_br" else []
+        preferred_camera_ids = list(_COMMERCIAL_CAMERAS if guardrail_profile == "editorial_controlled" else _NATURAL_CAMERAS)
+        avoid_camera_ids = []
+        preferred_lighting_ids = list(_EDITORIAL_LIGHTING if guardrail_profile == "editorial_controlled" else _NATURAL_LIGHTING)
+        avoid_lighting_ids = ["clean_showroom"] if guardrail_profile != "editorial_controlled" else []
+        preferred_casting_family_ids = list(_PREMIUM_CASTING if guardrail_profile == "editorial_controlled" else _NATURAL_CASTING)
+        avoid_casting_family_ids = []
+        preferred_pose_ids = list(_BALANCED_POSE_IDS)
+        avoid_pose_ids = ["walking_stride_controlled", "twist_step_forward"] if spatially_sensitive else []
+        scene_constraints = {
+            "context_rigidity": "guided",
+            "backdrop_mode": _SCENE_AFFINITY.get(scene_preference, "auto_br"),
+            "allow_context_invention": True,
+            "environment_competition": "low" if guardrail_profile == "natural_commercial" else "medium",
+        }
+        pose_constraints = {
+            "movement_budget": movement_budget,
+            "frontality_bias": frontality_bias,
+            "occlusion_tolerance": occlusion_tolerance,
+            "gesture_range": "controlled" if guardrail_profile == "editorial_controlled" else "human",
+            "silhouette_priority": "high" if spatially_sensitive else "medium",
+        }
+        capture_constraints = {
+            "camera_language": "fashion_controlled" if guardrail_profile == "editorial_controlled" else "natural_commercial",
+            "framing_priority": "product_first",
+            "angle_bias": "slight_angle" if guardrail_profile == "editorial_controlled" else "observer",
+            "depth_context": "restrained",
+        }
 
     if _lighting_signature_policy_enabled() and lighting_style == "flat_catalog":
-        camera_preferred = ["canon_balanced", "sony_documentary", *camera_preferred]
-        lighting_preferred.extend(["clean_showroom", "window_daylight", "open_shade_daylight"])
-        lighting_avoid.extend(["golden_hour_soft", "coastal_late_morning"])
-        if scene_preference == "auto_br":
-            scene_preferred.extend(["br_showroom_sp", "br_pinheiros_living", "br_brasilia_concrete_gallery"])
-    elif _lighting_signature_policy_enabled() and lighting_style == "mixed_interior":
-        scene_preferred.extend(["br_pinheiros_living", "br_porto_alegre_bookstore", "br_rio_art_loft"])
-        lighting_preferred.extend(["mixed_window_lamp", "window_daylight"])
-        lighting_avoid.extend(["coastal_late_morning"])
-    elif _lighting_signature_policy_enabled() and lighting_style == "directional_natural":
-        camera_preferred.extend(["sony_documentary", "canon_balanced"])
-        if scene_preference != "indoor_br":
-            lighting_preferred.extend(["open_shade_daylight", "golden_hour_soft"])
-    elif _lighting_signature_policy_enabled() and lighting_style == "natural_diffused":
-        camera_preferred.extend(["sony_documentary", "fujifilm_candid"])
-        lighting_preferred.extend(["open_shade_daylight", "cloudy_tropical", "window_daylight"])
+        preferred_camera_ids = dedupe_preserve_order(["canon_balanced", *preferred_camera_ids])
+        preferred_lighting_ids = dedupe_preserve_order(["clean_showroom", "window_daylight", *preferred_lighting_ids])
+        avoid_lighting_ids = dedupe_preserve_order(["golden_hour_soft", "coastal_late_morning", *avoid_lighting_ids])
+    elif _lighting_signature_policy_enabled() and integration_risk == "high":
+        preferred_camera_ids = dedupe_preserve_order(["canon_balanced", "sony_documentary", *preferred_camera_ids])
+        avoid_camera_ids = dedupe_preserve_order(["phone_clean", "fujifilm_candid", *avoid_camera_ids])
 
-    if _lighting_signature_policy_enabled() and light_hardness == "hard":
-        lighting_preferred.extend(["open_shade_daylight", "clean_showroom"])
-        lighting_avoid.extend(["mixed_window_lamp"])
-    elif _lighting_signature_policy_enabled() and light_hardness == "soft":
-        lighting_preferred.extend(["window_daylight", "cloudy_tropical", "mixed_window_lamp"])
-
-    if _lighting_signature_policy_enabled() and light_direction == "frontal" and integration_risk in {"medium", "high"}:
-        camera_preferred = ["canon_balanced", "sony_documentary", *camera_preferred]
-        lighting_avoid.extend(["golden_hour_soft"])
-    elif _lighting_signature_policy_enabled() and light_direction == "side" and contrast_level == "high":
-        camera_preferred.extend(["sony_documentary", "fujifilm_candid"])
-
-    if spatially_sensitive or strict_mode:
-        if pose_flex_mode == "dynamic":
-            pose_preferred.extend(_BALANCED_POSE_IDS if not ugc_like else ["paused_mid_step", "casual_walkby_glance", "standing_3q_relaxed", "half_turn_lookback", "doorway_pause_candid", "shoulder_turn_smile"])
-            pose_avoid.extend(["walking_stride_controlled", "twist_step_forward"])
-        elif pose_flex_mode == "controlled":
-            pose_preferred.extend(_STABLE_POSE_IDS if not ugc_like else ["standing_3q_relaxed", "front_relaxed_hold", "standing_full_shift", "doorway_pause_candid", "phone_low_hand_snapshot", "shoulder_turn_smile"])
-            pose_avoid.extend(_MOVEMENT_POSE_IDS if not ugc_like else ["walking_stride_controlled", "twist_step_forward", "contrapposto_editorial", "mirror_selfie_offset"])
-        else:
-            pose_preferred.extend(_BALANCED_POSE_IDS if not ugc_like else ["standing_3q_relaxed", "paused_mid_step", "casual_walkby_glance", "half_turn_lookback", "standing_full_shift", "front_relaxed_hold", "doorway_pause_candid", "shoulder_turn_smile"])
-            pose_avoid.extend(["walking_stride_controlled"])
-    elif pose_flex_mode == "controlled":
-        pose_preferred.extend(_STABLE_POSE_IDS if not ugc_like else ["influencer_hip_pop", "shoulder_turn_smile", "one_hand_hair_glance", "mirror_selfie_offset", "standing_3q_relaxed", "doorway_pause_candid", "phone_low_hand_snapshot", "front_relaxed_hold", "standing_full_shift"])
-        pose_avoid.extend(_MOVEMENT_POSE_IDS if not ugc_like else ["walking_stride_controlled", "twist_step_forward", "contrapposto_editorial"])
-    elif pose_flex_mode == "dynamic":
-        pose_preferred.extend(_MOVEMENT_POSE_IDS if not ugc_like else ["mirror_selfie_offset", "influencer_hip_pop", "shoulder_turn_smile", "one_hand_hair_glance", "phone_low_hand_snapshot", "paused_mid_step", "casual_walkby_glance", "half_turn_lookback", "standing_3q_relaxed"])
-
-    if ugc_like:
-        pose_avoid.extend(["contrapposto_editorial", "soft_wall_lean"])
-        if not spatially_sensitive:
-            pose_avoid.extend(["front_relaxed_hold"])
-        if spatially_sensitive or str((structural_contract or {}).get("front_opening", "") or "").strip().lower() == "open":
-            pose_avoid.extend(["mirror_selfie_offset"])
-
-    # Apply indoor/outdoor lighting compatibility after scene candidates are fully assembled.
-    _indoor_scene_ids = {
-        "br_boutique_floor",
-        "br_fitting_room_mirror",
-        "br_elevator_mirror",
-        "br_condo_hallway",
-        "br_bedroom_window",
-        "br_pinheiros_living",
-        "br_curitiba_cafe",
-        "br_porto_alegre_bookstore",
-        "br_rio_art_loft",
-        "br_showroom_sp",
-    }
-    _outdoor_only_lighting = {"coastal_late_morning", "golden_hour_soft"}
-    _top_scene_ids = dedupe_preserve_order(scene_preferred)[:3]
-    if _top_scene_ids and all(sid in _indoor_scene_ids for sid in _top_scene_ids):
-        lighting_avoid.extend(list(_outdoor_only_lighting))
+    identity_guard = derive_reference_guard_bundle(
+        selector_stats=selector_stats,
+        fidelity_mode=fidelity_mode,
+        mode=preset,
+    )
 
     return {
-        "preferred_scene_ids": dedupe_preserve_order(scene_preferred),
-        "avoid_scene_ids": dedupe_preserve_order(scene_avoid),
-        "preferred_camera_ids": dedupe_preserve_order(camera_preferred),
-        "avoid_camera_ids": dedupe_preserve_order(camera_avoid),
-        "preferred_lighting_ids": dedupe_preserve_order(lighting_preferred),
-        "avoid_lighting_ids": dedupe_preserve_order(lighting_avoid),
-        "preferred_casting_family_ids": dedupe_preserve_order(casting_preferred),
-        "avoid_casting_family_ids": dedupe_preserve_order(casting_avoid),
-        "preferred_pose_ids": dedupe_preserve_order(pose_preferred),
-        "avoid_pose_ids": dedupe_preserve_order(pose_avoid),
+        "preferred_scene_ids": dedupe_preserve_order(preferred_scene_ids),
+        "avoid_scene_ids": dedupe_preserve_order(avoid_scene_ids),
+        "preferred_camera_ids": dedupe_preserve_order(preferred_camera_ids),
+        "avoid_camera_ids": dedupe_preserve_order(avoid_camera_ids),
+        "preferred_lighting_ids": dedupe_preserve_order(preferred_lighting_ids),
+        "avoid_lighting_ids": dedupe_preserve_order(avoid_lighting_ids),
+        "preferred_casting_family_ids": dedupe_preserve_order(preferred_casting_family_ids),
+        "avoid_casting_family_ids": dedupe_preserve_order(avoid_casting_family_ids),
+        "preferred_pose_ids": dedupe_preserve_order(preferred_pose_ids),
+        "avoid_pose_ids": dedupe_preserve_order(avoid_pose_ids),
         "ugc_intent": ugc_intent,
+        "identity_guard": identity_guard,
+        "scene_constraints": scene_constraints,
+        "pose_constraints": pose_constraints,
+        "capture_constraints": capture_constraints,
+        "movement_budget": pose_constraints["movement_budget"],
+        "frontality_bias": pose_constraints["frontality_bias"],
+        "occlusion_tolerance": pose_constraints["occlusion_tolerance"],
     }

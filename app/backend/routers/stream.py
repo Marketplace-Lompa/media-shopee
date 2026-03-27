@@ -40,7 +40,7 @@ async def generate_stream(
     mode: Optional[str] = Form(default=None),
     scene_preference: str = Form(default="auto_br"),
     fidelity_mode: str = Form(default="balanceada"),
-    pose_flex_mode: str = Form(default="auto"),
+
     images: List[UploadFile] = File(default=[]),
 ):
     # Mantidos por compatibilidade de contrato; o túnel unificado resolve a estratégia internamente.
@@ -83,12 +83,11 @@ async def generate_stream(
             return
 
         collected_events: list[dict] = []
-        normalized_mode, normalized_scene_preference, normalized_fidelity_mode, normalized_pose_flex_mode = (
+        normalized_mode, normalized_scene_preference, normalized_fidelity_mode = (
             normalize_generation_options(
                 mode=mode,
                 scene_preference=scene_preference,
                 fidelity_mode=fidelity_mode,
-                pose_flex_mode=pose_flex_mode,
             )
         )
 
@@ -104,7 +103,7 @@ async def generate_stream(
                 mode=normalized_mode,
                 scene_preference=normalized_scene_preference,
                 fidelity_mode=normalized_fidelity_mode,
-                pose_flex_mode=normalized_pose_flex_mode,
+
                 n_images=n_images,
                 aspect_ratio=aspect_ratio,
                 resolution=resolution,
@@ -126,7 +125,7 @@ async def generate_stream(
             mode=normalized_mode,
             scene_preference=normalized_scene_preference,
             fidelity_mode=normalized_fidelity_mode,
-            pose_flex_mode=normalized_pose_flex_mode,
+
         )
         response_data = build_generation_response_payload(
             raw,
@@ -135,7 +134,7 @@ async def generate_stream(
             preset=normalized_mode,
             scene_preference=normalized_scene_preference,
             fidelity_mode=normalized_fidelity_mode,
-            pose_flex_mode=normalized_pose_flex_mode,
+
         )
         final_stage = "done_partial" if response_data.get("failed_indices") else "done"
         yield _sse_event(final_stage, {"data": response_data})

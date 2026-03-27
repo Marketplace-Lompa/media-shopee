@@ -289,7 +289,9 @@ def describe_mode_defaults(mode_config: ModeConfig) -> str:
     p = mode_config.presets
     # Modos criativos usam direção inspiracional; catalog_clean usa restrição rígida
     _PRESCRIPTIVE_MODES = {"catalog_clean"}
+    intro_line = "Treat these as preferred defaults for this job unless the user brief clearly asks otherwise:"
     if mode_config.id in _PRESCRIPTIVE_MODES:
+        intro_line = "Treat these as hard commercial constraints for this job unless the user brief explicitly requests a compatible override:"
         scenario_line = f"- scenario constraint: {scenario_map.get(p.scenario_pool, '')}. Do not deviate from this backdrop type."
     else:
         seed_desc = scenario_map.get(p.scenario_pool, "")
@@ -303,7 +305,7 @@ def describe_mode_defaults(mode_config: ModeConfig) -> str:
         )
     lines = [
         f"Active visual mode: {mode_config.label}.",
-        "Treat these as preferred defaults for this job unless the user brief clearly asks otherwise:",
+        intro_line,
         scenario_line,
         f"- framing: {framing_map[p.framing_profile]}",
         f"- camera type: {camera_type_map[p.camera_type]}",

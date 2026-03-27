@@ -440,6 +440,36 @@ def _maybe_enforce_coordination_bridge(
     return f"{base}{separator} {clause}".strip(), "coordination_bridge"
 
 
+def _maybe_promote_catalog_garment_lead(
+    *,
+    prompt_text: str,
+    garment_narrative: str,
+    mode_id: str,
+) -> tuple[str, Optional[str]]:
+    if mode_id != "catalog_clean":
+        return prompt_text, None
+
+    garment_text = str(garment_narrative or "").strip()
+    base = re.sub(r"\s+", " ", prompt_text.strip())
+    if not garment_text or not base:
+        return prompt_text, None
+
+    lowered = base.lower()
+    if garment_text.lower() in lowered[:220]:
+        return prompt_text, None
+
+    lead = (
+        f"RAW photo, premium clean catalog image with the garment as the absolute hero: {garment_text}."
+    )
+    if lowered.startswith("raw photo,"):
+        remainder = base[len("RAW photo,"):].strip()
+    else:
+        remainder = base
+
+    rebuilt = f"{lead} {remainder}".strip()
+    return rebuilt, "catalog_garment_lead"
+
+
 # ─── Finalizador principal ──────────────────────────────────────────────────
 
 def finalize_prompt_agent_result(
@@ -588,6 +618,18 @@ def finalize_prompt_agent_result(
                 {
                     "text": "commercially complete footwear guardrail",
                     "source": styling_source,
+                }
+            )
+        final_prompt, garment_lead_source = _maybe_promote_catalog_garment_lead(
+            prompt_text=final_prompt,
+            garment_narrative=garment_narrative,
+            mode_id=mode_id,
+        )
+        if garment_lead_source:
+            compiler_debug["used_clauses"].append(
+                {
+                    "text": "catalog garment-first lead",
+                    "source": garment_lead_source,
                 }
             )
     result["base_prompt"] = final_prompt if pipeline_mode == "text_mode" else compiled_base_prompt

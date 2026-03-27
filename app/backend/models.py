@@ -1,7 +1,7 @@
 """
 Schemas Pydantic para request/response da API.
 """
-from typing import Optional, List, Literal
+from typing import Optional, List
 from pydantic import BaseModel, Field
 
 from create_categories import CreateCategory
@@ -50,10 +50,6 @@ class GenerateRequest(BaseModel):
     fidelity_mode: Optional[str] = Field(
         default=None,
         description="Modo de fidelidade v2: balanceada | estrita"
-    )
-    pose_flex_mode: Optional[str] = Field(
-        default=None,
-        description="Flexibilidade de pose v2: auto | controlled | balanced | dynamic"
     )
 
 
@@ -119,8 +115,7 @@ class GenerateResponse(BaseModel):
     preset: Optional[str] = Field(default=None, description="Preset usado: catalog_clean | marketplace_lifestyle | premium_lifestyle | ugc_real_br")
     scene_preference: Optional[str] = Field(default=None, description="Preferência de cena: auto_br | indoor_br | outdoor_br")
     fidelity_mode: Optional[str] = Field(default=None, description="Modo de fidelidade: balanceada | estrita")
-    pose_flex_mode: Optional[str] = Field(default=None, description="Flexibilidade de pose: auto | controlled | balanced | dynamic")
-    pose_flex_guideline: Optional[str] = Field(default=None, description="Guia textual efetivo aplicado para flexibilidade de pose")
+
     generation_time: Optional[float] = Field(default=None, description="Tempo total de geração em segundos")
     debug_report_url: Optional[str] = Field(default=None, description="URL do relatório de observabilidade do pipeline v2")
     debug_report_path: Optional[str] = Field(default=None, description="Caminho local do relatório de observabilidade do pipeline v2")
@@ -148,44 +143,3 @@ class PoolListResponse(BaseModel):
     items: List[PoolItem]
     total: int
 
-
-class MarketplaceSlotImage(BaseModel):
-    """Imagem final de um slot no fluxo Marketplace."""
-    index: int = 1
-    filename: Optional[str] = None
-    url: Optional[str] = None
-    size_kb: Optional[float] = None
-    mime_type: Optional[str] = None
-
-
-class MarketplaceSlotResult(BaseModel):
-    """Status detalhado de um slot gerado no fluxo Marketplace."""
-    slot_id: str
-    slot_type: str
-    color: Optional[str] = None
-    status: Literal["done", "error"]
-    session_id: Optional[str] = None
-    pipeline_mode: Optional[str] = None
-    image: Optional[MarketplaceSlotImage] = None
-    error: Optional[str] = None
-    debug_report_url: Optional[str] = None
-
-
-class MarketplaceSummary(BaseModel):
-    """Resumo final de execução do fluxo Marketplace."""
-    requested_slots: int
-    completed_slots: int
-    failed_slots: int
-
-
-class MarketplaceGenerateResponse(BaseModel):
-    """Payload consolidado do fluxo Marketplace."""
-    category: Optional[CreateCategory] = Field(default=None, description="Categoria de criação efetiva")
-    session_id: str
-    pipeline_version: str = "marketplace_v1"
-    marketplace_channel: Literal["shopee", "mercado_livre"]
-    operation: Literal["main_variation", "color_variations"]
-    detected_colors: List[dict] = Field(default_factory=list)
-    slots: List[MarketplaceSlotResult] = Field(default_factory=list)
-    summary: MarketplaceSummary
-    config: dict = Field(default_factory=dict)

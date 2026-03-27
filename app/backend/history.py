@@ -61,7 +61,7 @@ def add_entry(
     preset: Optional[str] = None,
     scene_preference: Optional[str] = None,
     fidelity_mode: Optional[str] = None,
-    pose_flex_mode: Optional[str] = None,
+
     pipeline_mode: Optional[str] = None,
     optimized_prompt: Optional[str] = None,
     mode: Optional[str] = None,
@@ -97,7 +97,7 @@ def add_entry(
         "preset": preset or None,
         "scene_preference": scene_preference or None,
         "fidelity_mode": fidelity_mode or None,
-        "pose_flex_mode": pose_flex_mode or None,
+
         "pipeline_mode": pipeline_mode or None,
         "optimized_prompt": optimized_prompt or None,
         "mode": mode or None,

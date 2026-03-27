@@ -28,7 +28,6 @@ import {
   humanizeMarketplaceChannel,
   humanizeMarketplaceOperation,
   humanizePipelineMode,
-  humanizePoseFlexMode,
   humanizePreset,
   humanizeScenePreference,
   humanizeSlotId,
@@ -201,7 +200,6 @@ export default function App() {
         preset: e.preset as string | undefined,
         scene_preference: e.scene_preference as string | undefined,
         fidelity_mode: e.fidelity_mode as string | undefined,
-        pose_flex_mode: e.pose_flex_mode as string | undefined,
         pipeline_mode: e.pipeline_mode as string | undefined,
         marketplace_channel: e.marketplace_channel as string | undefined,
         marketplace_operation: e.marketplace_operation as string | undefined,
@@ -559,7 +557,6 @@ export default function App() {
                         {lightbox.item.preset && <span className="badge badge--accent" title={lightbox.item.preset}>{humanizePreset(lightbox.item.preset)}</span>}
                         {lightbox.item.fidelity_mode && <span className="badge" title={lightbox.item.fidelity_mode}>{humanizeFidelityMode(lightbox.item.fidelity_mode)}</span>}
                         {lightbox.item.scene_preference && <span className="badge" title={lightbox.item.scene_preference}>{humanizeScenePreference(lightbox.item.scene_preference)}</span>}
-                        {lightbox.item.pose_flex_mode && lightbox.item.pose_flex_mode !== 'auto' && <span className="badge" title={lightbox.item.pose_flex_mode}>{humanizePoseFlexMode(lightbox.item.pose_flex_mode)}</span>}
                         {lightbox.item.pipeline_mode && <span className="badge" title={lightbox.item.pipeline_mode}>{humanizePipelineMode(lightbox.item.pipeline_mode)}</span>}
                         {lightbox.item.thinking_level && lightbox.item.thinking_level !== 'MINIMAL' && <span className="badge badge--accent">{lightbox.item.thinking_level}</span>}
                         {lightbox.item.shot_type && <span className="badge">{lightbox.item.shot_type}</span>}

@@ -29,15 +29,13 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from agent_runtime.curation_policy import (
-    POSE_FLEX_HINTS,
-    build_affinity_prompt,
+    derive_art_direction_selection_policy,
     derive_reference_budget,
     derive_reference_guard_config,
-    normalize_pose_flex_mode,
-    resolve_auto_pose_flex_mode,
     stage1_candidate_count,
 )
 from agent_runtime.fidelity import (
+    _build_mode_guardrail_clauses,
     build_classifier_summary,
     build_stage1_prompt,
     build_structural_hint,
@@ -53,9 +51,9 @@ from agent_runtime.fidelity_gate import (
     evaluate_visual_fidelity,
     pick_best_stage1_candidate,
     stage1_selection_key,
-    suggest_retry_pose_flex_mode,
 )
 from agent_runtime.creative_brief_builder import build_creative_brief_for_mode
+from agent_runtime.mode_profile import get_mode_profile
 from agent_runtime.modes import describe_mode_defaults, get_mode
 from agent_runtime.generation_observability import (
     persist_review_inputs,
@@ -77,20 +75,66 @@ from request_validation import validate_generation_params
 VALID_MODES = {"catalog_clean", "natural", "lifestyle", "editorial_commercial"}
 VALID_SCENE_PREFS = {"auto_br", "indoor_br", "outdoor_br"}
 DEFAULT_MODE = "natural"
+
+
+def _coerce_reference_guard_config(
+    raw_config: Any,
+    *,
+    mode_id: str,
+    fidelity_mode: str,
+) -> tuple[str, list[str], dict[str, Any]]:
+    default_rules = [
+        "References are visual evidence for garment fidelity only.",
+        "Do not copy any human identity traits from references.",
+    ]
+    identity_guard: dict[str, Any] = {
+        "mode_id": mode_id,
+        "identity_scope": "replace_person",
+        "reference_use": "garment_only",
+        "transfer_allowed": False,
+    }
+    strength = "standard"
+    rules: list[str] = list(default_rules)
+    supplied_guard: Any = None
+
+    if isinstance(raw_config, tuple):
+        if len(raw_config) >= 3:
+            strength, rules, supplied_guard = raw_config[:3]
+        elif len(raw_config) == 2:
+            strength, rules = raw_config
+    elif isinstance(raw_config, dict):
+        strength = raw_config.get("strength", strength)
+        rules = list(raw_config.get("rules") or rules)
+        supplied_guard = raw_config.get("identity_guard")
+    elif raw_config is not None:
+        supplied_guard = raw_config
+
+    strength = str(strength or "standard").strip().lower()
+    cleaned_rules = [str(item).strip() for item in (rules or []) if str(item).strip()]
+    rules = cleaned_rules or list(default_rules)
+
+    if isinstance(supplied_guard, dict):
+        identity_guard.update(supplied_guard)
+    if str(fidelity_mode).strip().lower() == "estrita":
+        identity_guard.setdefault("strict", True)
+    else:
+        identity_guard.setdefault("strict", False)
+    return strength, rules, identity_guard
+
+
+
 def normalize_generation_options(
     *,
     mode: Optional[str] = None,
     scene_preference: str = "auto_br",
     fidelity_mode: str = "balanceada",
-    pose_flex_mode: Optional[str] = None,
-) -> tuple[str, str, str, str]:
+) -> tuple[str, str, str]:
     """Normaliza opções de geração. Mode é a fonte da verdade."""
     resolved_mode = mode if mode in VALID_MODES else DEFAULT_MODE
     return (
         resolved_mode,
         scene_preference if scene_preference in VALID_SCENE_PREFS else "auto_br",
         fidelity_mode or "balanceada",
-        pose_flex_mode or "auto",
     )
 
 
@@ -105,7 +149,7 @@ def persist_generation_history(
     preset: Optional[str] = None,
     scene_preference: Optional[str] = None,
     fidelity_mode: Optional[str] = None,
-    pose_flex_mode: Optional[str] = None,
+
     pipeline_mode: Optional[str] = None,
     marketplace_channel: Optional[str] = None,
     marketplace_operation: Optional[str] = None,
@@ -118,7 +162,7 @@ def persist_generation_history(
     resolved_preset = preset or raw.get("preset")
     resolved_scene_preference = scene_preference or raw.get("scene_preference")
     resolved_fidelity_mode = fidelity_mode or raw.get("fidelity_mode")
-    resolved_pose_flex_mode = pose_flex_mode or raw.get("pose_flex_mode")
+
     resolved_marketplace_channel = marketplace_channel or raw.get("marketplace_channel")
     resolved_marketplace_operation = marketplace_operation or raw.get("marketplace_operation")
     resolved_slot_id = slot_id or raw.get("slot_id")
@@ -145,7 +189,7 @@ def persist_generation_history(
                 preset=resolved_preset,
                 scene_preference=resolved_scene_preference,
                 fidelity_mode=resolved_fidelity_mode,
-                pose_flex_mode=resolved_pose_flex_mode,
+
                 pipeline_mode=resolved_pipeline_mode,
                 optimized_prompt=optimized_prompt,
                 marketplace_channel=resolved_marketplace_channel,
@@ -170,7 +214,7 @@ def build_generation_response_payload(
     preset: str,
     scene_preference: str,
     fidelity_mode: str,
-    pose_flex_mode: str,
+
 ) -> dict[str, Any]:
     return {
         "session_id": raw.get("session_id"),
@@ -191,8 +235,7 @@ def build_generation_response_payload(
         "preset": preset,
         "scene_preference": scene_preference,
         "fidelity_mode": fidelity_mode,
-        "pose_flex_mode": raw.get("pose_flex_mode", pose_flex_mode),
-        "pose_flex_guideline": raw.get("pose_flex_guideline"),
+
         "generation_time": raw.get("generation_time"),
         "reference_pack_stats": raw.get("selector_stats"),
         "repair_applied": raw.get("repair_applied"),
@@ -210,7 +253,7 @@ def build_generation_response(
     preset: str,
     scene_preference: str,
     fidelity_mode: str,
-    pose_flex_mode: str,
+
 ) -> GenerateResponse:
     payload = build_generation_response_payload(
         raw,
@@ -219,7 +262,7 @@ def build_generation_response(
         preset=preset,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
-        pose_flex_mode=pose_flex_mode,
+
     )
     return GenerateResponse(
         session_id=payload.get("session_id"),
@@ -239,8 +282,7 @@ def build_generation_response(
         preset=preset,
         scene_preference=scene_preference,
         fidelity_mode=fidelity_mode,
-        pose_flex_mode=payload.get("pose_flex_mode"),
-        pose_flex_guideline=payload.get("pose_flex_guideline"),
+
         generation_time=payload.get("generation_time"),
         reference_pack_stats=payload.get("reference_pack_stats"),
         repair_applied=payload.get("repair_applied"),
@@ -353,9 +395,7 @@ def _run_text_only_flow(
         "selector_stats": {},
         "review_reference_urls": [],
         "review_input_assets": {},
-        "pose_flex_mode": "auto",
-        "pose_flex_requested": "auto",
-        "pose_flex_guideline": "",
+
         "mode": mode,
         "scene_preference": "auto_br",
         "fidelity_mode": "balanceada",
@@ -376,7 +416,8 @@ def run_generation_flow(
     mode: str = "natural",
     scene_preference: str = "auto_br",
     fidelity_mode: str = "balanceada",
-    pose_flex_mode: str = "auto",
+
+
     n_images: int = 1,
     aspect_ratio: str = "4:5",
     resolution: str = "1K",
@@ -412,6 +453,9 @@ def run_generation_flow(
             started=started,
             on_stage=on_stage,
         )
+
+    _mode_config = get_mode(mode)
+    _mode_profile = get_mode_profile(mode)
 
     # ── 1. Reference selection ────────────────────────────────────────────
     _emit("preparing_references", {"message": "Classificando referências..."})
@@ -464,21 +508,40 @@ def run_generation_flow(
     edit_anchor_names = list(selected_names.get("edit_anchors", []) or [])
     identity_safe_names = list(selected_names.get("identity_safe", []) or [])
 
-    reference_guard_strength, reference_usage_rules = derive_reference_guard_config(
-        selector_stats=selector_stats, fidelity_mode=fidelity_mode,
+    reference_guard_strength, reference_usage_rules, identity_guard = _coerce_reference_guard_config(
+        derive_reference_guard_config(
+            selector_stats=selector_stats,
+            fidelity_mode=fidelity_mode,
+            mode=mode,
+        ),
+        mode_id=mode,
+        fidelity_mode=fidelity_mode,
     )
     identity_risk = str((selector_stats or {}).get("identity_reference_risk", "low") or "low").strip().lower()
 
-    # Pose flex
-    requested_pose_flex_mode = normalize_pose_flex_mode(pose_flex_mode)
-    if requested_pose_flex_mode == "auto":
-        resolved_pose_flex_mode = resolve_auto_pose_flex_mode(
-            user_prompt=prompt, structural_contract=structural_contract,
-            selector_stats=selector_stats, fidelity_mode=fidelity_mode, mode=mode,
-        )
-    else:
-        resolved_pose_flex_mode = requested_pose_flex_mode
-    pose_flex_hint = POSE_FLEX_HINTS.get(resolved_pose_flex_mode, POSE_FLEX_HINTS["balanced"])
+    # Mode guardrails — derivados do Soul (mode_profile + curation_policy)
+    mode_guardrails = derive_art_direction_selection_policy(
+        preset=mode,
+        scene_preference=scene_preference,
+        image_analysis_hint=image_analysis,
+        structural_hint=structural_hint or "",
+        lighting_signature=lighting_signature,
+        user_prompt=prompt,
+        fidelity_mode=fidelity_mode,
+        selector_stats=selector_stats,
+        structural_contract=structural_contract,
+    )
+    mode_guardrails.update(
+        {
+            "guardrail_profile": getattr(_mode_profile, "guardrail_profile", ""),
+            "invention_budget": getattr(_mode_profile, "invention_budget", 0.0),
+            "mode_hard_rules": list(getattr(_mode_profile, "hard_rules", ()) or ()),
+            "reference_safe": True,
+            "identity_guard": identity_guard,
+        }
+    )
+    mode_guardrail_text = " ".join(_build_mode_guardrail_clauses(mode_guardrails))
+
 
     # Merge de referências por fidelity mode
     if str(fidelity_mode).strip().lower() == "estrita":
@@ -522,7 +585,6 @@ def run_generation_flow(
     gate_policy = build_visual_fidelity_gate_policy(
         structural_contract=structural_contract, set_detection=set_detection,
         selector_stats=selector_stats, fidelity_mode=fidelity_mode,
-        pose_flex_mode=resolved_pose_flex_mode,
     )
     judge_reference_bytes = merge_reference_bytes(
         strict_single_pass_bytes[: int(reference_budget.get("stage1_max_refs", 4) or 4)],
@@ -547,7 +609,7 @@ def run_generation_flow(
     effective_art_direction_request.setdefault("scene_preference", scene_preference)
     effective_art_direction_request.setdefault("mode", mode)
     effective_art_direction_request.setdefault("fidelity_mode", fidelity_mode)
-    effective_art_direction_request.setdefault("pose_flex_mode", resolved_pose_flex_mode)
+
     effective_art_direction_request.setdefault("selector_stats", selector_stats)
     effective_art_direction_request.setdefault("structural_contract", structural_contract)
     effective_art_direction_request.setdefault("set_detection", set_detection)
@@ -561,15 +623,26 @@ def run_generation_flow(
         effective_art_direction_request.setdefault("look_contract", look_contract)
     if garment_aesthetic:
         effective_art_direction_request.setdefault("garment_aesthetic", garment_aesthetic)
+    effective_art_direction_request.setdefault("mode_guardrails", mode_guardrails)
+    effective_art_direction_request.setdefault("mode_guardrail_text", mode_guardrail_text)
     directive_hints = effective_art_direction_request.get("directive_hints")
     if not isinstance(directive_hints, dict):
         directive_hints = {}
-    directive_hints.setdefault("model_context_hint", "brazilian fashion model casting with clearly new identity")
-    directive_hints.setdefault("pose_context_hint", pose_flex_hint)
+    directive_hints.setdefault("mode_guardrails", mode_guardrails)
+    directive_hints.setdefault("mode_guardrail_text", mode_guardrail_text)
+    directive_hints.setdefault(
+        "reference_guard",
+        {
+            "strength": reference_guard_strength,
+            "rules": reference_usage_rules,
+            "identity_guard": identity_guard,
+        },
+    )
+    directive_hints.setdefault("model_context_hint", "new identity, garment-first commercial direction")
     if identity_risk in {"medium", "high"}:
         directive_hints.setdefault(
             "custom_context_hint",
-            "references are garment-only guidance; avoid identity and pose cloning from source photos",
+            "references are garment-only evidence; avoid identity transfer and pose cloning",
         )
     effective_art_direction_request["directive_hints"] = directive_hints
 
@@ -674,7 +747,8 @@ def run_generation_flow(
                 directive_hints=directive_hints, fidelity_mode=fidelity_mode,
                 reference_guard_strength=reference_guard_strength,
                 reference_usage_rules=reference_usage_rules,
-                pose_flex_hint=pose_flex_hint, prompt=prompt,
+                mode_guardrails=mode_guardrails,
+
                 base_image_bytes=base_image_bytes, base_image_path=base_image_path,
                 aspect_ratio=aspect_ratio, resolution=resolution,
                 stage2_thinking_level=stage2_thinking_level,
@@ -685,7 +759,7 @@ def run_generation_flow(
                 reference_budget=reference_budget,
                 uploaded_bytes=uploaded_bytes,
                 edit_anchor_bytes=edit_anchor_bytes,
-                resolved_pose_flex_mode=resolved_pose_flex_mode,
+
                 identity_risk=identity_risk,
                 edit_reference_names=edit_reference_names,
                 reason_codes=reason_codes,
@@ -744,9 +818,7 @@ def run_generation_flow(
         "selector_stats": selector_stats,
         "review_reference_urls": review_input_assets.get("original_references", []),
         "review_input_assets": review_input_assets,
-        "pose_flex_mode": resolved_pose_flex_mode,
-        "pose_flex_requested": requested_pose_flex_mode,
-        "pose_flex_guideline": pose_flex_hint,
+
         "mode": mode,
         "scene_preference": scene_preference,
         "fidelity_mode": fidelity_mode,
@@ -773,11 +845,11 @@ def run_generation_flow(
             "effective_art_direction_request": effective_art_direction_request,
             "reference_guard_strength": reference_guard_strength,
             "reference_guard_rules": reference_usage_rules,
+            "identity_guard": identity_guard,
+            "mode_guardrails": mode_guardrails,
             "identity_reference_risk": identity_risk,
             "lighting_signature": lighting_signature,
-            "pose_flex_mode": resolved_pose_flex_mode,
-            "pose_flex_requested": requested_pose_flex_mode,
-            "pose_flex_guideline": pose_flex_hint,
+
             "action_context": last_art_direction.get("action_context"),
         },
         "selector": {
@@ -911,7 +983,8 @@ def _run_stage2_iteration(
     fidelity_mode: str,
     reference_guard_strength: str,
     reference_usage_rules: list[str],
-    pose_flex_hint: str,
+    mode_guardrails: dict[str, Any],
+
     prompt: Optional[str],
     base_image_bytes: bytes,
     base_image_path: Path,
@@ -926,7 +999,7 @@ def _run_stage2_iteration(
     reference_budget: dict[str, int],
     uploaded_bytes: list[bytes],
     edit_anchor_bytes: list[bytes],
-    resolved_pose_flex_mode: str,
+
     identity_risk: str,
     edit_reference_names: list[str],
     reason_codes: set[str],
@@ -942,6 +1015,7 @@ def _run_stage2_iteration(
     art_direction: dict[str, Any] = {
         "art_direction_soul": art_soul_briefing,
         "creative_brief": _creative_brief,
+        "mode_guardrails": mode_guardrails,
         "summary": {"mode": "soul_driven", "mode_id": _mode_config.id},
     }
 
@@ -959,7 +1033,8 @@ def _run_stage2_iteration(
         garment_color=garment_color,
         reference_guard_strength=reference_guard_strength,
         reference_usage_rules=reference_usage_rules,
-        pose_flex_guideline=pose_flex_hint,
+        mode_guardrails=mode_guardrails,
+
         user_prompt=prompt,
         image_analysis=image_analysis,
         look_contract=_lc if isinstance(_lc, dict) else None,
@@ -1022,8 +1097,7 @@ def _run_stage2_iteration(
         edit_session_id=edit_session_id,
         classifier_summary=classifier_summary,
         _use_image_grounding=_use_image_grounding,
-        resolved_pose_flex_mode=resolved_pose_flex_mode,
-        pose_flex_hint=pose_flex_hint,
+
         fidelity_mode=fidelity_mode,
         reason_codes=reason_codes,
         img_idx=img_idx,
@@ -1063,7 +1137,7 @@ def _run_stage2_iteration(
             "fidelity_gate": final_gate,
             "recovery": recovery_info,
             "reference_guard": {"strength": reference_guard_strength, "rules": reference_usage_rules, "risk_level": identity_risk},
-            "pose_flex": {"mode": resolved_pose_flex_mode, "guideline": pose_flex_hint},
+
         },
     }
 
@@ -1090,8 +1164,7 @@ def _run_stage2_recovery(
     edit_session_id: str,
     classifier_summary: dict[str, Any],
     _use_image_grounding: bool,
-    resolved_pose_flex_mode: str,
-    pose_flex_hint: str,
+
     fidelity_mode: str,
     reason_codes: set[str],
     img_idx: int,
@@ -1205,18 +1278,13 @@ def _run_stage2_recovery(
     if stage2_needs_retry:
         initial_final_gate = dict(_current_gate) if isinstance(_current_gate, dict) else _current_gate
         recovery_info["full_retry"]["eligible"] = True
-        retry_pose_mode = suggest_retry_pose_flex_mode(
-            current_pose_flex_mode=resolved_pose_flex_mode,
-            issue_codes=list(_current_gate.get("issue_codes") or []),
-        ) or resolved_pose_flex_mode
-        retry_pose_guideline = POSE_FLEX_HINTS.get(retry_pose_mode, pose_flex_hint)
+
         retry_patch = build_fidelity_repair_patch(
             stage="stage2", gate_result=_current_gate,
             structural_contract=structural_contract, set_detection=set_detection,
         )
         retry_prompt = f"{edit_prompt} {retry_patch}".strip()
-        if retry_pose_guideline and retry_pose_guideline != pose_flex_hint:
-            retry_prompt = f"{retry_prompt} Pose correction: {retry_pose_guideline}."
+
         retry_thinking_level = "MINIMAL" if _current_gate.get("verdict") == "hard_fail" else stage2_thinking_level
         try:
             retry_results = edit_image(
@@ -1257,8 +1325,7 @@ def _run_stage2_recovery(
                 "selected": "retry" if use_retry else "initial",
                 "trigger_verdict": initial_final_gate.get("verdict") if isinstance(initial_final_gate, dict) else None,
                 "prompt_patch": retry_patch, "retry_prompt": retry_prompt,
-                "retry_pose_flex_mode": retry_pose_mode,
-                "retry_pose_flex_guideline": retry_pose_guideline,
+
                 "retry_thinking_level": retry_thinking_level,
                 "retry_assessment": retry_assessment,
                 "retry_fidelity_gate": retry_gate,
@@ -1268,8 +1335,7 @@ def _run_stage2_recovery(
                 "eligible": True, "applied": False, "selected": "initial",
                 "trigger_verdict": initial_final_gate.get("verdict") if isinstance(initial_final_gate, dict) else None,
                 "prompt_patch": retry_patch, "retry_prompt": retry_prompt,
-                "retry_pose_flex_mode": retry_pose_mode,
-                "retry_pose_flex_guideline": retry_pose_guideline,
+
                 "retry_thinking_level": retry_thinking_level,
                 "error": str(retry_exc),
             }

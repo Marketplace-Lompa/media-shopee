@@ -24,7 +24,6 @@ def test_indoor_scene_avoids_outdoor_only_lighting_in_selection_policy() -> None
         lighting_signature={},
         user_prompt="conteudo de influencer em provador",
         fidelity_mode="balanceada",
-        pose_flex_mode="dynamic",
         selector_stats={},
         structural_contract={
             "front_opening": "closed",
