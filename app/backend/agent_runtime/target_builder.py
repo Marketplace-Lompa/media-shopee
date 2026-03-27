@@ -16,7 +16,7 @@ O preset é uma intenção que o agente *resolve*, não um fragmento que ele *co
 import random
 from typing import Any, Optional
 
-from agent_runtime.casting_engine import select_brazilian_casting_profile
+# casting_engine removido — model_soul é a única fonte de casting
 from agent_runtime.coordination_engine import select_coordination_state
 from agent_runtime.capture_engine import select_capture_state
 from agent_runtime.mode_profile import resolve_operational_profile
@@ -92,53 +92,7 @@ _PRESENCE_TONE = {
 }
 
 
-_CASTING_FAMILY_BIASES: dict[str, tuple[str, ...]] = {
-    "catalog_clean": (
-        "br_minimal_premium",
-        "br_warm_commercial",
-        "br_afro",
-        "br_mature_elegante",
-        "br_sulista",
-        "br_morena_clara",
-    ),
-    "natural": (
-        "br_social_creator",
-        "br_morena_clara",
-        "br_loira_natural",
-        "br_nordestina",
-        "br_cabocla",
-        "br_mulata_cacheada",
-        "br_everyday_natural",
-        "br_afro",
-        "br_nikkei",
-        "br_ruiva",
-        "br_sulista",
-        "br_warm_commercial",
-    ),
-    "lifestyle": (
-        "br_social_creator",
-        "br_morena_clara",
-        "br_loira_natural",
-        "br_nordestina",
-        "br_mulata_cacheada",
-        "br_cabocla",
-        "br_everyday_natural",
-        "br_afro",
-        "br_nikkei",
-        "br_ruiva",
-        "br_sulista",
-    ),
-    "editorial_commercial": (
-        "br_soft_editorial",
-        "br_afro",
-        "br_minimal_premium",
-        "br_mature_elegante",
-        "br_sulista",
-        "br_nikkei",
-        "br_morena_clara",
-        "br_loira_natural",
-    ),
-}
+# _CASTING_FAMILY_BIASES removido — casting_engine depreciado, model_soul é a fonte de casting
 
 
 # ─── Preset pool por mode ─────────────────────────────────────────────
@@ -329,28 +283,9 @@ def build_mode_diversity_target(
     profile_dict = operational_profile.to_dict()
     casting_key = resolved_presets["casting_profile"]
 
-    # Alma pura: modes criativos não usam casting prescritivo.
-    # O prompt_context.py injeta a alma da modelo (model_soul.py) no lugar.
-    is_creative_mode = mode_config.id != "catalog_clean"
-    if is_creative_mode:
-        casting_state: dict[str, Any] = {}
-    else:
-        casting_state = select_brazilian_casting_profile(
-            seed_hint=(
-                f"{mode_config.id}:"
-                f"{resolved_presets['scenario_pool']}:"
-                f"{resolved_presets['framing_profile']}:"
-                f"{resolved_presets['camera_type']}:"
-                f"{resolved_presets['capture_geometry']}:"
-                f"{resolved_presets['lighting_profile']}:"
-                f"{resolved_presets['pose_energy']}:"
-                f"{casting_key}"
-            ),
-            user_prompt=user_prompt or mode_config.description,
-            preferred_family_ids=list(_CASTING_FAMILY_BIASES.get(mode_config.id, ())),
-            commit=False,
-            operational_profile=profile_dict,
-        )
+    # Soul-first: casting_engine depreciado. model_soul.py é a única
+    # fonte de verdade para identidade da modelo em todos os modes.
+    casting_state: dict[str, Any] = {}
 
     scene_state = select_scene_state(
         scenario_pool=resolved_presets["scenario_pool"],
@@ -444,18 +379,7 @@ def build_mode_diversity_target(
         "profile_hint": profile_hint,
         "presence_energy": presence_energy,
         "presence_tone": presence_tone,
-        "casting_state": {
-            "age": casting_state.get("age", ""),
-            "skin": casting_state.get("skin", ""),
-            "face_structure": casting_state.get("face_structure", ""),
-            "hair": casting_state.get("hair", ""),
-            "makeup": casting_state.get("makeup", ""),
-            "expression": casting_state.get("expression", ""),
-            "presence": casting_state.get("presence", ""),
-            "signature": casting_state.get("signature", ""),
-            "difference_instruction": casting_state.get("difference_instruction", ""),
-            "recent_avoid": list(casting_state.get("recent_avoid", []) or []),
-        },
+        "casting_state": casting_state,
         "scene_state": scene_state,
         "scene_direction": scene_direction,
         "capture_state": capture_state,
@@ -538,10 +462,7 @@ def harmonize_diversity_target_for_mode(
 
     merged.update(modern)
 
-    age_override = _map_legacy_age_range(incoming.get("age_range"))
-    if age_override:
-        casting_state = dict(merged.get("casting_state") or {})
-        casting_state["age"] = age_override
-        merged["casting_state"] = casting_state
+    # age_override legado desativado — model_soul decide a idade
+    # age_override = _map_legacy_age_range(incoming.get("age_range"))
 
     return merged

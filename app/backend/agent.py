@@ -30,6 +30,11 @@ from agent_runtime.target_builder import (
     harmonize_diversity_target_for_mode,
 )
 from agent_runtime.constants import AGENT_RESPONSE_SCHEMA, build_reference_knowledge
+from agent_runtime.fidelity import (
+    compile_edit_prompt,
+    should_use_image_grounding,
+    derive_garment_material_text,
+)
 from agent_runtime.modes import (
     describe_mode_defaults,
     get_mode,
@@ -185,6 +190,7 @@ def run_agent(
             has_images,
             compact_text_mode=has_prompt and not has_images,
         ),
+        garment_hint=garment_hint,
     )
 
     def _build_parts(context: str) -> List[types.Part]:
@@ -288,6 +294,27 @@ def run_agent(
     )
     result["structural_contract"] = structural_contract
     result["_grounded_images"] = grounded_images
+
+    # ── Fidelity layer (somente fluxo com imagem) ──────────────────────
+    if has_images:
+        _garment_material = derive_garment_material_text(structural_contract, image_analysis)
+        _use_image_grounding = should_use_image_grounding(
+            structural_contract=structural_contract,
+            image_analysis=image_analysis,
+            n_uploaded=len(uploaded_images or []),
+        )
+        _art_soul = describe_mode_defaults(effective_mode) if effective_mode else ""
+        _edit_prompt = compile_edit_prompt(
+            structural_contract,
+            art_direction_soul=_art_soul,
+            garment_material=_garment_material,
+            user_prompt=user_prompt,
+            image_analysis=image_analysis,
+            look_contract=look_contract,
+        )
+        result["edit_prompt"] = _edit_prompt
+        result["garment_material"] = _garment_material
+        result["use_image_grounding"] = _use_image_grounding
 
     # ── Log de observabilidade ─────────────────────────────────────
     prompt_text = result.get("prompt", "")

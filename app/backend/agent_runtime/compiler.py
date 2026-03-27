@@ -21,6 +21,7 @@ _last_scene_comp_idx_by_mode: dict[str, int] = {}
 
 
 
+
 _TEXT_MODE_SCENE_COMP_POOL = [
     "keep the setting secondary to the garment",
     "keep the background quiet and commercially unobtrusive",
@@ -188,6 +189,16 @@ def _compile_prompt_v2(
             "the uploaded reference image is the sole garment truth source — "
             "preserve exact color, fabric, pattern scale, construction, and silhouette",
             1, "garment_fidelity_anchor"
+        ))
+
+    # ── P2: Anti-cópia de modelo (reference_mode) ──────────────────
+    # O Gemini copia a aparência da modelo na imagem de referência (bias visual).
+    # Instrução direta para inventar uma pessoa completamente diferente.
+    if has_images:
+        clauses.append((
+            "invent a completely new model — do NOT copy or resemble the person "
+            "visible in the reference image in age, hair, skin, or body type",
+            2, "anti_copy_model"
         ))
 
     # ── P1: Atypical silhouette / Complex matching (grounding full) ──

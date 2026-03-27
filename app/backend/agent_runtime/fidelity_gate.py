@@ -904,3 +904,89 @@ def evaluate_visual_fidelity(
         "recommended_prompt_patch": str(raw.get("recommended_prompt_patch", "") or "").strip(),
         "retry_recommended": verdict != "pass",
     }
+
+
+# ── Seleção de candidatos por gate score ─────────────────────────────────
+
+def stage1_selection_key(
+    assessment: dict[str, Any],
+    gate_result: Optional[dict[str, Any]],
+) -> tuple[float, float, float, float]:
+    """Chave de ordenação para selecionar o melhor candidato stage 1.
+
+    Retorna uma tupla comparável: maior = melhor candidato.
+    Se gate está disponível, prioriza verdict > fidelity_score > structure > técnico.
+    Caso contrário, usa candidate_score + technical_score.
+    """
+    if gate_result and gate_result.get("available"):
+        verdict_rank = {
+            "pass": 2.0,
+            "soft_fail": 1.0,
+            "hard_fail": 0.0,
+        }.get(str(gate_result.get("verdict", "") or "").strip().lower(), 0.0)
+        return (
+            verdict_rank,
+            float(gate_result.get("fidelity_score", 0.0) or 0.0),
+            float(gate_result.get("structure_fidelity", 0.0) or 0.0),
+            float(assessment.get("technical_score", 0.0) or 0.0),
+        )
+    return (
+        float(assessment.get("candidate_score", 0.0) or 0.0),
+        float(assessment.get("technical_score", 0.0) or 0.0),
+        0.0,
+        0.0,
+    )
+
+
+def pick_best_stage1_candidate(
+    candidates: list[dict[str, Any]],
+    stage1_prompt: str,
+    classifier_summary: dict[str, Any],
+    *,
+    assess_fn: Any,
+    gate_policy: Optional[dict[str, Any]] = None,
+    gate_reference_bytes: Optional[list[bytes]] = None,
+    structural_contract: Optional[dict[str, Any]] = None,
+    set_detection: Optional[dict[str, Any]] = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]], int]:
+    """Avalia todos os candidatos stage 1 e retorna (melhor, assessments, índice 1-based).
+
+    Args:
+        assess_fn: função de avaliação (pipeline_effectiveness.assess_generated_image).
+                   Injetada para evitar dependência circular.
+    """
+    assessments: list[dict[str, Any]] = []
+    best_idx = 0
+    best_key = (-1.0, -1.0, -1.0, -1.0)
+    gate_enabled = bool((gate_policy or {}).get("enabled"))
+    judge_refs = list(gate_reference_bytes or [])
+
+    for idx, candidate in enumerate(candidates):
+        candidate_path = str(candidate.get("path", "") or "")
+        assessment = assess_fn(candidate_path, stage1_prompt, classifier_summary)
+        gate_result = None
+        if gate_enabled and judge_refs:
+            gate_result = evaluate_visual_fidelity(
+                stage="stage1",
+                reference_images=judge_refs,
+                candidate_image_path=candidate_path,
+                structural_contract=structural_contract,
+                set_detection=set_detection,
+                prompt=stage1_prompt,
+            )
+        assessments.append(
+            {
+                "index": idx + 1,
+                "filename": candidate.get("filename"),
+                "url": candidate.get("url"),
+                "path": candidate.get("path"),
+                "assessment": assessment,
+                "fidelity_gate": gate_result,
+            }
+        )
+        key = stage1_selection_key(assessment, gate_result)
+        if key > best_key:
+            best_key = key
+            best_idx = idx
+
+    return candidates[best_idx], assessments, best_idx + 1

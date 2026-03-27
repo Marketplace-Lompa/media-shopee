@@ -17,7 +17,7 @@ from agent_runtime.target_builder import (
     harmonize_diversity_target_for_mode,
 )
 from agent_runtime.modes import DEFAULT_TEXT_MODE, get_mode
-from agent_runtime.pipeline_v2 import run_pipeline_v2
+from agent_runtime.generation_flow import run_generation_flow as run_pipeline_v2
 from agent_runtime.pipeline_v2_support import (
     build_v2_generate_response,
     normalize_v2_options,

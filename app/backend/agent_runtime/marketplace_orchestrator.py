@@ -334,7 +334,7 @@ def _process_slot_sync(
     total_slots: int,
 ) -> dict[str, Any]:
     """Processa um slot individual — versão sync."""
-    from agent_runtime.pipeline_v2 import run_pipeline_v2
+    from agent_runtime.generation_flow import run_generation_flow as run_pipeline_v2
     from agent_runtime.pipeline_v2_support import persist_v2_history
 
     slot_id = str(slot["slot_id"])
@@ -566,7 +566,7 @@ async def run_marketplace_orchestration_async(
 
     if hero_slot:
         try:
-            # run_pipeline_v2 é sync → roda em thread
+            # generation_flow é sync → roda em thread
             hero_result = await asyncio.to_thread(
                 _process_slot_sync,
                 idx=1,

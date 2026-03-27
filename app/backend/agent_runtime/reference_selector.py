@@ -182,3 +182,44 @@ def select_reference_subsets(
         },
         "unified_triage": unified_triage,
     }
+
+
+# ── Utilitários de composição de referências ─────────────────────────────
+
+def merge_reference_bytes(*groups: list[bytes]) -> list[bytes]:
+    """Merge múltiplos grupos de referências, deduplicando por conteúdo."""
+    merged: list[bytes] = []
+    seen: set[bytes] = set()
+    for group in groups:
+        for item in group:
+            if item in seen:
+                continue
+            seen.add(item)
+            merged.append(item)
+    return merged
+
+
+def merge_reference_names(*groups: list[str]) -> list[str]:
+    """Merge nomes de referências, deduplicando por string."""
+    merged: list[str] = []
+    seen: set[str] = set()
+    for group in groups:
+        for item in group:
+            name = str(item or "").strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            merged.append(name)
+    return merged
+
+
+def limit_reference_pack(
+    ref_bytes: list[bytes],
+    ref_names: list[str],
+    *,
+    limit: int,
+) -> tuple[list[bytes], list[str]]:
+    """Limita pacote de referências ao budget máximo."""
+    if limit <= 0:
+        return [], []
+    return list(ref_bytes[:limit]), list(ref_names[:limit])

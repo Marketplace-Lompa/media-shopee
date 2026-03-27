@@ -1,38 +1,20 @@
+"""
+Utilidades compartilhadas para pipelines de geração.
+
+Funções de IO, slug, detecção de formato — usadas tanto pelo
+pipeline V2 quanto pela futura orquestração unificada.
+"""
 from __future__ import annotations
 
-import json
 import re
-import time
 from pathlib import Path
 from typing import Any
 
 from config import OUTPUTS_DIR
 
 
-def write_v2_observability_report(session_id: str, payload: dict[str, Any]) -> dict[str, str]:
-    report_dir = OUTPUTS_DIR / f"v2diag_{session_id}"
-    report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / "report.json"
-
-    body = dict(payload)
-    body["session_id"] = session_id
-    body["written_at"] = int(time.time() * 1000)
-
-    report_path.write_text(
-        json.dumps(body, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-
-    return {
-        "report_path": str(report_path),
-        "report_url": f"/outputs/{report_dir.name}/{report_path.name}",
-    }
-
-
-# ── Persistência de assets de review/diagnóstico ─────────────────────────
-
 def guess_image_extension(image_bytes: bytes) -> str:
-    """Detecta extensão de imagem a partir dos magic bytes."""
+    """Detecta extensão de imagem por magic bytes."""
     if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
         return "png"
     if image_bytes.startswith(b"\xff\xd8\xff"):
@@ -43,7 +25,7 @@ def guess_image_extension(image_bytes: bytes) -> str:
 
 
 def safe_asset_slug(raw_name: str, *, fallback: str) -> str:
-    """Gera slug seguro para nomes de assets."""
+    """Gera slug seguro a partir de um filename."""
     name = str(raw_name or "").strip().lower()
     stem = Path(name).stem if name else fallback
     slug = re.sub(r"[^a-z0-9]+", "_", stem).strip("_")
@@ -58,7 +40,7 @@ def persist_review_inputs(
     selected_bytes: dict[str, Any],
     selected_names: dict[str, Any],
 ) -> dict[str, list[str]]:
-    """Persiste assets de input para review/diagnóstico pós-geração."""
+    """Salva inputs de referência no disco para auditoria/review."""
     review_dir = OUTPUTS_DIR / f"v2diag_{session_id}" / "inputs"
     review_dir.mkdir(parents=True, exist_ok=True)
 
@@ -67,7 +49,10 @@ def persist_review_inputs(
         group_dir.mkdir(parents=True, exist_ok=True)
         urls: list[str] = []
         for idx, item in enumerate(items):
-            slug = safe_asset_slug(names[idx] if idx < len(names) else "", fallback=f"{group_name}_{idx + 1}")
+            slug = safe_asset_slug(
+                names[idx] if idx < len(names) else "",
+                fallback=f"{group_name}_{idx + 1}",
+            )
             ext = guess_image_extension(item)
             filename = f"{idx + 1:02d}_{slug}.{ext}"
             target = group_dir / filename

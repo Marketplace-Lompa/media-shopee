@@ -105,12 +105,11 @@ def _build_diversity_target_block(
     profile: str,
     diversity_target: Optional[dict[str, Any]],
     has_images: bool,
+    garment_hint: str = "",
 ) -> str:
     dt = diversity_target or {}
-    profile_hint = dt.get("profile_hint", "") or profile
-    presence_energy = dt.get("presence_energy", "")
-    presence_tone = dt.get("presence_tone", "")
-    casting_state = dt.get("casting_state") or {}
+
+    # casting_state removido — o model_soul é a única fonte de casting
     scene_state = dt.get("scene_state") or {}
     capture_state = dt.get("capture_state") or {}
     pose_state = dt.get("pose_state") or {}
@@ -151,9 +150,6 @@ def _build_diversity_target_block(
         )
 
     # ── Diretivas de persona (criatividade unificada, com contenção anti-copy no reference mode) ──
-    presence_clause = ""
-    if presence_energy or presence_tone:
-        presence_clause = f" Presence: {presence_energy}, {presence_tone}."
     persona_creation_rule = (
         "Invent a clearly new Brazilian persona that is VISUALLY DISTINCT from the reference woman.\n"
         "You MUST specify concrete physical traits (hair color & style, approximate age, skin tone, build) that CONTRAST with the reference person.\n"
@@ -161,13 +157,10 @@ def _build_diversity_target_block(
         if has_images
         else "Invent unique physical characteristics (skin tone, hair, age, build) that complement the garment.\n"
     )
-    # Persona anchor: só injetar quando houver name blend (catalog_clean).
-    # Modes criativos usam MODEL SOUL — sem persona anchor redundante.
-    if profile_hint:
-        block += (
-            f"Model persona anchor: {profile_hint}.{presence_clause}\n"
-            "Use the persona anchor consistently in the final prompt instead of dropping it.\n"
-        )
+
+    # Persona anchor (name blending) REMOVIDO.
+    # O casting agora é 100% via MODEL SOUL em todos os modes.
+    # O name blending causava fixação em ~28 anos.
     block += (
         "Keep the model distinctly Brazilian in a believable, non-stereotyped way.\n"
         f"{persona_creation_rule}"
@@ -204,49 +197,20 @@ def _build_diversity_target_block(
             f"  - guardrail behavior: {operational_profile.get('guardrail_profile', '')}\n"
             "Let this shape how much each layer appears in the final prompt, without naming modes or preset mechanics.\n"
         )
-    # Casting: alma pura para modes criativos, prescritivo para catalog_clean
-    mode_id = dt.get("mode", "")
-    is_creative_mode = mode_id != "catalog_clean"
 
-    if is_creative_mode:
-        # Alma da modelo — universal, sem prescrição de atributos
-        from agent_runtime.model_soul import get_model_soul
-        block += get_model_soul()
-        if has_images:
-            block += (
-                "If the reference images contain a woman, make the new model read clearly "
-                "distinct from her in overall identity, hair silhouette, and presence.\n"
-            )
-    elif casting_state:
-        # catalog_clean: mantém prescrição para consistência de catálogo
-        recent_avoid = ", ".join(casting_state.get("recent_avoid") or []) or "none"
-        if has_images:
-            block += (
-                "CASTING LATENT STATE (creative seed — use as inspiration for the new persona, NOT as literal phenotype casting):\n"
-                f"  - age energy: {casting_state.get('age', '')}\n"
-                f"  - polish level: {casting_state.get('makeup', '')}\n"
-                f"  - expression energy: {casting_state.get('expression', '')}\n"
-                f"  - presence: {casting_state.get('presence', '')}\n"
-                f"  - variation rule: {casting_state.get('difference_instruction', '')}\n"
-                f"  - recent avoid: {recent_avoid}\n"
-                "These casting coordinates are a creative starting point, not a prescriptive recipe.\n"
-                "If the reference images contain a woman, make the new model read clearly distinct from her in overall identity, hair silhouette, and presence.\n"
-            )
-        else:
-            block += (
-                "CASTING LATENT STATE (creative seed — use as inspiration, NOT as a rigid checklist):\n"
-                f"  - age energy: {casting_state.get('age', '')}\n"
-                f"  - face impression: {casting_state.get('face_structure', '')}\n"
-                f"  - skin direction: {casting_state.get('skin', '')}\n"
-                f"  - hair language: {casting_state.get('hair', '')}\n"
-                f"  - polish level: {casting_state.get('makeup', '')}\n"
-                f"  - expression energy: {casting_state.get('expression', '')}\n"
-                f"  - presence: {casting_state.get('presence', '')}\n"
-                f"  - variation rule: {casting_state.get('difference_instruction', '')}\n"
-                f"  - recent avoid: {recent_avoid}\n"
-                "These casting coordinates are a creative starting point, not a prescriptive recipe.\n"
-                "Final prompt surface minimum: render apparent age, one face impression, and one hair description.\n"
-            )
+    # Alma da modelo — universal, com contexto da peça para casting inteligente
+    from agent_runtime.model_soul import get_model_soul
+    mode_id = dt.get("mode", "")
+    block += get_model_soul(garment_context=garment_hint, mode_id=mode_id)
+    if has_images:
+        block += (
+            "If the reference images contain a woman, make the new model read clearly "
+            "distinct from her in overall identity, hair silhouette, and presence.\n"
+        )
+
+    # casting_state legado REMOVIDO.
+    # O model_soul é a única fonte de verdade para casting em todos os modes.
+    # As famílias determinísticas do casting_engine não são mais injetadas no prompt.
 
     scene_direction = dt.get("scene_direction") or {}
     if scene_state and not scene_direction:
@@ -530,6 +494,7 @@ def build_generate_context_text(
     grounding_mode: str,
     mode_defaults_text: Optional[str],
     reference_knowledge: str,
+    garment_hint: str = "",
 ) -> str:
     # A ordem dos blocos e deliberada: primeiro tarefa/constraints de alto nivel,
     # depois contexto especializado. Mudar a sequencia sem validar pode degradar
@@ -556,6 +521,7 @@ def build_generate_context_text(
             profile=profile,
             diversity_target=diversity_target,
             has_images=has_images,
+            garment_hint=garment_hint,
         )
     )
 
