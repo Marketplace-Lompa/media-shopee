@@ -17,6 +17,21 @@ from agent_runtime.mode_identity_soul import get_mode_identity_soul
 from agent_runtime.model_soul import get_model_soul
 from agent_runtime.parser import _decode_agent_response, _extract_response_text, try_repair_truncated_json
 
+_NATURAL_PRESTIGE_DRIFT_TOKENS = (
+    "architect",
+    "designer",
+    "curator",
+    "gallery",
+    "brutalist",
+    "academic",
+    "intellectual",
+    "premium",
+    "luxury",
+    "pinterest",
+    "fashion-forward",
+    "corporate",
+)
+
 
 _CANDIDATE_SCHEMA = {
     "type": "object",
@@ -30,6 +45,9 @@ _CANDIDATE_SCHEMA = {
         "presence_logic",
         "expression_logic",
         "makeup_logic",
+        "beauty_logic",
+        "platform_presence",
+        "commercial_read",
         "distinction_markers",
         "rationale",
     ],
@@ -43,6 +61,9 @@ _CANDIDATE_SCHEMA = {
         "presence_logic": {"type": "string"},
         "expression_logic": {"type": "string"},
         "makeup_logic": {"type": "string"},
+        "beauty_logic": {"type": "string"},
+        "platform_presence": {"type": "string"},
+        "commercial_read": {"type": "string"},
         "distinction_markers": {"type": "array", "items": {"type": "string"}},
         "rationale": {"type": "string"},
     },
@@ -52,6 +73,7 @@ CASTING_DIRECTION_SCHEMA = {
     "type": "object",
     "required": [
         "research_signals",
+        "market_fit_summary",
         "candidate_directions",
         "chosen_label",
         "chosen_direction",
@@ -62,19 +84,21 @@ CASTING_DIRECTION_SCHEMA = {
     ],
     "properties": {
         "research_signals": {"type": "array", "items": {"type": "string"}},
+        "market_fit_summary": {"type": "string"},
         "candidate_directions": {"type": "array", "items": _CANDIDATE_SCHEMA},
         "chosen_label": {"type": "string"},
         "chosen_direction": _CANDIDATE_SCHEMA,
         "profile_hint": {"type": "string"},
         "casting_state": {
             "type": "object",
-            "required": ["age", "face_structure", "hair", "presence", "expression"],
+            "required": ["age", "face_structure", "hair", "presence", "expression", "beauty_read"],
             "properties": {
                 "age": {"type": "string"},
                 "face_structure": {"type": "string"},
                 "hair": {"type": "string"},
                 "presence": {"type": "string"},
                 "expression": {"type": "string"},
+                "beauty_read": {"type": "string"},
             },
         },
         "anti_collapse_signals": {"type": "array", "items": {"type": "string"}},
@@ -126,6 +150,9 @@ def _normalize_candidate(raw: Optional[dict[str, Any]]) -> dict[str, Any]:
         "presence_logic": _clean_text(payload.get("presence_logic"), limit=140),
         "expression_logic": _clean_text(payload.get("expression_logic"), limit=140),
         "makeup_logic": _clean_text(payload.get("makeup_logic"), limit=140),
+        "beauty_logic": _clean_text(payload.get("beauty_logic"), limit=140),
+        "platform_presence": _clean_text(payload.get("platform_presence"), limit=140),
+        "commercial_read": _clean_text(payload.get("commercial_read"), limit=140),
         "distinction_markers": _clean_list(payload.get("distinction_markers"), limit=4, item_limit=80),
         "rationale": _clean_text(payload.get("rationale"), limit=180),
     }
@@ -138,6 +165,7 @@ def _derive_casting_state(candidate: dict[str, Any]) -> dict[str, str]:
         "hair": _clean_text(candidate.get("hair_logic"), limit=160),
         "presence": _clean_text(candidate.get("presence_logic"), limit=140),
         "expression": _clean_text(candidate.get("expression_logic"), limit=140),
+        "beauty_read": _clean_text(candidate.get("beauty_logic"), limit=140),
     }
 
 
@@ -146,7 +174,8 @@ def _derive_profile_hint(candidate: dict[str, Any]) -> str:
         _clean_text(candidate.get("age_logic"), limit=60),
         _clean_text(candidate.get("face_geometry"), limit=90),
         _clean_text(candidate.get("hair_logic"), limit=100),
-        _clean_text(candidate.get("presence_logic"), limit=90),
+        _clean_text(candidate.get("beauty_logic"), limit=80),
+        _clean_text(candidate.get("platform_presence"), limit=80),
     ]
     return _clean_text(", ".join(part for part in parts if part), limit=240)
 
@@ -178,6 +207,7 @@ def _normalize_casting_direction(payload: Optional[dict[str, Any]]) -> dict[str,
         "hair": _clean_text(raw_casting_state.get("hair"), limit=160),
         "presence": _clean_text(raw_casting_state.get("presence"), limit=140),
         "expression": _clean_text(raw_casting_state.get("expression"), limit=140),
+        "beauty_read": _clean_text(raw_casting_state.get("beauty_read"), limit=140),
     }
     if not any(casting_state.values()):
         casting_state = _derive_casting_state(chosen_direction)
@@ -186,6 +216,7 @@ def _normalize_casting_direction(payload: Optional[dict[str, Any]]) -> dict[str,
 
     return {
         "research_signals": _clean_list(raw.get("research_signals"), limit=8, item_limit=160),
+        "market_fit_summary": _clean_text(raw.get("market_fit_summary"), limit=180),
         "candidate_directions": candidates,
         "chosen_label": chosen_label,
         "chosen_direction": chosen_direction,
@@ -200,23 +231,87 @@ def _get_mode_casting_mandate(mode_id: Optional[str]) -> str:
     normalized = str(mode_id or "natural").strip().lower()
     if normalized == "catalog_clean":
         return (
-            "Choose a commercially clear woman whose face and body read immediately, but avoid collapsing into the same polished safe catalog identity every time."
+            "Choose a commercially appealing woman whose face, body, and garment readability are immediately clear. "
+            "She should feel brand-safe, attractive, and trustworthy for mainstream Brazilian ecommerce. "
+            "Differentiate within that high-conversion band rather than escaping into severity, anonymity, or maturity inflation."
         )
     if normalized == "natural":
         return (
-            "Choose a woman who feels found rather than prepared. Lower polish, lower status signaling, more lived-in face and hair logic, less camera-ready confidence."
+            "Choose a woman who feels real and lightly unproduced, but still beautiful, warm, contemporary, and commercially desirable. "
+            "Natural means less staged and less beauty-set-up, not older, drained, severe, prestige-coded, or anti-beauty. "
+            "She should still read as someone who could convert fashion in Shopee, TikTok, or Instagram through approachable attractiveness, not rarefied taste signaling."
         )
     if normalized == "lifestyle":
         return (
-            "Choose a woman whose social presence feels active, contemporary, and situated in life. She should feel like a real person with style agency, not a generic smiling presenter."
+            "Choose a woman whose social presence feels active, contemporary, and creator-native. "
+            "She should feel attractive, memorable, and commercially strong in social-commerce life, not generic, corporate, or conceptually austere."
         )
     if normalized == "editorial_commercial":
         return (
-            "Choose a woman with stronger visual character, sharper casting distinction, and clearer fashion authority. Do not solve editorial strength with the same mainstream commercial face."
+            "Choose a woman with stronger visual character and sharper fashion authority, while keeping clear desirability and sellability. "
+            "Editorial-commercial strength should come from distinctive beauty and presence, not from aging her up or making her severe by default."
         )
     return (
-        "Choose a commercially effective but clearly differentiated woman. Avoid the most obvious mainstream creator archetype unless the garment truly demands it."
+        "Choose a commercially effective, attractive, high-trust Brazilian woman for mainstream social-commerce. "
+        "Differentiate her clearly, but keep her inside a believable, desirable, creator-friendly market band."
     )
+
+
+def _get_market_fit_band(mode_id: Optional[str]) -> str:
+    normalized = str(mode_id or "natural").strip().lower()
+    base = (
+        "NON-NEGOTIABLE MARKET BAND:\n"
+        "- The woman must feel commercially strong for Brazilian social-commerce fashion imagery.\n"
+        "- She must read as clearly adult, attractive, trustworthy, memorable, and socially native.\n"
+        "- Keep the center of gravity in the mainstream high-conversion creator/seller/presenter band for Shopee, TikTok, and Instagram.\n"
+        "- Diversity must happen INSIDE that band, not by leaving it.\n"
+        "- Do not solve originality with age inflation, austerity, severity, drained beauty, overt intellectualization, or hyper-corporate energy unless the garment clearly justifies it.\n"
+        "- When the user asks for elegant, polished, refined, or sophisticated, translate that as desirable and commercially aspirational, not older or rigid.\n"
+    )
+    if normalized == "natural":
+        return (
+            base
+            + "- In natural mode, lower production and lower status signaling are good, but the woman must still feel beautiful, current, and creator-relevant.\n"
+            + "- Prefer a face that feels warm and credible in real life over a face that feels stern, drained, or deliberately serious.\n"
+            + "- Avoid prestige-coded creative-class cues such as designer, architect, curator, concept-store, or premium-luxury energy.\n"
+            + "- Keep the commercial read accessible, desirable, and everyday-social rather than elite, rarefied, or niche-taste.\n"
+        )
+    if normalized == "catalog_clean":
+        return (
+            base
+            + "- In catalog_clean, keep beauty clean, legible, and broadly appealing. Avoid drifting into anonymous mannequin logic or mature luxury codes.\n"
+        )
+    if normalized == "lifestyle":
+        return (
+            base
+            + "- In lifestyle, she should feel socially visible and naturally magnetic, like someone whose presence already works inside product-led social media.\n"
+        )
+    if normalized == "editorial_commercial":
+        return (
+            base
+            + "- In editorial_commercial, sharpen distinction and taste, but keep her desirable and commercially usable rather than coldly conceptual.\n"
+        )
+    return base
+
+
+def _needs_natural_market_recenter(payload: dict[str, Any], mode_id: Optional[str]) -> bool:
+    if str(mode_id or "").strip().lower() != "natural":
+        return False
+    chosen = payload.get("chosen_direction") or {}
+    haystack = " ".join(
+        str(item or "").strip().lower()
+        for item in (
+            payload.get("market_fit_summary"),
+            payload.get("profile_hint"),
+            chosen.get("label"),
+            chosen.get("presence_logic"),
+            chosen.get("beauty_logic"),
+            chosen.get("platform_presence"),
+            chosen.get("commercial_read"),
+            chosen.get("rationale"),
+        )
+    )
+    return any(token in haystack for token in _NATURAL_PRESTIGE_DRIFT_TOKENS)
 
 
 def resolve_casting_direction(
@@ -236,13 +331,17 @@ def resolve_casting_direction(
     mode_lines = get_mode_identity_soul(mode_id)
     model_soul = get_model_soul(garment_context=garment_text, mode_id=mode_id or "")
     mode_casting_mandate = _get_mode_casting_mandate(mode_id)
+    market_fit_band = _get_market_fit_band(mode_id)
     prompt_text = _clean_text(user_prompt, limit=240) or "none"
     research_instruction = (
         "Use Google Search grounding first and return a compact research memo for Brazilian social-commerce casting.\n"
         "Focus on visual patterns only. Do not cite or imitate real people in the memo.\n"
+        "Search for recent public signals across Brazilian female social-commerce creators, ecommerce presenters, marketplace sellers, beauty/fashion/lifestyle UGC, and mobile-first product imagery.\n"
+        "Stay inside the market band below while mapping strengths, clichés, and open opportunities.\n"
         "Return plain text, not JSON.\n\n"
         "<MODE_IDENTITY>\n" + "\n".join(mode_lines) + "\n</MODE_IDENTITY>\n\n"
         "<MODE_CASTING_MANDATE>\n" + mode_casting_mandate + "\n</MODE_CASTING_MANDATE>\n\n"
+        "<MARKET_FIT_BAND>\n" + market_fit_band + "</MARKET_FIT_BAND>\n\n"
         "<JOB_CONTEXT>\n"
         f"- mode_id: {str(mode_id or 'natural').strip().lower()}\n"
         f"- user_prompt: {prompt_text}\n"
@@ -257,9 +356,10 @@ def resolve_casting_direction(
         f"- reference_mode: {'true' if has_images else 'false'}\n"
         "</JOB_CONTEXT>\n\n"
         "Return this compact memo with exactly these sections:\n"
-        "1. SIGNALS: exactly 5 bullets covering strengths, clichés, and underused opportunities.\n"
-        "2. CANDIDATE SPREAD: exactly 3 short materially different casting directions.\n"
-        "3. ANTI-COLLAPSE: up to 5 default patterns to avoid for this job.\n"
+        "1. SIGNALS: exactly 5 bullets covering recurring high-conversion visual signals, clichés, and underused opportunities.\n"
+        "2. DESIRABILITY BAND: exactly 3 bullets defining the beauty/commercial center of gravity for this job.\n"
+        "3. CANDIDATE SPREAD: exactly 3 short materially different casting directions, all still inside the same desirable social-commerce band.\n"
+        "4. ANTI-COLLAPSE: up to 5 default patterns to avoid for this job.\n"
         "Keep it concise.\n"
     )
 
@@ -271,7 +371,7 @@ def resolve_casting_direction(
             parts=[types.Part(text=raw_instruction)],
             schema=CASTING_DIRECTION_SCHEMA,
             temperature=temperature,
-            max_tokens=1400,
+            max_tokens=2200,
             thinking_budget=0,
         )
 
@@ -287,7 +387,7 @@ def resolve_casting_direction(
         ),
         max_attempts=3,
     )
-    grounded_memo = _clean_text(_extract_response_text(grounded_response), limit=3200)
+    grounded_memo = _clean_text(_extract_response_text(grounded_response), limit=2200)
     if not grounded_memo:
         return {}
 
@@ -298,11 +398,15 @@ def resolve_casting_direction(
         "Do not imitate or name any real person.\n"
         "Map the space before you choose: produce three materially different candidate directions before selecting one.\n"
         "The three candidates must differ in at least three dimensions among: age energy, face geometry, skin read, hair behavior, body read, polish level, and social presence.\n"
+        "All three candidates must remain inside the high-conversion beauty/commercial band for Brazilian social-commerce.\n"
         "Avoid collapsing into the safest default of polished brunette waves, generic warm smile, and creator-beauty portrait logic unless the product context truly justifies it.\n"
-        "The winning direction must remain beautiful, commercially effective, believable, and distinct.\n\n"
+        "Do NOT solve distinction by aging her up, making her severe, academic, architectural, drained, corporate, or conceptually intellectual unless the garment context explicitly demands that.\n"
+        "The winning direction must remain beautiful, commercially effective, trustworthy, socially native, believable, and distinct.\n"
+        "Prioritize the winner in this order: market fit, garment fit, mode fit, distinction.\n\n"
         "<MODE_IDENTITY>\n" + "\n".join(mode_lines) + "\n</MODE_IDENTITY>\n\n"
         "<MODEL_SOUL>\n" + model_soul + "\n</MODEL_SOUL>\n\n"
         "<MODE_CASTING_MANDATE>\n" + mode_casting_mandate + "\n</MODE_CASTING_MANDATE>\n\n"
+        "<MARKET_FIT_BAND>\n" + market_fit_band + "</MARKET_FIT_BAND>\n\n"
         "<GROUNDED_RESEARCH_MEMO>\n" + grounded_memo + "\n</GROUNDED_RESEARCH_MEMO>\n\n"
         "<JOB_CONTEXT>\n"
         f"- mode_id: {str(mode_id or 'natural').strip().lower()}\n"
@@ -318,7 +422,11 @@ def resolve_casting_direction(
         "</JOB_CONTEXT>\n\n"
         "OUTPUT RULES:\n"
         "- research_signals: exactly 5 short lines distilled from the memo.\n"
+        "- market_fit_summary: one short line on why the winner stays commercially right for Brazilian social-commerce.\n"
         "- candidate_directions: exactly 3 options, all original and materially different.\n"
+        "- Every candidate must feel attractive, saleable, and socially native.\n"
+        "- Use beauty_logic, platform_presence, and commercial_read to keep the winner in the correct market band.\n"
+        "- Let differentiation come from geometry, skin read, hair behavior, polish level, and presence rather than age inflation.\n"
         "- chosen_direction: the best direction for this specific garment and mode.\n"
         "- profile_hint: one compact sentence summarizing the chosen casting direction.\n"
         "- casting_state: compact fields for downstream enforcement.\n"
@@ -372,6 +480,24 @@ def resolve_casting_direction(
             return {}
     if not normalized.get("chosen_direction") or not (normalized.get("chosen_direction") or {}).get("label"):
         return {}
+
+    if _needs_natural_market_recenter(normalized, mode_id):
+        recenter_instruction = (
+            instruction
+            + "\n\n[MARKET RECENTER]: The previous solution drifted into prestige-coded or creative-class casting."
+            " Re-solve the JSON while keeping the woman attractive, socially native, accessible, and high-conversion for mainstream Brazilian social-commerce."
+            " In natural mode specifically, avoid architect/designer/curator/intellectual/luxury-coded energy."
+            " Keep her beautiful and current, with approachable everyday desirability."
+        )
+        try:
+            recenter_response = _call_json_model(recenter_instruction, temperature=0.2, max_attempts=2)
+            recenter_parsed = _decode_agent_response(recenter_response)
+            recentered = _normalize_casting_direction(recenter_parsed if isinstance(recenter_parsed, dict) else {})
+            if recentered.get("chosen_direction") and (recentered.get("chosen_direction") or {}).get("label"):
+                normalized = recentered
+                response = recenter_response
+        except Exception as recenter_exc:
+            print(f"[MODEL_GROUNDING] ⚠️ market recenter failed: {recenter_exc}")
 
     normalized["grounding_titles"] = _extract_grounding_titles(grounded_response)
     if normalized.get("confidence", 0.0) > 0.0:
