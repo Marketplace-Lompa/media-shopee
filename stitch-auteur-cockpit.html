@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Auteur Studio | Creative Cockpit</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@300;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-dim": "#ebebeb",
+                        "on-surface": "#e7e5e4",
+                        "error": "#ee7d77",
+                        "on-secondary-fixed-variant": "#585c60",
+                        "surface-container-high": "#1f2020",
+                        "surface-tint": "#c6c6c6",
+                        "on-secondary-fixed": "#3c4044",
+                        "surface-variant": "#252626",
+                        "primary-fixed": "#e2e2e2",
+                        "secondary-fixed-dim": "#d2d4da",
+                        "secondary-dim": "#9b9ea3",
+                        "surface-container-lowest": "#000000",
+                        "on-primary-container": "#d0d0d0",
+                        "primary": "#c6c6c6",
+                        "on-surface-variant": "#acabaa",
+                        "surface": "#0e0e0e",
+                        "on-primary": "#3f4041",
+                        "primary-dim": "#b8b9b9",
+                        "error-dim": "#bb5551",
+                        "inverse-on-surface": "#565554",
+                        "on-tertiary-fixed": "#494a4a",
+                        "surface-dim": "#0e0e0e",
+                        "primary-fixed-dim": "#d4d4d4",
+                        "on-secondary": "#1d2024",
+                        "tertiary": "#faf9f9",
+                        "secondary-container": "#383c40",
+                        "outline": "#767575",
+                        "inverse-primary": "#5e5f5f",
+                        "surface-container-highest": "#252626",
+                        "tertiary-fixed": "#f4f3f3",
+                        "surface-container-low": "#131313",
+                        "on-primary-fixed": "#3e4040",
+                        "on-tertiary-fixed-variant": "#656666",
+                        "inverse-surface": "#fcf8f8",
+                        "on-primary-fixed-variant": "#5a5c5c",
+                        "primary-container": "#454747",
+                        "on-secondary-container": "#bdbfc5",
+                        "on-error-container": "#ff9993",
+                        "outline-variant": "#484848",
+                        "background": "#0e0e0e",
+                        "on-error": "#490106",
+                        "surface-bright": "#2c2c2c",
+                        "secondary": "#9b9ea3",
+                        "surface-container": "#191a1a",
+                        "on-tertiary": "#5e5f5f",
+                        "secondary-fixed": "#e0e2e8",
+                        "tertiary-fixed-dim": "#e6e5e5",
+                        "on-tertiary-container": "#565757",
+                        "on-background": "#e7e5e4",
+                        "tertiary-container": "#ebebeb",
+                        "error-container": "#7f2927"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .metallic-cta {
+            background: linear-gradient(45deg, #c6c6c6 0%, #454747 100%);
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0e0e0e; }
+        ::-webkit-scrollbar-thumb { background: #1f2020; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body overflow-hidden">
+<!-- SideNavBar (Authority: JSON & Design System) -->
+<aside class="h-screen w-64 fixed left-0 top-0 overflow-y-auto bg-[#131313] dark:bg-[#131313] border-r border-[#484848]/15 shadow-[60px_0_60px_-15px_rgba(0,0,0,0.08)] flex flex-col py-8 px-4 z-50">
+<div class="mb-10 px-2">
+<h1 class="font-['Manrope'] font-bold text-xl tracking-tighter text-[#faf9f9]">Auteur Studio</h1>
+<p class="font-['Manrope'] tracking-tight text-xs text-on-surface-variant/60 uppercase mt-1">Premium AI</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-[#faf9f9] font-bold border-r-2 border-[#c6c6c6] bg-gradient-to-r from-[#1f2020] to-transparent font-['Manrope'] tracking-tight text-sm transition-all duration-300" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#acabaa]/50 hover:text-[#acabaa] hover:bg-[#1f2020] transition-all duration-300 font-['Manrope'] tracking-tight text-sm scale-[0.98] active:duration-100" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+                Library
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#acabaa]/50 hover:text-[#acabaa] hover:bg-[#1f2020] transition-all duration-300 font-['Manrope'] tracking-tight text-sm scale-[0.98] active:duration-100" href="#">
+<span class="material-symbols-outlined">movie_filter</span>
+                Creations
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#acabaa]/50 hover:text-[#acabaa] hover:bg-[#1f2020] transition-all duration-300 font-['Manrope'] tracking-tight text-sm scale-[0.98] active:duration-100" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+</nav>
+<div class="mt-auto px-2 space-y-4">
+<button class="w-full py-3 metallic-cta text-on-primary font-headline font-bold text-xs tracking-widest uppercase rounded-sm shadow-lg shadow-black/20 hover:opacity-90 transition-all">
+                New Production
+            </button>
+<div class="flex items-center gap-3 p-3 bg-surface-container-high rounded-lg">
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-outline-variant/30" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAgOOoEKi-ZbosGuPQ6VJanseV-nDmGVnRcA-a7bWzssnmjIFCznbS0CMC_wED4iNvSqYBG_jvxVHmwEsPU6o4-wQb8gwJB31kwPb-vQNGWmBwQ6B5oICFGrp1rO2FXEg6uH5Vw36xavLLdewYAqQex3_E5kJd3K9A86Wc3UsAxt9iWotaRknZCUoIEq48kXlU4EVtHtDaXjjO-o7Kyx8ejabXZHhd9HSfvsOOeUToIljupk-myUxcTdZPBSWV7f6vICBop_58dKfYJ"/>
+<div class="overflow-hidden">
+<p class="text-[10px] font-bold text-tertiary truncate">Creative Director</p>
+<p class="text-[9px] text-on-surface-variant truncate">Enterprise Plan</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopAppBar & Main Content Area -->
+<div class="ml-64 flex flex-col h-screen overflow-y-auto bg-surface">
+<!-- TopAppBar (Authority: JSON) -->
+<header class="fixed top-0 right-0 left-64 h-16 z-40 bg-[#0e0e0e]/80 backdrop-blur-xl border-b border-[#484848]/15 flex items-center justify-between px-8 w-full font-['Manrope'] uppercase tracking-widest text-[10px] font-bold">
+<div class="flex gap-8">
+<a class="text-[#faf9f9] border-b-2 border-[#c6c6c6] pb-1 cursor-pointer active:opacity-80">Fashion</a>
+<a class="text-[#acabaa]/50 hover:text-[#faf9f9] transition-colors cursor-pointer active:opacity-80">Marketplace Guided</a>
+<a class="text-[#acabaa]/50 hover:text-[#faf9f9] transition-colors cursor-pointer active:opacity-80">Mercado Livre</a>
+<a class="text-[#acabaa]/50 hover:text-[#faf9f9] transition-colors cursor-pointer active:opacity-80">Clean Catalog</a>
+<a class="text-[#acabaa]/50 hover:text-[#faf9f9] transition-colors cursor-pointer active:opacity-80">Auto BR</a>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4 text-[#c6c6c6]">
+<span class="material-symbols-outlined cursor-pointer hover:text-tertiary">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-tertiary">account_circle</span>
+</div>
+</div>
+</header>
+<!-- Main Workspace (Cockpit Layout) -->
+<main class="mt-16 p-8 flex flex-col gap-8">
+<!-- Category Scrubber (Design System Signature) -->
+<section class="flex items-end gap-10">
+<div class="flex flex-col gap-1">
+<span class="text-xs font-headline font-bold text-primary tracking-widest uppercase">Production Line</span>
+<div class="flex items-center gap-6">
+<span class="text-2xl font-headline font-extrabold text-tertiary relative pb-1">
+                            Fashion
+                            <span class="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-pulse"></span>
+</span>
+<span class="text-sm font-label font-medium text-on-surface-variant/50 hover:text-on-surface-variant transition-colors cursor-pointer">Beauty</span>
+<span class="text-sm font-label font-medium text-on-surface-variant/50 hover:text-on-surface-variant transition-colors cursor-pointer">Home</span>
+<span class="text-sm font-label font-medium text-on-surface-variant/50 hover:text-on-surface-variant transition-colors cursor-pointer">Accessories</span>
+</div>
+</div>
+</section>
+<!-- Cinematic Gallery Section (Bento Grid) -->
+<section class="grid grid-cols-12 gap-4 h-[400px]">
+<div class="col-span-8 group relative overflow-hidden rounded-lg border border-outline-variant/10 shadow-2xl">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="cinematic fashion editorial shoot of a model in avant-garde black silk drapes against a moody obsidian studio background with hard rim lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAb8A-PIU4uypwLVy6cqzZ3Mh_dT7cay3BKwE9c-n2Qh8bozc-zXb9Jhgj7EgC9fgRSdTsGHS3tP5iW4EePtbfkRk9h1AP30eJ6RcF3rqNr4CS7_vVuvRQiGxi9U7LPlhDQWK04xWdcHDY4KlkpgaE9RJecxSZqGem2LXD5M72ZunkZu1DWEDBuVznqe3J5rU5a9XHZXkTvxfbDUN45xOVyAT3sNyRxfkh5erRsvCXseh1ULAaKfnNm48omOoYGBjvpBtgcFulFghpl"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6">
+<span class="text-[10px] font-bold text-primary tracking-widest uppercase mb-2">Recent Masterpiece</span>
+<h2 class="text-3xl font-headline font-extrabold text-tertiary">Midnight Silk Collection</h2>
+<div class="flex gap-2 mt-4">
+<span class="bg-surface-bright/40 backdrop-blur-md px-3 py-1 rounded-full text-[10px] text-tertiary border border-outline-variant/20">4K Render</span>
+<span class="bg-surface-bright/40 backdrop-blur-md px-3 py-1 rounded-full text-[10px] text-tertiary border border-outline-variant/20">Cinematic Lighting</span>
+</div>
+</div>
+</div>
+<div class="col-span-4 flex flex-col gap-4">
+<div class="flex-1 group relative overflow-hidden rounded-lg border border-outline-variant/10">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="high fashion flat lay of designer leather boots and accessories on a dark textured surface with sharp dramatic shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAws6OLJ_RsTwXH9id34ly9czvYq93NK8UZcCut4kVzxUdtGsyvxjsHdL7yje6l_rC_eLlrBBYik7MBul-g2sO1RJ2Pz0xqWe9GEE2r5969cJoObRUQUQiK8SOzyiHl9vH1oLCJIyD9TYElglyU1eu3X8808x4PYNaRCe_5r359BzNJFDT0UyhWS4dNBplEqC9hBC9GzcicdoBI7tPAEbzkSQ5PKCfSMDFwwjSrmx0TIgZIDzeW2Da6kSKLaUOmIJQ_8ZUGqktIiEgM"/>
+<div class="absolute inset-0 group-hover:shadow-[inset_0_0_0_1px_rgba(198,198,198,0.5)] transition-all"></div>
+</div>
+<div class="flex-1 group relative overflow-hidden rounded-lg border border-outline-variant/10">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="close-up detail of high-end fashion fabric texture showing intricate stitching and metallic threads in soft golden hour light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZIU7dXcyytHyxkxKMzx6pc6paqFo3GFpJktTr4RDDf3Xz5eiE1J9_9gHv_m3WylzKwkwsYsMlMGGTxZQ6t5b8GijxdPtkl_AzdNEvSBbMZCd-1Q6OFTJ8SbKqkwyKhFI4Fc4MGpn6bYDaRgRH_bJlMI-JIRAA0QjoYL-R8LEoUzDbImAC0LwgXF53xzS1BmaTEBQCo2OSLc9K7F6GXt7ibF0aCioPKwTP44mj9nU0q3fh4-E10w2BqFUDuEorRqegGjcVsNshMAlg"/>
+<div class="absolute inset-0 group-hover:shadow-[inset_0_0_0_1px_rgba(198,198,198,0.5)] transition-all"></div>
+</div>
+</div>
+</section>
+<!-- Creation Workspace -->
+<section class="grid grid-cols-12 gap-6 items-start">
+<!-- Left: Upload & Prompt Controls -->
+<div class="col-span-8 flex flex-col gap-6">
+<div class="bg-surface-container-low rounded-xl border border-outline-variant/10 p-8 flex flex-col items-center justify-center min-h-[320px] border-dashed">
+<div class="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-primary text-3xl">upload_file</span>
+</div>
+<h3 class="text-tertiary font-headline font-bold text-lg">Drop your base assets here</h3>
+<p class="text-on-surface-variant text-sm mt-2">RAW photos, sketches, or 3D models (TIFF, PNG, JPG)</p>
+<button class="mt-6 px-8 py-2 border border-outline text-tertiary text-xs font-bold uppercase tracking-widest hover:bg-surface-bright transition-all">Select Files</button>
+</div>
+<div class="bg-surface-container-low rounded-xl border border-outline-variant/10 p-6 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">Direct Prompt Engine</span>
+<span class="material-symbols-outlined text-on-surface-variant/40 text-sm">auto_awesome</span>
+</div>
+<textarea class="bg-transparent border-none focus:ring-0 text-tertiary placeholder:text-outline-variant resize-none font-headline text-xl" placeholder="Describe the atmosphere, camera angle, and material finish..." rows="3"></textarea>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/10">
+<div class="flex gap-3">
+<button class="p-2 rounded-sm bg-surface-container-highest text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">image_aspect_ratio</span></button>
+<button class="p-2 rounded-sm bg-surface-container-highest text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">palette</span></button>
+<button class="p-2 rounded-sm bg-surface-container-highest text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">camera</span></button>
+</div>
+<button class="metallic-cta px-10 py-3 text-on-primary font-headline font-bold text-sm tracking-tighter rounded-sm">GENERATE PRODUCTION</button>
+</div>
+</div>
+</div>
+<!-- Right: Presets & Cockpit Controls -->
+<div class="col-span-4 flex flex-col gap-6">
+<div class="bg-surface-container-low rounded-xl border border-outline-variant/10 p-6 space-y-6">
+<div>
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase block mb-4">Production Presets</span>
+<div class="flex flex-col gap-2">
+<button class="flex items-center justify-between p-3 rounded-lg bg-surface-container-high border border-primary/20 group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">person_search</span>
+<span class="text-sm font-medium text-tertiary">On Model</span>
+</div>
+<span class="material-symbols-outlined text-xs text-on-surface-variant">chevron_right</span>
+</button>
+<button class="flex items-center justify-between p-3 rounded-lg bg-surface-container-highest/50 hover:bg-surface-container-high border border-transparent hover:border-outline-variant/30 transition-all group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-tertiary">checkroom</span>
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-tertiary">Clean Catalog</span>
+</div>
+<span class="material-symbols-outlined text-xs text-on-surface-variant/30">chevron_right</span>
+</button>
+<button class="flex items-center justify-between p-3 rounded-lg bg-surface-container-highest/50 hover:bg-surface-container-high border border-transparent hover:border-outline-variant/30 transition-all group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-tertiary">gradient</span>
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-tertiary">Color Variations</span>
+</div>
+<span class="material-symbols-outlined text-xs text-on-surface-variant/30">chevron_right</span>
+</button>
+<button class="flex items-center justify-between p-3 rounded-lg bg-surface-container-highest/50 hover:bg-surface-container-high border border-transparent hover:border-outline-variant/30 transition-all group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-tertiary">zoom_in</span>
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-tertiary">Details</span>
+</div>
+<span class="material-symbols-outlined text-xs text-on-surface-variant/30">chevron_right</span>
+</button>
+<button class="flex items-center justify-between p-3 rounded-lg bg-surface-container-highest/50 hover:bg-surface-container-high border border-transparent hover:border-outline-variant/30 transition-all group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-tertiary">star_half</span>
+<span class="text-sm font-medium text-on-surface-variant group-hover:text-tertiary">Lifestyle Premium</span>
+</div>
+<span class="material-symbols-outlined text-xs text-on-surface-variant/30">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Cockpit Parameters (Sliders) -->
+<div class="pt-6 border-t border-outline-variant/10 space-y-4">
+<span class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase block">Engine Precision</span>
+<div class="space-y-2">
+<div class="flex justify-between text-[10px] text-on-surface-variant">
+<span>Creative Freedom</span>
+<span class="text-primary">75%</span>
+</div>
+<div class="h-1 bg-surface-container-highest rounded-full overflow-hidden relative">
+<div class="absolute top-0 left-0 h-full w-3/4 bg-primary shadow-[0_0_10px_rgba(198,198,198,0.5)]"></div>
+<div class="absolute top-1/2 left-3/4 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-tertiary rounded-full shadow-[0_0_15px_rgba(250,249,249,0.8)] border-2 border-primary"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-[10px] text-on-surface-variant">
+<span>Texture Fidelity</span>
+<span class="text-primary">92%</span>
+</div>
+<div class="h-1 bg-surface-container-highest rounded-full overflow-hidden relative">
+<div class="absolute top-0 left-0 h-full w-[92%] bg-primary shadow-[0_0_10px_rgba(198,198,198,0.5)]"></div>
+<div class="absolute top-1/2 left-[92%] -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-tertiary rounded-full shadow-[0_0_15px_rgba(250,249,249,0.8)] border-2 border-primary"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Usage Stats (Small Cockpit Card) -->
+<div class="bg-surface-bright rounded-xl p-4 flex items-center justify-between border border-primary/10">
+<div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">GPU Compute Status</p>
+<p class="text-sm font-headline font-bold text-tertiary">0.8s Latency / Optimal</p>
+</div>
+<div class="flex gap-1 items-end h-6">
+<div class="w-1 bg-primary/20 h-2"></div>
+<div class="w-1 bg-primary/40 h-4"></div>
+<div class="w-1 bg-primary/60 h-3"></div>
+<div class="w-1 bg-primary h-6"></div>
+</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body></html>

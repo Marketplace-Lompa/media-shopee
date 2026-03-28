@@ -1,27 +1,34 @@
+/* ================================================================
+   ChatInput.css — Obsidian Cockpit Design System
+   
+   Regras fundamentais:
+   - "No-Line Rule": separação por contraste de fundo, não borders
+   - "Ghost Border": se necessário, outline_variant a 15% opacidade
+   - Paleta monocromática titânio (sem roxos/violetas)
+   - Surface layers: #0e0e0e → #131313 → #1c1b1b → #2a2a2a → #353534
+   - Cantos precisos (8px max), nunca pill-shapes
+   ================================================================ */
+
 .chat-input-wrapper {
     display: flex;
     flex-direction: column;
     gap: var(--sp-2);
     padding: var(--sp-4);
-    background: rgba(15, 15, 15, 0.6);
+    background: rgba(19, 19, 19, 0.75);
     backdrop-filter: blur(32px);
     -webkit-backdrop-filter: blur(32px);
-    border-top: 1px solid var(--surface-border-subtle);
+    border-top: none;
     position: sticky;
     bottom: 0;
     z-index: 20;
-    /* Optional: round the top corners slightly for floating effect if desired
-       border-radius: var(--r-2xl) var(--r-2xl) 0 0; */
 }
 
 .chat-input-wrapper--drag {
-    background: rgba(255, 255, 255, 0.05);
-    border-top-color: rgba(255, 255, 255, 0.2);
+    background: rgba(28, 27, 27, 0.9);
 }
 
 .chat-input-wrapper--drag .chat-input-box {
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 24px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
 }
 
 /* ── Intent Cards — mode selector ──────────────────── */
@@ -38,38 +45,91 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 8px 12px;
-    border-radius: var(--r-lg);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.025);
-    color: var(--text-secondary);
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    background: #1c1b1b;
+    color: #acabaa;
     cursor: pointer;
-    transition:
-        background var(--dur-fast) var(--ease-out),
-        border-color var(--dur-fast) var(--ease-out),
-        color var(--dur-fast) var(--ease-out),
-        box-shadow var(--dur-fast) var(--ease-out),
-        transform var(--dur-fast) var(--ease-spring);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     text-align: center;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
 }
 
 .intent-card:hover {
-    border-color: rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.055);
-    color: var(--text-primary);
+    background: #2a2a2a;
+    color: #e7e5e4;
     transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .intent-card--active {
     background: rgba(139, 92, 246, 0.12);
-    border-color: rgba(139, 92, 246, 0.5);
-    color: #ddd6fe;
-    box-shadow: 0 0 16px rgba(139, 92, 246, 0.15);
+    color: #faf9f9;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.15), inset 0 0 0 1px rgba(139, 92, 246, 0.18);
+    animation: pulse-glow 3s ease-in-out infinite;
 }
 
 .intent-card--active:hover {
     background: rgba(139, 92, 246, 0.18);
-    border-color: rgba(139, 92, 246, 0.65);
+    box-shadow: 0 0 28px rgba(139, 92, 246, 0.2), inset 0 0 0 1px rgba(139, 92, 246, 0.22);
+}
+
+/* Shimmer sweep — faixa de luz que percorre o card ativo */
+.intent-card--active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(167, 139, 250, 0.06) 25%,
+        rgba(167, 139, 250, 0.12) 50%,
+        rgba(167, 139, 250, 0.06) 75%,
+        transparent 100%
+    );
+    animation: shimmer-sweep 4s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Ripple feedback — GPU-acelerado via scale() */
+.intent-card::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(
+        circle,
+        rgba(167, 139, 250, 0.18) 0%,
+        rgba(167, 139, 250, 0.06) 60%,
+        transparent 100%
+    );
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    transition:
+        transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        opacity 0.4s ease;
+    pointer-events: none;
+    z-index: 0;
+    will-change: transform, opacity;
+}
+
+.intent-card:active::before {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    transition:
+        transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1),
+        opacity 0.1s ease;
 }
 
 .intent-card-icon {
@@ -79,11 +139,11 @@
 
 .intent-card--active .intent-card-icon {
     opacity: 1;
-    color: #c4b5fd;
+    color: #a78bfa;
 }
 
 .intent-card:hover .intent-card-icon {
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
 .intent-card-label {
@@ -97,24 +157,26 @@
     font-size: 10px;
     font-weight: 400;
     line-height: 1.3;
-    opacity: 0.55;
+    opacity: 0.45;
     white-space: nowrap;
 }
 
 .intent-card--active .intent-card-desc {
-    opacity: 0.75;
+    opacity: 0.65;
 }
 
+/* ── Mode Toggle Banner ──────────────────── */
 .mode-toggle-banner {
     display: flex;
     gap: var(--sp-1);
     padding: var(--sp-1);
     margin: var(--sp-1) 0;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--r-lg);
+    background: #1c1b1b;
+    border: none;
+    border-radius: 8px;
 }
 
+/* ── Marketplace Guide ──────────────────── */
 .marketplace-guide {
     display: flex;
     flex-direction: column;
@@ -123,9 +185,9 @@
 }
 
 .marketplace-step-card {
-    border: 1px solid var(--surface-border-subtle);
-    border-radius: var(--r-lg);
-    background: rgba(255, 255, 255, 0.02);
+    border: none;
+    border-radius: 8px;
+    background: #1c1b1b;
     padding: var(--sp-3);
     display: flex;
     flex-direction: column;
@@ -133,14 +195,14 @@
 }
 
 .marketplace-step-card--final {
-    background: rgba(139, 92, 246, 0.08);
-    border-color: rgba(139, 92, 246, 0.22);
+    background: #252626;
+    box-shadow: inset 0 0 0 1px rgba(198, 198, 198, 0.08);
 }
 
 .marketplace-step-help {
     margin: 0;
     line-height: 1.5;
-    color: var(--text-secondary);
+    color: #acabaa;
 }
 
 .marketplace-upload-grid {
@@ -150,9 +212,9 @@
 }
 
 .marketplace-upload-item {
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--r-md);
-    background: rgba(255, 255, 255, 0.015);
+    border: none;
+    border-radius: 6px;
+    background: #202020;
     padding: var(--sp-2);
     display: flex;
     align-items: center;
@@ -168,38 +230,38 @@
 }
 
 .marketplace-upload-btn {
-    border: 1px solid rgba(139, 92, 246, 0.35);
-    background: rgba(139, 92, 246, 0.15);
-    color: #ddd6fe;
-    border-radius: var(--r-full);
-    padding: 6px 12px;
+    border: none;
+    background: linear-gradient(135deg, #ffffff 0%, #d4d4d4 100%);
+    color: #131313;
+    border-radius: 6px;
+    padding: 6px 14px;
     font-size: var(--fs-xs);
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    transition: background var(--dur-fast), border-color var(--dur-fast);
+    transition: all var(--dur-fast);
+    letter-spacing: 0.02em;
 }
 
 .marketplace-upload-btn:hover {
-    background: rgba(139, 92, 246, 0.24);
-    border-color: rgba(139, 92, 246, 0.55);
+    background: linear-gradient(135deg, #faf9f9 0%, #c6c6c6 100%);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .marketplace-check {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.03);
-    color: var(--text-secondary);
-    border-radius: var(--r-full);
+    border: none;
+    background: #252626;
+    color: #acabaa;
+    border-radius: 6px;
     padding: 2px 10px;
     font-size: var(--fs-xs);
 }
 
 .marketplace-check--ok {
-    border-color: rgba(16, 185, 129, 0.35);
-    background: rgba(16, 185, 129, 0.15);
-    color: #9deccf;
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
 }
 
-/* Params panel */
+/* ── Params panel ──────────────────── */
 .params-panel {
     overflow: hidden;
 }
@@ -209,9 +271,9 @@
     flex-wrap: wrap;
     gap: var(--sp-6);
     padding: var(--sp-3) var(--sp-4);
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: var(--r-xl);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: #1c1b1b;
+    border-radius: 8px;
+    border: none;
 }
 
 .param-group {
@@ -239,33 +301,31 @@
 
 .chip {
     padding: var(--sp-1) var(--sp-3);
-    border-radius: var(--r-full);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--text-secondary);
+    border-radius: 6px;
+    border: none;
+    background: #202020;
+    color: #acabaa;
     font-size: var(--fs-xs);
     font-weight: 500;
     letter-spacing: 0.01em;
     cursor: pointer;
     transition:
         background var(--dur-fast) var(--ease-out),
-        color var(--dur-fast) var(--ease-out),
-        border-color var(--dur-fast) var(--ease-out);
+        color var(--dur-fast) var(--ease-out);
     min-height: 28px;
     white-space: nowrap;
 }
 
 .chip:hover {
-    border-color: rgba(255, 255, 255, 0.25);
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.07);
+    background: #2a2a2a;
+    color: #e7e5e4;
 }
 
 .chip--active {
-    background: rgba(139, 92, 246, 0.15);
-    border-color: rgba(139, 92, 246, 0.45);
-    color: #ddd6fe;
+    background: #353534;
+    color: #faf9f9;
     font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgba(198, 198, 198, 0.1);
 }
 
 .chip--square {
@@ -274,7 +334,7 @@
     text-align: center;
 }
 
-/* Grounding toggle */
+/* ── Grounding toggle ──────────────────── */
 .param-group--toggle {
     align-self: center;
     margin-left: auto;
@@ -287,7 +347,7 @@
     padding: var(--sp-1) var(--sp-3);
 }
 
-/* File preview */
+/* ── File preview ──────────────────── */
 .file-preview-row {
     display: flex;
     gap: var(--sp-2);
@@ -299,9 +359,10 @@
     position: relative;
     width: 52px;
     height: 52px;
-    border-radius: var(--r-lg);
+    border-radius: 6px;
     overflow: hidden;
-    border: 1px solid var(--surface-overlay);
+    border: none;
+    box-shadow: inset 0 0 0 1px rgba(71, 71, 71, 0.15);
     flex-shrink: 0;
 }
 
@@ -317,10 +378,10 @@
     right: 2px;
     width: 18px;
     height: 18px;
-    border-radius: var(--r-full);
+    border-radius: 4px;
     background: rgba(0, 0, 0, 0.7);
     border: none;
-    color: #fff;
+    color: #e7e5e4;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -329,19 +390,49 @@
 }
 
 .file-remove:hover {
-    background: var(--c-red-500);
+    background: #bb5551;
 }
 
+/* ── Main input box ──────────────────── */
 .chat-input-box {
     display: flex;
     align-items: flex-end;
     gap: var(--sp-2);
-    background: rgba(255, 255, 255, 0.035);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--r-2xl);
+    background: rgba(32, 32, 32, 0.65);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: none;
+    border-radius: 20px;
     padding: var(--sp-2) var(--sp-3);
-    transition: all var(--dur-normal) var(--ease-out);
-    box-shadow: 0 0 0 0 transparent;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Glass reflection — faixa de luz sutil no topo do input */
+.chat-input-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.06) 30%,
+        rgba(255, 255, 255, 0.12) 50%,
+        rgba(255, 255, 255, 0.06) 70%,
+        transparent 100%
+    );
+    transition: left 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.chat-input-box:focus-within::before {
+    left: 160%;
 }
 
 .color-input-box {
@@ -369,17 +460,22 @@
 }
 
 .chat-input-box:focus-within {
-    border-color: rgba(255, 255, 255, 0.28);
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+    background: rgba(42, 42, 42, 0.75);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    box-shadow:
+        inset 0 0 0 1px rgba(139, 92, 246, 0.1),
+        0 12px 48px rgba(0, 0, 0, 0.3),
+        0 0 60px rgba(139, 92, 246, 0.04);
 }
 
+/* ── Textarea ──────────────────── */
 .chat-textarea {
     flex: 1;
     background: transparent;
     border: none;
     outline: none;
-    color: var(--text-primary);
+    color: #e7e5e4;
     font-family: inherit;
     font-size: var(--fs-base);
     font-weight: 400;
@@ -393,7 +489,7 @@
 }
 
 .chat-textarea::placeholder {
-    color: rgba(255, 255, 255, 0.25);
+    color: rgba(172, 171, 170, 0.45);
     font-weight: 400;
 }
 
@@ -407,6 +503,7 @@
     cursor: not-allowed;
 }
 
+/* ── Action buttons ──────────────────── */
 .input-action-btn {
     display: flex;
     align-items: center;
@@ -414,10 +511,10 @@
     width: 38px;
     height: 38px;
     justify-content: center;
-    border-radius: var(--r-lg);
+    border-radius: 6px;
     border: none;
     background: transparent;
-    color: var(--text-secondary);
+    color: #767575;
     cursor: pointer;
     flex-shrink: 0;
     transition: color var(--dur-fast), background var(--dur-fast);
@@ -434,8 +531,8 @@
 }
 
 .input-action-btn:hover {
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.08);
+    color: #e7e5e4;
+    background: #2a2a2a;
 }
 
 .input-action-btn:disabled {
@@ -443,20 +540,26 @@
     cursor: not-allowed;
 }
 
+/* ── Send button — "Metallic" CTA ──────────────────── */
 .send-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: var(--r-md);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
     border: none;
-    background: var(--c-violet-600);
-    color: #fff;
+    background: linear-gradient(145deg, #a78bfa 0%, #7c3aed 100%);
+    color: #ffffff;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: background var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
-    box-shadow: 0 2px 8px rgba(109, 40, 217, 0.4);
+    transition:
+        transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.3s ease,
+        background 0.2s ease;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+    position: relative;
+    will-change: transform;
 }
 
 .send-btn--guided {
@@ -467,38 +570,89 @@
 
 .send-btn-label {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1;
+    letter-spacing: 0.02em;
 }
 
+/* Spring hover — escala sutil com glow amplificado */
 .send-btn:hover:not(:disabled) {
-    background: var(--c-violet-500);
-    transform: none;
+    background: linear-gradient(145deg, #b8a2fa 0%, #8b5cf6 100%);
+    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.45), 0 0 12px rgba(167, 139, 250, 0.2);
+    transform: scale(1.08);
 }
 
 .send-btn:active:not(:disabled) {
-    transform: scale(0.96);
+    transform: scale(0.93);
+    transition: transform 0.12s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .send-btn:disabled {
-    opacity: 0.42;
+    opacity: 0.25;
     cursor: not-allowed;
     transform: none;
 }
 
-/* Spinner */
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
+/* Loading state — pulsação quando processando */
+.send-btn--loading {
+    animation: btn-pulse 1.5s ease-in-out infinite;
+    pointer-events: none;
+}
 
-    to {
-        transform: rotate(360deg);
-    }
+.send-btn--loading::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: rgba(167, 139, 250, 0.6);
+    animation: spin 0.8s linear infinite;
+}
+
+/* ══════════════════════════════════════════════════════
+   Animações — Micro-motion System (21st.dev inspired)
+   ══════════════════════════════════════════════════════ */
+
+/* Spin — rotação de loading */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .spin {
     animation: spin 0.8s linear infinite;
+}
+
+/* Shimmer sweep — faixa diagonal de luz percorre o elemento */
+@keyframes shimmer-sweep {
+    0% { left: -100%; }
+    40% { left: 160%; }
+    100% { left: 160%; }
+}
+
+/* Pulse glow — pulsação sutil do box-shadow roxo */
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(139, 92, 246, 0.15),
+                    inset 0 0 0 1px rgba(139, 92, 246, 0.18);
+    }
+    50% {
+        box-shadow: 0 0 28px rgba(139, 92, 246, 0.25),
+                    inset 0 0 0 1px rgba(139, 92, 246, 0.25),
+                    0 0 48px rgba(139, 92, 246, 0.08);
+    }
+}
+
+/* Button pulse — pulsação do botão em loading */
+@keyframes btn-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(0.95); }
+}
+
+/* Glass reflection — sweep de luz no input ao focar */
+@keyframes glass-reflect {
+    0% { left: -120%; }
+    100% { left: 160%; }
 }
 
 .chat-drop-message {
@@ -515,17 +669,18 @@
     align-items: center;
     gap: var(--sp-3);
     padding: var(--sp-2) var(--sp-3);
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--r-xl);
+    background: #1c1b1b;
+    border: none;
+    border-radius: 8px;
 }
 
 .edit-banner-thumb {
     width: 44px;
     height: 44px;
-    border-radius: var(--r-lg);
+    border-radius: 6px;
     object-fit: cover;
-    border: 1px solid var(--surface-overlay);
+    border: none;
+    box-shadow: inset 0 0 0 1px rgba(71, 71, 71, 0.15);
     flex-shrink: 0;
 }
 
@@ -541,7 +696,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    color: var(--text-primary);
+    color: #e7e5e4;
     font-weight: 600;
 }
 
@@ -551,28 +706,27 @@
     justify-content: center;
     width: 28px;
     height: 28px;
-    border-radius: var(--r-full);
+    border-radius: 6px;
     border: none;
     background: transparent;
-    color: var(--text-tertiary);
+    color: #767575;
     cursor: pointer;
     flex-shrink: 0;
     transition: background var(--dur-fast), color var(--dur-fast);
 }
 
 .edit-banner-close:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--text-primary);
+    background: #2a2a2a;
+    color: #e7e5e4;
 }
 
-
-
-/* Send button em modo edição — destaque diferente */
+/* ── Send button em modo edição ──────────────────── */
 .send-btn--edit {
-    background: var(--c-violet-600);
-    box-shadow: 0 2px 8px rgba(109, 40, 217, 0.4);
+    background: linear-gradient(145deg, #c4b5fd 0%, #8b5cf6 100%);
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.35);
 }
 
+/* ── Responsive ──────────────────── */
 @media (max-width: 900px) {
     .intent-cards-row {
         grid-template-columns: repeat(2, 1fr);
