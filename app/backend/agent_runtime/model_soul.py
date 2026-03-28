@@ -100,11 +100,12 @@ def get_model_soul(garment_context: str = "", mode_id: str = "") -> str:
             "\n"
             "NATURAL MODE HUMAN LOGIC:\n"
             "  PRESENCE: the woman should feel close, ordinary, and encountered in real life rather than prepared for a shoot.\n"
+            "    She should still feel attractive, current, and commercially alive — natural is not anti-beauty.\n"
             "  EXPRESSION: she should not appear to be performing for the camera. Avoid polished professional engagement,\n"
             "    direct presentational energy, an overly resolved smile, or a serene beauty-portrait calm.\n"
             "    Her expression should arise from her own attention, not from offering her face to the viewer.\n"
-            "  MAKEUP: visible makeup should be absent or nearly absent. If any cosmetic trace appears, it must read as minimal real-life residue,\n"
-            "    never as shoot makeup.\n"
+            "  MAKEUP: visible makeup should stay minimal and real-life. If cosmetic traces appear, they should read as light daily grooming,\n"
+            "    not as shoot makeup and not as a drained bare-faced denial of beauty.\n"
             "  HAIR: hair should feel minimally handled, lightly imperfect, and non-salon-finished.\n"
             "    Keep it believable for an ordinary day rather than a beauty setup.\n"
             "    Avoid hair behavior that feels neatly arranged for the frame, deliberately face-flattering, or carefully tucked only to clean up the portrait.\n"
@@ -113,6 +114,7 @@ def get_model_soul(garment_context: str = "", mode_id: str = "") -> str:
             "  CAMERA AWARENESS: she may be aware of her surroundings, but she should not look like she is deliberately presenting herself to the photographer.\n"
             "    Direct lens-lock should be rare unless the user explicitly asks for it.\n"
             "  ANTI-BEAUTY-SETUP: do not turn her into a still, camera-ready beauty portrait. She should feel occupied by her own moment rather than available for admiration.\n"
+            "  SOCIAL-COMMERCE FIT: she may be quieter and less produced than other modes, but she should still plausibly sell fashion in a Brazilian social-commerce context.\n"
         )
 
     # ── Bloco lifestyle condicional — presença socialmente viva ────
