@@ -1,3 +1,10 @@
+# OBSOLETO — Look Contract
+
+Este documento descreve uma arquitetura removida do runtime em `2026-03-27`.
+O `look_contract` deixou de existir porque a triagem voltou a ter escopo estrito
+de leitura da peça hero, e o styling passou a ser responsabilidade do caminho
+`soul-first`.
+
 # Look Contract — Style Agent
 
 > Garante coerência estilística nos looks gerados, inferindo peça inferior, cores e acessórios compatíveis com a peça-alvo.

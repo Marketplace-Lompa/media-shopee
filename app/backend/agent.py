@@ -9,6 +9,7 @@ Funções de inferência visual e diversidade vivem em agent_runtime/.
   MODO 2: Usuário enviou imagens → agente descreve e cria prompt (Fidelity Lock)
   MODO 3: Sem prompt nem imagens → agente gera do zero via contexto do pool
 """
+import re
 from typing import Any, Optional, List
 
 from google.genai import types
@@ -20,6 +21,8 @@ from agent_runtime.prompt_assets_registry import get_generate_prompt_assets
 from agent_runtime.prompt_context import build_generate_context_text, build_system_instruction
 from agent_runtime.prompt_result import finalize_prompt_agent_result
 from agent_runtime.prompt_response import decode_prompt_agent_response
+from agent_runtime.styling_direction import resolve_styling_direction
+from agent_runtime.model_grounding import resolve_casting_direction
 from agent_runtime.triage import (
     _infer_text_mode_shot,
     resolve_prompt_agent_visual_triage,
@@ -44,6 +47,82 @@ from agent_runtime.modes import (
 from agent_runtime.normalize_user_intent import normalize_user_intent
 
 from guided_mode import guided_capture_to_shot, guided_summary
+
+
+_NATURAL_PORTRAIT_CROP_MARKERS = (
+    "medium shot",
+    "hip-up",
+    "hip up",
+    "waist-up",
+    "waist up",
+    "portrait",
+)
+_NATURAL_RESTING_MARKERS = (
+    "seated",
+    "sitting",
+    "leans",
+    "leaning",
+    "resting on",
+    "resting against",
+    "chin resting",
+    "bench",
+)
+_NATURAL_ACTION_MARKERS = (
+    "walking",
+    "mid-step",
+    "moving",
+    "turning",
+    "adjusting",
+    "checking",
+    "reaching",
+    "carrying",
+    "passing",
+    "handling",
+    "in motion",
+)
+_NATURAL_OFF_CAMERA_MARKERS = (
+    "off-camera",
+    "looking away",
+    "looks away",
+    "to the side",
+    "toward",
+    "towards",
+    "downward",
+    "down at",
+    "attention on",
+)
+
+
+def _natural_prompt_needs_repair(prompt_text: str) -> bool:
+    low = re.sub(r"\s+", " ", str(prompt_text or "").strip().lower())
+    if not low:
+        return False
+    has_crop = any(marker in low for marker in _NATURAL_PORTRAIT_CROP_MARKERS)
+    has_rest = any(marker in low for marker in _NATURAL_RESTING_MARKERS)
+    has_action = any(marker in low for marker in _NATURAL_ACTION_MARKERS)
+    has_static_standing = "standing" in low
+    has_off_camera = any(marker in low for marker in _NATURAL_OFF_CAMERA_MARKERS)
+    return (
+        (has_crop and has_rest)
+        or (has_crop and not has_action)
+        or (has_static_standing and not has_action and not has_off_camera)
+    )
+
+
+def _build_natural_repair_context(context_text: str) -> str:
+    repair_block = (
+        "\n\n<NATURAL_MODE_REPAIR>\n"
+        "The previous result drifted into portrait logic. Repair the image direction while keeping garment fidelity and Brazilian plausibility.\n"
+        "- Do NOT return a medium, hip-up, waist-up, or portrait-first beauty setup unless the user explicitly asked for it.\n"
+        "- Do NOT build the image around seated resting, leaning-for-aesthetic, or calm-admiration pose logic.\n"
+        "- Do NOT settle for static standing presentation without a real micro-action or attention outside the camera.\n"
+        "- Keep more body and real setting alive in the frame.\n"
+        "- Make the woman feel caught in an ordinary ongoing moment, micro-action, or transitional pause.\n"
+        "- Her attention belongs to her own world, not to performing for the camera.\n"
+        "- Return the same JSON schema, but with a genuinely natural, encountered image direction.\n"
+        "</NATURAL_MODE_REPAIR>"
+    )
+    return f"{context_text.rstrip()}{repair_block}"
 
 
 def run_agent(
@@ -95,10 +174,11 @@ def run_agent(
             unified_vision_triage_result=unified_vision_triage_result,
         )
         structural_contract = triage_result["structural_contract"]
+        set_detection = triage_result["set_detection"]
         guided_set_detection = triage_result["guided_set_detection"]
         garment_hint = str(triage_result["garment_hint"] or "")
         image_analysis = str(triage_result["image_analysis"] or "")
-        look_contract = triage_result["look_contract"] or {}
+        garment_aesthetic = triage_result.get("garment_aesthetic") or {}
     else:
         structural_contract = {
             "enabled": False,
@@ -111,6 +191,13 @@ def run_agent(
             "silhouette_volume": "unknown",
             "must_keep": [],
         }
+        set_detection = {
+            "is_garment_set": False,
+            "set_pattern_score": 0.0,
+            "detected_garment_roles": [],
+            "set_pattern_cues": [],
+            "set_lock_mode": "off",
+        }
         guided_set_detection = {
             "is_garment_set": False,
             "set_pattern_score": 0.0,
@@ -120,7 +207,32 @@ def run_agent(
         }
         garment_hint = ""
         image_analysis = ""
-        look_contract = {}
+        garment_aesthetic = {}
+
+    casting_direction = {}
+    if effective_mode:
+        casting_direction = resolve_casting_direction(
+            mode_id=effective_mode.id,
+            user_prompt=user_prompt,
+            garment_hint=garment_hint,
+            image_analysis=image_analysis,
+            structural_contract=structural_contract,
+            garment_aesthetic=garment_aesthetic,
+            has_images=has_images,
+        )
+
+    styling_direction = {}
+    if has_images and effective_mode:
+        styling_direction = resolve_styling_direction(
+            mode_id=effective_mode.id,
+            user_prompt=user_prompt,
+            garment_hint=garment_hint,
+            image_analysis=image_analysis,
+            structural_contract=structural_contract,
+            set_detection=set_detection,
+            garment_aesthetic=garment_aesthetic,
+            has_images=has_images,
+        )
 
     diversity_context_prompt = (
         user_prompt or garment_hint or image_analysis or (effective_mode.description if effective_mode else "")
@@ -137,6 +249,14 @@ def run_agent(
             diversity_target,
             user_prompt=diversity_context_prompt,
         )
+
+    if casting_direction:
+        diversity_target = dict(diversity_target or {})
+        diversity_target["casting_direction"] = casting_direction
+        if casting_direction.get("casting_state"):
+            diversity_target["casting_state"] = casting_direction["casting_state"]
+        if casting_direction.get("profile_hint") and not diversity_target.get("profile_hint"):
+            diversity_target["profile_hint"] = casting_direction["profile_hint"]
 
     profile = (diversity_target or {}).get("profile_hint", "")
     # No text-only mode, cenário e pose são guiados pelos presets e estados latentes.
@@ -165,7 +285,8 @@ def run_agent(
         guided_set_mode=guided_set_mode,
         guided_set_detection=guided_set_detection,
         structural_contract=structural_contract,
-        look_contract=look_contract,
+        casting_direction=casting_direction,
+        styling_direction=styling_direction,
         grounding_research=grounding_research,
         grounding_effective=bool(grounding_meta.get("effective")),
         grounding_context_hint=grounding_context_hint,
@@ -212,6 +333,23 @@ def run_agent(
         context_text=context_text,
         call_prompt_model=_call_prompt_model,
     )
+
+    if (
+        pipeline_mode == "reference_mode"
+        and effective_mode
+        and effective_mode.id == "natural"
+        and _natural_prompt_needs_repair(str(result.get("prompt") or result.get("base_prompt") or ""))
+    ):
+        print("[AGENT] ↺ natural portrait-collapse detected — requesting repaired prompt")
+        repair_context = _build_natural_repair_context(context_text)
+        repair_response = _call_prompt_model(repair_context, temperature=0.7)
+        repaired = decode_prompt_agent_response(
+            response=repair_response,
+            context_text=repair_context,
+            call_prompt_model=_call_prompt_model,
+        )
+        if repaired:
+            result = repaired
 
     # Validações de segurança
     if result.get("thinking_level") not in ["MINIMAL", "HIGH"]:
@@ -280,6 +418,8 @@ def run_agent(
         set_detection=guided_set_detection if guided_enabled and guided_set_mode == "conjunto" else None,
     )
     result["structural_contract"] = structural_contract
+    result["casting_direction"] = casting_direction
+    result["styling_direction"] = styling_direction
     result["_grounded_images"] = grounded_images
 
     # ── Fidelity layer (somente fluxo com imagem) ──────────────────────
@@ -290,14 +430,14 @@ def run_agent(
             image_analysis=image_analysis,
             n_uploaded=len(uploaded_images or []),
         )
-        _art_soul = describe_mode_defaults(effective_mode) if effective_mode else ""
+        _art_soul = str(result.get("prompt") or "").strip()
+        if not _art_soul:
+            _art_soul = describe_mode_defaults(effective_mode) if effective_mode else ""
         _edit_prompt = compile_edit_prompt(
             structural_contract,
             art_direction_soul=_art_soul,
             garment_material=_garment_material,
-            user_prompt=user_prompt,
             image_analysis=image_analysis,
-            look_contract=look_contract,
         )
         result["edit_prompt"] = _edit_prompt
         result["garment_material"] = _garment_material

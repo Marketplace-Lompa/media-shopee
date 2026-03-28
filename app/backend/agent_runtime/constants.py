@@ -158,26 +158,6 @@ UNIFIED_VISION_SCHEMA = {
     "properties": {
         "garment_hint":   {"type": "string"},
         "image_analysis": {"type": "string"},
-        # ── LOOK CONTRACT (campo 7 — styling coerência) ─────────────────────
-        "look_contract": {
-            "type": "object",
-            "required": [
-                "bottom_style", "bottom_color", "color_family",
-                "season", "occasion", "forbidden_bottoms",
-                "accessories", "style_keywords", "confidence",
-            ],
-            "properties": {
-                "bottom_style":      {"type": "string"},
-                "bottom_color":      {"type": "string"},
-                "color_family":      {"type": "string"},
-                "season":            {"type": "string"},
-                "occasion":          {"type": "string"},
-                "forbidden_bottoms": {"type": "array", "items": {"type": "string"}},
-                "accessories":       {"type": "string"},
-                "style_keywords":    {"type": "array", "items": {"type": "string"}},
-                "confidence":        {"type": "number"},
-            },
-        },
         "garment_aesthetic": {
             "type": "object",
             "required": ["color_temperature", "formality", "season", "vibe"],
@@ -389,7 +369,7 @@ MODE 1 — User gave a text prompt:
   Keep Brazil present as a believable commercial anchor, never as stereotype or tourism shorthand.
   Use the DIVERSITY_TARGET name-blending cue as a stable persona anchor instead of dropping it entirely.
   Create genuinely varied Brazilian women across runs: vary age energy, face impression, hair silhouette, polish level, and social presence instead of collapsing to the same safe commercial model.
-  Externalize the casting in the final prompt: include apparent age, at least one concrete face impression, and a clear hair description instead of reducing the model to a generic polished Brazilian woman.
+  Externalize the casting in the final prompt: include apparent age, concrete face geometry, visible skin read, a clear hair description, body/frame read, and a specific facial expression instead of reducing the model to a generic polished Brazilian woman.
   Externalize the pose in the final prompt: describe a specific stance, weight shift, arm placement, or garment interaction instead of vague phrasing like stable pose or composed stance.
   Choose the model, styling, footwear, and scene the way a fashion specialist would: based on the garment, its silhouette, and its commercial intention.
   Never expose preset mechanics in the final prompt (for example: "capture geometry", "scenario family", or "lighting profile").
@@ -406,10 +386,10 @@ MODE 2 — User sent reference images (with or without text):
   STEP 2: In the canonical prompt, describe the garment ONLY by its structural skeleton: garment type/category, silhouette, fit, length, and opening behavior. The reference images ARE the garment specification — the image generator sees them directly.
     SURFACE DETAIL GUARD: Do NOT describe surface details in the prompt text. Pattern geometry, stitch type, texture relief, decorative elements, and specific color names are already conveyed by the reference images with higher fidelity than text can achieve. Describing them textually risks conflicting with the visual evidence.
     PERSON GUARD: DO NOT describe the person/model in the reference (do not mention her age, ethnicity, skin color, hair, face, or body). DO NOT describe the background or pose from the reference.
-  STEP 3: In the canonical prompt, ALWAYS open with the DIVERSITY_TARGET new model profile BEFORE the garment.
+  STEP 3: In the canonical prompt, create a completely new Brazilian woman around the garment and externalize the casting clearly in the visible prompt surface.
+    Include apparent age, concrete face geometry, visible skin read, clear hair description, body/frame read, and a specific facial expression.
     The reference person MUST NOT appear in the canonical prompt in any form — she is replaced entirely.
-    Pattern: "RAW photo, [DIVERSITY_TARGET model profile]. Wearing [garment from reference]..."
-  When user adds text (e.g., "mude o cenário para café"), change ONLY what they requested. Everything else comes from the image.
+  When user adds text asking for a scene or styling change, change ONLY what they requested. Everything else comes from the image.
 """
 
 SYSTEM_MODE_3_RULES = """
@@ -553,13 +533,10 @@ _RK_MODEL_AND_SCENE = """
 Use this section as reference repertoire, not as a fixed recipe. Prefer coherence with the garment brief over literal reuse.
 Skin realism may be used when it strengthens realism, but it is not mandatory in every prompt.
 Presentation reference: professionally styled hair appropriate to garment vibe, warm confident expression, natural eye contact.
-Scenario references (Brazilian-specific, use only if they strengthen the brief):
-  URBAN: cobblestone street in historic center | modern downtown with glass facades | colorful colonial building wall |
-    rooftop terrace with city skyline | tree-lined boulevard with dappled light
-  NATURE: tropical park with palm trees | botanical garden path | beach boardwalk at golden hour |
-    lush green hillside | waterfront promenade
-  INDOOR: minimalist apartment with natural window light | café with warm ambient glow |
-    boutique showroom with neutral walls | bright loft with exposed brick
+Scenario references (use only as abstract reasoning anchors, never as a location menu):
+  URBAN: everyday circulation, layered material wear, mixed public-private edges, believable street depth
+  NATURE: breathable open air, organic light variation, ordinary environmental texture, grounded horizon or greenery
+  INDOOR: lived-in interior light, practical surfaces, secondary background presence, believable spatial use
 Color strategy references: White garment → dark or saturated background | Black garment → light neutral background |
   Pastels → warm neutral tones | Saturated colors → clean, minimal background
 """

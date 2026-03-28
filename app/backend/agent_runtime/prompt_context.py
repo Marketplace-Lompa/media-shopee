@@ -112,8 +112,8 @@ def _build_semantic_briefs_block(diversity_target: Optional[dict[str, Any]]) -> 
         return None
 
     ordered_briefs = [
-        ("SCENE_BRIEF", semantic_briefs.get("scene_brief")),
         ("MODEL_BRIEF", semantic_briefs.get("model_brief")),
+        ("SCENE_BRIEF", semantic_briefs.get("scene_brief")),
         ("POSE_BRIEF", semantic_briefs.get("pose_brief")),
         ("ANGLE_BRIEF", semantic_briefs.get("angle_brief")),
         ("CAMERA_BRIEF", semantic_briefs.get("camera_brief")),
@@ -128,6 +128,127 @@ def _build_semantic_briefs_block(diversity_target: Optional[dict[str, Any]]) -> 
     return "<SEMANTIC_BRIEFS>\n" + "\n".join(lines) + "\n</SEMANTIC_BRIEFS>"
 
 
+def _build_model_soul_block(*, garment_hint: str, mode_id: Optional[str], has_images: bool) -> Optional[str]:
+    from agent_runtime.model_soul import get_model_soul
+
+    soul = str(get_model_soul(garment_context=garment_hint, mode_id=mode_id or "") or "").strip()
+    if not soul:
+        return None
+
+    lines = [soul]
+    if has_images:
+        lines.append(
+            "If the reference images contain a woman, make the new model read clearly distinct from her in overall identity, hair silhouette, and presence."
+        )
+    return "<MODEL_SOUL>\n" + "\n".join(lines) + "\n</MODEL_SOUL>"
+
+
+def _build_casting_direction_block(casting_direction: Optional[dict[str, Any]]) -> Optional[str]:
+    payload = casting_direction or {}
+    confidence = float(payload.get("confidence", 0) or 0)
+    chosen = payload.get("chosen_direction") or {}
+    if confidence <= 0.35 or not isinstance(chosen, dict):
+        return None
+
+    candidate_labels = [
+        str(item.get("label") or "").strip()
+        for item in (payload.get("candidate_directions") or [])
+        if isinstance(item, dict) and str(item.get("label") or "").strip()
+    ][:3]
+    distinction_markers = ", ".join(str(item).strip() for item in (chosen.get("distinction_markers") or []) if str(item).strip()) or "none"
+    anti_collapse = ", ".join(str(item).strip() for item in (payload.get("anti_collapse_signals") or []) if str(item).strip()) or "none"
+    lines = [
+        "<CASTING_DIRECTION>",
+        "[Grounded casting direction for this specific job]",
+        f"- alternates_considered: {', '.join(candidate_labels) or 'none'}",
+        f"- chosen_direction: {str(payload.get('chosen_label') or chosen.get('label') or '').strip()}",
+        f"- profile_hint: {str(payload.get('profile_hint') or '').strip()}",
+        f"- age_logic: {str(chosen.get('age_logic') or '').strip()}",
+        f"- face_geometry: {str(chosen.get('face_geometry') or '').strip()}",
+        f"- skin_logic: {str(chosen.get('skin_logic') or '').strip()}",
+        f"- hair_logic: {str(chosen.get('hair_logic') or '').strip()}",
+        f"- body_logic: {str(chosen.get('body_logic') or '').strip()}",
+        f"- presence_logic: {str(chosen.get('presence_logic') or '').strip()}",
+        f"- expression_logic: {str(chosen.get('expression_logic') or '').strip()}",
+        f"- makeup_logic: {str(chosen.get('makeup_logic') or '').strip()}",
+        f"- distinction_markers: {distinction_markers}",
+        f"- anti_collapse_signals: {anti_collapse}",
+        "Use this as grounded casting direction for the woman in this generation.",
+        "Do not copy these labels literally into the final prompt — synthesize them into a new original Brazilian woman.",
+        "</CASTING_DIRECTION>",
+    ]
+    return "\n".join(lines)
+
+
+def _build_scene_soul_block(*, mode_id: Optional[str], has_images: bool) -> Optional[str]:
+    from agent_runtime.scene_soul import get_scene_soul
+
+    soul = str(get_scene_soul(mode_id=mode_id, has_images=has_images) or "").strip()
+    if not soul:
+        return None
+    return f"<SCENE_SOUL>\n{soul}\n</SCENE_SOUL>"
+
+
+def _build_pose_soul_block(*, mode_id: Optional[str], has_images: bool) -> Optional[str]:
+    from agent_runtime.pose_soul import get_pose_soul
+
+    soul = str(get_pose_soul(mode_id=mode_id, has_images=has_images) or "").strip()
+    if not soul:
+        return None
+    return f"<POSE_SOUL>\n{soul}\n</POSE_SOUL>"
+
+
+def _build_capture_soul_block(*, mode_id: Optional[str], has_images: bool) -> Optional[str]:
+    from agent_runtime.capture_soul import get_capture_soul
+
+    soul = str(get_capture_soul(mode_id=mode_id, has_images=has_images) or "").strip()
+    if not soul:
+        return None
+    return f"<CAPTURE_SOUL>\n{soul}\n</CAPTURE_SOUL>"
+
+
+def _build_styling_soul_block(
+    *,
+    mode_id: Optional[str],
+    has_images: bool,
+) -> Optional[str]:
+    from agent_runtime.styling_soul import get_styling_soul
+
+    soul = str(get_styling_soul(mode_id=mode_id, has_images=has_images) or "").strip()
+    if not soul:
+        return None
+    return f"<STYLING_SOUL>\n{soul}\n</STYLING_SOUL>"
+
+
+def _build_styling_direction_block(styling_direction: Optional[dict[str, Any]]) -> Optional[str]:
+    payload = styling_direction or {}
+    confidence = float(payload.get("confidence", 0) or 0)
+    if not payload or confidence <= 0.35:
+        return None
+
+    hero_components = ", ".join(payload.get("hero_components") or []) or "hero product only"
+    completion_slots = ", ".join(payload.get("completion_slots") or []) or "none"
+    lines = [
+        "<STYLING_DIRECTION>",
+        "[Job-specific styling resolution inferred after garment analysis]",
+        f"- product_topology: {payload.get('product_topology', '')}",
+        f"- hero_family: {payload.get('hero_family', '')}",
+        f"- hero_components: {hero_components}",
+        f"- completion_slots: {completion_slots}",
+        f"- completion_strategy: {payload.get('completion_strategy', '')}",
+        f"- primary_completion: {payload.get('primary_completion', '')}",
+        f"- secondary_completion: {payload.get('secondary_completion', '')}",
+        f"- footwear_direction: {payload.get('footwear_direction', '')}",
+        f"- accessories_optional: {payload.get('accessories_optional', '')}",
+        f"- outer_layer_optional: {payload.get('outer_layer_optional', '')}",
+        f"- finish_logic: {payload.get('finish_logic', '')}",
+        "Use this as a contextual styling direction for this specific generation.",
+        "Do not copy these labels literally into the final prompt — synthesize them into fluent visual prose.",
+        "</STYLING_DIRECTION>",
+    ]
+    return "\n".join(lines)
+
+
 def _build_output_parameters_block(*, aspect_ratio: str, resolution: str) -> str:
     return f"<OUTPUT_PARAMETERS>\naspect_ratio={aspect_ratio}\nresolution={resolution}\n</OUTPUT_PARAMETERS>"
 
@@ -140,30 +261,6 @@ def _build_diversity_target_block(
     garment_hint: str = "",
 ) -> str:
     dt = diversity_target or {}
-
-    # casting_state removido — o model_soul é a única fonte de casting
-    scene_state = dt.get("scene_state") or {}
-    capture_state = dt.get("capture_state") or {}
-    pose_state = dt.get("pose_state") or {}
-    styling_state = dt.get("styling_state") or {}
-    coordination_state = dt.get("coordination_state") or {}
-    operational_profile = dt.get("operational_profile") or {}
-
-    def _budget_label(value: float) -> str:
-        if value < 0.3:
-            return "restrained"
-        if value < 0.55:
-            return "moderate"
-        return "open"
-
-    def _surface_label(value: int) -> str:
-        if value <= 1:
-            return "minimal"
-        if value == 2:
-            return "light"
-        if value == 3:
-            return "present"
-        return "strong"
 
     block = "<DIVERSITY_TARGET>\n"
     if dt.get("profile_id"):
@@ -181,148 +278,17 @@ def _build_diversity_target_block(
             "  - Model and scene are FREE — only the GARMENT must match the reference with absolute fidelity.\n"
         )
 
-    # ── Diretivas de persona (criatividade unificada, com contenção anti-copy no reference mode) ──
-    persona_creation_rule = (
-        "Invent a clearly new Brazilian persona that is VISUALLY DISTINCT from the reference woman.\n"
-        "You MUST specify concrete physical traits (hair color & style, approximate age, skin tone, build) that CONTRAST with the reference person.\n"
-        "A vague or generic description will cause the image model to copy the reference person — be specific and different.\n"
-        if has_images
-        else "Invent unique physical characteristics (skin tone, hair, age, build) that complement the garment.\n"
-    )
-
-    # Persona anchor (name blending) REMOVIDO.
-    # O casting agora é 100% via MODEL SOUL em todos os modes.
-    # O name blending causava fixação em ~28 anos.
     block += (
-        "Keep the model distinctly Brazilian in a believable, non-stereotyped way.\n"
-        f"{persona_creation_rule}"
-        "Keep the garment as the hero. Model presence is secondary.\n"
-        "Scenario, model, pose, angle, and camera direction come first from MODE_IDENTITY and SEMANTIC_BRIEFS.\n"
-        "Use MODE_PRESETS only as operational defaults and guardrails, not as the creative author of the image.\n"
+        "Scenario, model, pose, angle, and camera direction come from MODE_IDENTITY and the active SOUL blocks.\n"
         "Inside those directions, invent a fresh specific solution instead of repeating a generic safe default.\n"
         "Never mention preset labels or metatextual terms like capture geometry, scenario family, or lighting profile in the final prompt.\n"
         "Write one canonical final prompt directly usable by the image generator.\n"
     )
-    if operational_profile:
-        weights = operational_profile.get("engine_weights") or {}
-        surface_budget = operational_profile.get("surface_budget") or {}
-        emphasis_pairs = sorted(
-            [
-                ("casting", float(weights.get("casting", 0.0) or 0.0)),
-                ("scene", float(weights.get("scene", 0.0) or 0.0)),
-                ("capture", float(weights.get("capture", 0.0) or 0.0)),
-                ("styling", float(weights.get("styling", 0.0) or 0.0)),
-                ("pose", float(weights.get("pose", 0.0) or 0.0)),
-            ],
-            key=lambda item: item[1],
-            reverse=True,
-        )
-        emphasis = ", ".join(name for name, _ in emphasis_pairs[:2])
-        block += (
-            "OPERATIONAL DIRECTION (resolved behavioral effect, do not copy as labels):\n"
-            f"  - invention budget: {_budget_label(float(operational_profile.get('invention_budget', 0.5) or 0.5))}\n"
-            f"  - primary emphasis: {emphasis}\n"
-            f"  - subject surface budget: {_surface_label(int(surface_budget.get('subject', 0) or 0))}\n"
-            f"  - scene surface budget: {_surface_label(int(surface_budget.get('scene', 0) or 0))}\n"
-            f"  - capture surface budget: {_surface_label(int(surface_budget.get('capture', 0) or 0))}\n"
-            f"  - styling surface budget: {_surface_label(int(surface_budget.get('styling', 0) or 0))}\n"
-            f"  - pose surface budget: {_surface_label(int(surface_budget.get('pose', 0) or 0))}\n"
-            f"  - guardrail behavior: {operational_profile.get('guardrail_profile', '')}\n"
-            "Let this shape how much each layer appears in the final prompt, without naming modes or preset mechanics.\n"
-        )
-
-    # Alma da modelo — universal, com contexto da peça para casting inteligente
-    from agent_runtime.model_soul import get_model_soul
-    mode_id = dt.get("mode", "")
-    block += get_model_soul(garment_context=garment_hint, mode_id=mode_id)
-    if has_images:
-        block += (
-            "If the reference images contain a woman, make the new model read clearly "
-            "distinct from her in overall identity, hair silhouette, and presence.\n"
-        )
-
-    # casting_state legado REMOVIDO.
-    # O model_soul é a única fonte de verdade para casting em todos os modes.
-    # As famílias determinísticas do casting_engine não são mais injetadas no prompt.
-
-    scene_direction = dt.get("scene_direction") or {}
-    if scene_state and not scene_direction:
-        # ── CATALOG_CLEAN: estado operacional do briefing de cenário ──
-        block += (
-            "SCENE LATENT STATE (operational resolution of the active scene brief):\n"
-            f"  - world family: {scene_state.get('world_family', '')}\n"
-            f"  - microcontext: {scene_state.get('microcontext', '')}\n"
-            f"  - emotional register: {scene_state.get('emotional_register', '')}\n"
-            f"  - material language: {scene_state.get('material_language', '')}\n"
-            f"  - background density: {scene_state.get('background_density', '')}\n"
-            f"  - Brazil anchor: {scene_state.get('brazil_anchor', '')}\n"
-            "Use this as the concrete scene realization while keeping the environment quiet, controlled, and subordinate to the garment.\n"
-        )
-    if capture_state:
-        block += (
-            "CAPTURE LATENT STATE (creative seed — use as inspiration for how the camera should interpret the garment, NOT as a rigid shot recipe):\n"
-            f"  - framing intent: {capture_state.get('framing_intent', '')}\n"
-            f"  - camera family: {capture_state.get('camera_family', '')}\n"
-            f"  - geometry intent: {capture_state.get('geometry_intent', '')}\n"
-            f"  - capture feel: {capture_state.get('capture_feel', '')}\n"
-            f"  - lens language: {capture_state.get('lens_language', '')}\n"
-            f"  - subject separation: {capture_state.get('subject_separation', '')}\n"
-            f"  - body relation: {capture_state.get('body_relation', '')}\n"
-            f"  - angle logic: {capture_state.get('angle_logic', '')}\n"
-            f"  - garment priority: {capture_state.get('garment_priority', '')}\n"
-            "These capture coordinates are starting inspiration, not a fixed camera script.\n"
-            "Use your creative freedom to invent a commercially coherent camera language\n"
-            "that fits the garment, the setting, and the active visual mode.\n"
-            "Let framing, angle, and separation feel chosen for this specific image,\n"
-            "not repeated from a generic safe default or exposed as preset mechanics.\n"
-        )
-    if pose_state:
-        block += (
-            "POSE LATENT STATE (creative seed — use as inspiration for body direction, NOT as a rigid pose recipe):\n"
-            f"  - pose family: {pose_state.get('pose_family', '')}\n"
-            f"  - stance logic: {pose_state.get('stance_logic', '')}\n"
-            f"  - weight shift: {pose_state.get('weight_shift', '')}\n"
-            f"  - arm logic: {pose_state.get('arm_logic', '')}\n"
-            f"  - torso orientation: {pose_state.get('torso_orientation', '')}\n"
-            f"  - head direction: {pose_state.get('head_direction', '')}\n"
-            f"  - gesture intention: {pose_state.get('gesture_intention', '')}\n"
-            f"  - garment interaction: {pose_state.get('garment_interaction', '')}\n"
-            "These pose coordinates are starting inspiration, not fixed choreography.\n"
-            "Use your creative freedom to invent believable body direction that fits\n"
-            "the garment, the scene, and the mode's tone.\n"
-            "Vary gesture, asymmetry, and weight placement when appropriate instead of\n"
-            "defaulting to the same stable or generic stance every time.\n"
-            "Final prompt surface minimum: describe a specific stance or gesture, not only generic wording like stable pose or composed stance.\n"
-        )
-    if styling_state:
-        footwear_required = "yes" if styling_state.get("footwear_required") else "no"
-        block += (
-            "STYLING LATENT STATE (internal fashion-styling coordinates, do not copy as a checklist):\n"
-            f"  - completion level: {styling_state.get('completion_level', '')}\n"
-            f"  - footwear family: {styling_state.get('footwear_family', '')}\n"
-            f"  - footwear strategy: {styling_state.get('footwear_strategy', '')}\n"
-            f"  - accessory restraint: {styling_state.get('accessory_restraint', '')}\n"
-            f"  - look finish: {styling_state.get('look_finish', '')}\n"
-            f"  - styling interference: {styling_state.get('styling_interference', '')}\n"
-            f"  - garment balance: {styling_state.get('hero_balance', '')}\n"
-            f"  - footwear required: {footwear_required}\n"
-            "Use this to complete the look with fashion judgment, only as much as needed, while keeping the garment visually primary.\n"
-        )
-    if coordination_state:
-        block += (
-            "ART DIRECTION COORDINATION STATE (internal synthesis coordinates, do not copy as a checklist):\n"
-            f"  - master intent: {coordination_state.get('master_intent', '')}\n"
-            f"  - presence/world fusion: {coordination_state.get('presence_world_fusion', '')}\n"
-            f"  - camera/body fusion: {coordination_state.get('camera_body_fusion', '')}\n"
-            f"  - styling/world balance: {coordination_state.get('styling_world_balance', '')}\n"
-            f"  - garment priority rule: {coordination_state.get('garment_priority_rule', '')}\n"
-            f"  - visual tension: {coordination_state.get('visual_tension', '')}\n"
-            f"  - synthesis rule: {coordination_state.get('synthesis_rule', '')}\n"
-            "Use this to make casting, scene, capture, pose, and styling feel like one authored image direction rather than separate good decisions.\n"
-            "Weave at least one natural relational phrase that links body direction, setting, and capture (for example through language like while, keeping, so that, or work together), instead of describing each layer in isolation.\n"
-        )
     block += "</DIVERSITY_TARGET>"
     return block
+
+
+
 
 
 def _build_guided_brief_block(
@@ -419,30 +385,6 @@ def _build_structural_contract_block(
     return prose
 
 
-def _build_look_contract_block(look_contract: Optional[dict[str, Any]]) -> Optional[str]:
-    contract = look_contract or {}
-    if not contract or float(contract.get("confidence", 0) or 0) <= 0.5:
-        return None
-
-    forbidden = ", ".join(contract.get("forbidden_bottoms") or []) or "none"
-    keywords = ", ".join(contract.get("style_keywords") or []) or ""
-    return (
-        "<LOOK_CONTRACT>\n"
-        "[Styling constraints — outfit must be coherent with the target garment]\n"
-        f"- bottom_style: {contract.get('bottom_style', '')}\n"
-        f"- bottom_color: {contract.get('bottom_color', '')}\n"
-        f"- color_family: {contract.get('color_family', '')}\n"
-        f"- season: {contract.get('season', '')}\n"
-        f"- occasion: {contract.get('occasion', '')}\n"
-        f"- forbidden_bottoms: {forbidden}\n"
-        f"- accessories: {contract.get('accessories', '')}\n"
-        f"- style_keywords: {keywords}\n"
-        "Use bottom_style and bottom_color as the primary guide for the "
-        "model's lower garment. NEVER suggest a forbidden_bottom type.\n"
-        "</LOOK_CONTRACT>"
-    )
-
-
 def _build_grounding_results_block(
     *,
     grounding_research: str,
@@ -520,7 +462,8 @@ def build_generate_context_text(
     guided_set_mode: str,
     guided_set_detection: dict[str, Any],
     structural_contract: dict[str, Any],
-    look_contract: Optional[dict[str, Any]],
+    casting_direction: Optional[dict[str, Any]],
+    styling_direction: Optional[dict[str, Any]],
     grounding_research: str,
     grounding_effective: bool,
     grounding_context_hint: Optional[str],
@@ -542,9 +485,60 @@ def build_generate_context_text(
         )
     ]
 
+    structural_block = _build_structural_contract_block(
+        has_images=has_images,
+        structural_contract=structural_contract,
+    )
+    if structural_block and has_images:
+        blocks.append(structural_block)
+
     mode_identity_block = _build_mode_identity_block(mode_id)
     if mode_identity_block:
         blocks.append(mode_identity_block)
+
+    model_soul_block = _build_model_soul_block(
+        garment_hint=garment_hint,
+        mode_id=mode_id,
+        has_images=has_images,
+    )
+    if model_soul_block:
+        blocks.append(model_soul_block)
+
+    casting_direction_block = _build_casting_direction_block(casting_direction)
+    if casting_direction_block:
+        blocks.append(casting_direction_block)
+
+    scene_soul_block = _build_scene_soul_block(
+        mode_id=mode_id,
+        has_images=has_images,
+    )
+    if scene_soul_block:
+        blocks.append(scene_soul_block)
+
+    pose_soul_block = _build_pose_soul_block(
+        mode_id=mode_id,
+        has_images=has_images,
+    )
+    if pose_soul_block:
+        blocks.append(pose_soul_block)
+
+    capture_soul_block = _build_capture_soul_block(
+        mode_id=mode_id,
+        has_images=has_images,
+    )
+    if capture_soul_block:
+        blocks.append(capture_soul_block)
+
+    styling_soul_block = _build_styling_soul_block(
+        mode_id=mode_id,
+        has_images=has_images,
+    )
+    if styling_soul_block:
+        blocks.append(styling_soul_block)
+
+    styling_direction_block = _build_styling_direction_block(styling_direction)
+    if styling_direction_block:
+        blocks.append(styling_direction_block)
 
     semantic_briefs_block = _build_semantic_briefs_block(diversity_target)
     if semantic_briefs_block:
@@ -577,16 +571,8 @@ def build_generate_context_text(
     if guided_block:
         blocks.append(guided_block)
 
-    structural_block = _build_structural_contract_block(
-        has_images=has_images,
-        structural_contract=structural_contract,
-    )
-    if structural_block:
+    if structural_block and not has_images:
         blocks.append(structural_block)
-
-    look_block = _build_look_contract_block(look_contract)
-    if look_block:
-        blocks.append(look_block)
 
     grounding_results_block = _build_grounding_results_block(
         grounding_research=grounding_research,

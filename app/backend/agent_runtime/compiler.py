@@ -1,11 +1,7 @@
 import re
-import random
 from typing import Optional
 
 from agent_runtime.constants import (
-    _OUTDOOR_URBAN_KW,
-    _OUTDOOR_NATURE_KW,
-    _INDOOR_KW,
     _RESIDUAL_NEG_RE,
 )
 from agent_runtime.structural import (
@@ -15,30 +11,6 @@ from agent_runtime.structural import (
     _compress_structural_facts,
     get_set_member_labels,
 )
-
-_last_gaze_idx: int = -1
-_last_scene_comp_idx_by_mode: dict[str, int] = {}
-
-
-
-
-_TEXT_MODE_SCENE_COMP_POOL = [
-    "keep the setting secondary to the garment",
-    "keep the background quiet and commercially unobtrusive",
-    "keep environmental detail restrained around the garment",
-]
-
-_REFERENCE_MODE_SCENE_COMP_POOL = [
-    "clean commercial scene support with garment-first readability",
-    "environment stays secondary with clear subject separation",
-    "commercial scene balance with low background interference",
-]
-
-_GAZE_POOL = [
-    "engaging eye contact",
-    "direct confident gaze at camera",
-    "warm relaxed expression",
-]
 
 _SENTENCE_SPLIT_RE = re.compile(r'(?<=[.!?])\s+(?=[A-Z\"\']|$)')
 
@@ -87,28 +59,8 @@ def _truncate_by_sentence(text: str, max_words: int) -> tuple[str, bool]:
     return " ".join(kept), True
 
 
-def _scene_composition_clause(base: str, guided_scene_type: str, pipeline_mode: str) -> str:
-    """Retorna uma cláusula curta de suporte de cena sem impor acabamento forte."""
-    base_low = base.lower()
-    # Se guided_scene_type indica indoor/outdoor, adapta o texto
-    _kw_outdoor = any(k in base_low for k in _OUTDOOR_URBAN_KW | _OUTDOOR_NATURE_KW) or guided_scene_type == "externo"
-    _kw_indoor = any(k in base_low for k in _INDOOR_KW) or guided_scene_type == "interno"
-    pool = _TEXT_MODE_SCENE_COMP_POOL if pipeline_mode == "text_mode" else _REFERENCE_MODE_SCENE_COMP_POOL
-    last_idx = _last_scene_comp_idx_by_mode.get(pipeline_mode, -1)
-    _candidates = [i for i in range(len(pool)) if i != last_idx] or [0]
-    idx = random.choice(_candidates)
-    _last_scene_comp_idx_by_mode[pipeline_mode] = idx
-    clause = pool[idx]
-    if _kw_indoor and not _kw_outdoor:
-        clause += ", interior context"
-    elif _kw_outdoor and not _kw_indoor:
-        clause += ", outdoor context"
-    return clause
-
-
 def _frame_occupancy_clause(aspect_ratio: str, shot_type: str) -> str:
-    """
-    Evita o artefato de "portrait inset" dentro de canvas quadrado:
+    """Evita o artefato de "portrait inset" dentro de canvas quadrado:
     o modelo precisa ocupar um quadro nativo, sem faixas bluradas laterais.
     """
     if aspect_ratio == "1:1":
@@ -147,6 +99,7 @@ def _compile_prompt_v2(
     framing_profile: str = "",
     pose_energy: str = "",
     casting_profile: str = "",
+    mode_id: str = "",
 ) -> tuple[str, dict]:
     """
     Prompt Compiler V2: converte todas as restrições de lock em frases fotográficas
@@ -164,6 +117,14 @@ def _compile_prompt_v2(
     clauses: list[tuple[str, int, str]] = []
     discarded: list[tuple[str, str]] = []
 
+    # No fluxo com imagem de referência para modes criativos, o prompt precisa
+    # permanecer fluido e autorado pelo agente. A fidelidade exata da roupa é
+    # reforçada depois pelo corredor de transferência/repair, então evitamos
+    # despejar cláusulas mecânicas na superfície do prompt-base.
+    suppress_reference_mechanics = (
+        has_images and pipeline_mode == "reference_mode" and mode_id != "catalog_clean"
+    )
+
     guided_pose_style = ""
     if guided_enabled and guided_brief:
         guided_pose_style = str((guided_brief.get("pose") or {}).get("style", "")).strip().lower()
@@ -176,7 +137,13 @@ def _compile_prompt_v2(
     base = _resolve_structural_conflicts(base, contract)
 
     # ── P1: Fidelidade estrutural (geometria observável compactada via MT-B) ──
-    if has_images and contract and contract.get("enabled"):
+    if (
+        has_images
+        and contract
+        and contract.get("enabled")
+        and not suppress_reference_mechanics
+        and not (mode_id == "catalog_clean" and pipeline_mode == "reference_mode")
+    ):
         struct_clauses, struct_discarded = _compress_structural_facts(contract)
         clauses.extend(struct_clauses)
         discarded.extend(struct_discarded)
@@ -184,7 +151,7 @@ def _compile_prompt_v2(
     # ── P1: Âncora de fidelidade de garment (reference_mode) ─────────
     # A referência é a ÚNICA fonte de verdade para a roupa.
     # Modelo e cenário são livres — apenas a roupa deve ser fiel.
-    if has_images and pipeline_mode == "reference_mode":
+    if has_images and pipeline_mode == "reference_mode" and mode_id != "catalog_clean" and not suppress_reference_mechanics:
         clauses.append((
             "the uploaded reference image is the sole garment truth source — "
             "preserve exact color, fabric, pattern scale, construction, and silhouette",
@@ -194,7 +161,7 @@ def _compile_prompt_v2(
     # ── P2: Anti-cópia de modelo (reference_mode) ──────────────────
     # O Gemini copia a aparência da modelo na imagem de referência (bias visual).
     # Instrução direta para inventar uma pessoa completamente diferente.
-    if has_images:
+    if has_images and mode_id != "catalog_clean" and not suppress_reference_mechanics:
         clauses.append((
             "invent a completely new model — do NOT copy or resemble the person "
             "visible in the reference image in age, hair, skin, or body type",
@@ -202,7 +169,7 @@ def _compile_prompt_v2(
         ))
 
     # ── P1: Atypical silhouette / Complex matching (grounding full) ──
-    if grounding_mode == "full":
+    if grounding_mode == "full" and mode_id != "catalog_clean" and not suppress_reference_mechanics:
         clauses.append((
             "preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length",
             1, "grounding_atypical"
@@ -237,46 +204,25 @@ def _compile_prompt_v2(
     # Lógica:
     # - Se Gemini já ecoou nosso profile ("features blend" no base) → skip (evita duplicação)
     # - Se fenótipo ausente → injetar como guardrail de diversidade
-    if profile_hint and pipeline_mode != "text_mode" and not _profile_already_in_base:
+    if (
+        profile_hint
+        and pipeline_mode != "text_mode"
+        and not _profile_already_in_base
+        and not (has_images and mode_id == "catalog_clean")
+    ):
         if not _phenotype_in_base:
             clauses.append((profile_hint, 3, "model_profile"))
 
 
 
     # ── P2: Fidelidade de textura ────────────────────────────────────
-    if has_images:
+    if has_images and mode_id != "catalog_clean" and not suppress_reference_mechanics:
         clauses.append(("exact texture, stitch, and fiber relief", 2, "quality_texture"))
 
-    # ── P3: Composição comercial ─────────────────────────────────────
-    # Cenário: extraído do guided_brief para resolver conflito urbano vs catálogo via DOF.
-    _guided_scene_type = ""
-    if guided_enabled and guided_brief:
-        _guided_scene_type = str((guided_brief.get("scene") or {}).get("type", "")).strip().lower()
-
-    # MT-B: gaze pool — anti-repeat rotation
-    def _pick_gaze() -> str:
-        global _last_gaze_idx
-        _g_candidates = [i for i in range(len(_GAZE_POOL)) if i != _last_gaze_idx]
-        _last_gaze_idx = random.choice(_g_candidates)
-        return _GAZE_POOL[_last_gaze_idx]
-
-    model_presence_clause = "polished model, confident posture"
-    if casting_profile == "natural_commercial":
-        model_presence_clause = "natural commercial model presence, warm and believable"
-    elif casting_profile == "editorial_presence":
-        model_presence_clause = "editorial model presence, elevated and fashion-aware"
-    elif casting_profile == "polished_commercial":
-        model_presence_clause = "polished commercial model presence, composed and premium"
-
-    gaze_clause = _pick_gaze()
-    if pose_energy == "static":
-        gaze_clause = "calm direct gaze with controlled expression"
-    elif pose_energy == "relaxed":
-        gaze_clause = "warm near-camera look with relaxed expression"
-    elif pose_energy == "directed":
-        gaze_clause = "direct confident gaze with intentional fashion energy"
-    elif pose_energy == "candid":
-        gaze_clause = "natural engaged expression with slightly off-camera spontaneity"
+    # ── P3: Composição comercial (guardrails apenas) ──────────────────
+    # Direção criativa de model_presence, gaze, scene_composition e pose_body
+    # são responsabilidade do agent (via souls/briefings), não do compiler.
+    # O compiler só mantém guardrails estruturais aqui.
 
     effective_shot = shot_type
     if effective_shot == "auto":
@@ -287,28 +233,12 @@ def _compile_prompt_v2(
         else:
             effective_shot = "medium"
 
-    if has_images:
-        clauses.append((model_presence_clause, 3, "quality_model"))
-        # ── Pose corporal: enforcement explícito para editorial ──────
-        # As diretivas de pose no MODE_PRESETS (system prompt) são frequentemente
-        # ignoradas pelo Gemini. Reforçamos diretamente no prompt compilado.
-        if pose_energy == "directed":
-            clauses.append((
-                "dynamic fashion pose with weight shifted, body angled, "
-                "and arms purposefully placed — never static or symmetrical",
-                3, "pose_body_directed"
-            ))
-        if not (has_images and not has_prompt and guided_pose_creative):
-            clauses.append((gaze_clause, 3, "quality_gaze"))
-        clauses.append((_scene_composition_clause(base, _guided_scene_type, pipeline_mode), 4, "quality_scene"))
+    if has_images and not suppress_reference_mechanics:
         clauses.append((_frame_occupancy_clause(aspect_ratio, effective_shot), 3, "frame_occupancy"))
     elif pipeline_mode == "text_mode":
-        if not profile_hint:
-            clauses.append((model_presence_clause, 3, "quality_model"))
-        # No text_mode, a expressão deve nascer da síntese guiada por casting/pose.
-        # Gaze tail automático aqui volta a deixar o prompt com cara de remendo.
-        # quality_scene e frame_occupancy também ficam fora: essa direção já entra
-        # via MODE_PRESETS + estados latentes.
+        # No text_mode, toda direção criativa (model, gaze, scene, pose) já entra
+        # via souls/briefings + estados latentes. O compiler não adiciona nada.
+        pass
 
     # ── P3: Pose de referência do grounding ──────────────────────────
     if pose_hint:
@@ -406,8 +336,12 @@ def _compile_prompt_v2(
     # Com imagens: prosa descritiva do Gemini sobre a peça duplica os P1 structural clauses.
     # MT-A: dynamic budget — 28w quando temos profile/scenario hints (diversidade precisa
     # de espaço para modelo+cenário no base); 12w default para manter frame directive apenas.
-    _has_diversity_context = bool(profile_hint or scenario_hint)
+    _has_diversity_context = bool(profile_hint or scenario_hint or suppress_reference_mechanics)
     _base_cap = 50 if _has_diversity_context else 12
+    if has_images and mode_id == "catalog_clean":
+        _base_cap = max(_base_cap, 110)
+    elif suppress_reference_mechanics:
+        _base_cap = max(_base_cap, 140)
     if has_images and base_allowed > _base_cap:
         base_allowed = _base_cap
 

@@ -10,6 +10,7 @@ Essa direção vem do mode ativo via modes.py.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 from agent_runtime.structural import get_set_member_labels, get_set_member_keys
@@ -27,19 +28,17 @@ _LENGTH_PHRASES = {
 }
 
 _REFERENCE_USAGE_RULES_BASE = [
-    "Use all references only as GARMENT references for shape, fabric, stitch, and color behavior.",
-    "Never transfer identity from references: do not copy face, skin tone, body type, hairline, hairstyle, or age impression.",
-    "Keep the garment completely faithful, but create an entirely new person and physical presence around it.",
+    "Use all references only as garment evidence for shape, fabric, stitch, color behavior, and garment geometry.",
+    "Never transfer identity from references; create a fully new Brazilian woman around the locked garment.",
 ]
 
 _REFERENCE_USAGE_RULES_STRICT = [
-    "Treat every visible person in references as an anonymous mannequin used only for garment transfer.",
-    "Generate a fully new Brazilian model identity from scratch; any resemblance to reference people is a hard failure.",
+    "Treat every visible person in references as an anonymous mannequin for garment transfer only.",
+    "Any resemblance to reference people is a hard failure.",
 ]
 
 _REFERENCE_USAGE_RULES_HIGH_GUARD = [
-    "Use references for garment-only visual evidence; identity transfer from references is strictly forbidden.",
-    "Deliberately separate facial geometry from references by changing jawline, eye spacing, nose bridge, lip shape, and hairline.",
+    "Keep identity transfer from references at zero; deliberately separate the new face, hair silhouette, body, and age impression from any visible person in the references.",
 ]
 
 
@@ -140,6 +139,100 @@ def _build_mode_guardrail_clauses(mode_guardrails: Optional[dict[str, Any]]) -> 
             clauses.append("Identity guard: " + ", ".join(identity_bits) + ".")
 
     return clauses
+
+
+def _ensure_sentence(text: str) -> str:
+    cleaned = re.sub(r"\s+", " ", str(text or "").strip())
+    if not cleaned:
+        return ""
+    if cleaned.endswith((".", "!", "?")):
+        return cleaned
+    return f"{cleaned}."
+
+
+def _strip_mode_soul_prefix(text: str) -> str:
+    return re.sub(r"^\s*[-\u2014]+\s*SOUL:\s*", "", str(text or "").strip(), flags=re.I)
+
+
+def _compact_reference_scene_guard(text: str) -> str:
+    cleaned = re.sub(r"\s+", " ", str(text or "").strip())
+    if not cleaned:
+        return ""
+    return (
+        "Do not copy the reference background, location signature, or original spatial composition; "
+        "invent a new setting that serves the garment and the active mode better."
+    )
+
+
+def build_reference_edit_art_direction(
+    *,
+    mode_id: str,
+    creative_brief: Optional[dict[str, Any]],
+) -> str:
+    """Sintetiza a direção criativa do stage 2 em prosa fluida para Nano.
+
+    Todas as camadas criativas vêm das souls — engine states foram removidos.
+    """
+    from agent_runtime.mode_identity_soul import get_mode_soul_statement
+    from agent_runtime.scene_soul import get_scene_soul
+    from agent_runtime.pose_soul import get_pose_soul
+    from agent_runtime.capture_soul import get_capture_soul
+
+    brief = creative_brief or {}
+    semantic_briefs = brief.get("semantic_briefs") or {}
+    sentences: list[str] = []
+
+    mode_soul = _strip_mode_soul_prefix(get_mode_soul_statement(mode_id))
+    if mode_soul:
+        sentences.append(_ensure_sentence(mode_soul))
+
+    sentences.append(
+        "Create a completely new Brazilian woman whose age, face geometry, skin, hair, frame, expression, and visible makeup feel naturally right for this garment and this mode."
+    )
+
+    # Scene: semantic brief > soul
+    scene_brief = str(semantic_briefs.get("scene_brief", "") or "").strip()
+    if scene_brief:
+        sentences.append(_ensure_sentence(scene_brief))
+    elif mode_id != "catalog_clean":
+        scene_soul = get_scene_soul(mode_id=mode_id, has_images=True)
+        if scene_soul:
+            sentences.append(
+                "Invent a new Brazilian setting aligned with the active mode through visible material, light, and spatial evidence."
+            )
+        reference_scene_guard = _compact_reference_scene_guard(scene_soul)
+        if reference_scene_guard:
+            sentences.append(reference_scene_guard)
+
+    # Pose: semantic brief > soul
+    pose_brief = str(semantic_briefs.get("pose_brief", "") or "").strip()
+    if pose_brief:
+        sentences.append(_ensure_sentence(pose_brief))
+    else:
+        pose_soul = get_pose_soul(mode_id=mode_id, has_images=True)
+        if pose_soul:
+            sentences.append(
+                "Invent fresh body language aligned with the active mode, keeping the garment readable and not copying the reference pose."
+            )
+
+    # Camera: semantic brief > soul
+    angle_brief = str(semantic_briefs.get("angle_brief", "") or "").strip()
+    camera_brief = str(semantic_briefs.get("camera_brief", "") or "").strip()
+    if angle_brief:
+        sentences.append(_ensure_sentence(angle_brief))
+    if camera_brief:
+        sentences.append(_ensure_sentence(camera_brief))
+    else:
+        capture_soul = get_capture_soul(mode_id=mode_id, has_images=True)
+        if capture_soul:
+            sentences.append(
+                "Choose a fresh camera relationship aligned with the active mode, keeping the garment legible and the scene coherent."
+            )
+
+    return " ".join(sentence for sentence in sentences if sentence.strip())
+
+
+
 
 
 def _build_reference_usage_clauses(mode_guardrails: Optional[dict[str, Any]]) -> list[str]:
@@ -334,7 +427,10 @@ def build_pattern_lock(image_analysis: Optional[str]) -> str:
     ia_text = str(image_analysis or "").strip()
     if not ia_text or not any(w in ia_text.lower() for w in _PATTERN_KEYWORDS):
         return ""
-    ia_trunc = ia_text[:250].rstrip(",. ")
+    _max = 400
+    _chunk = ia_text[:_max]
+    _dot = _chunk.rfind(".")
+    ia_trunc = _chunk[:_dot + 1].strip() if _dot > 100 else _chunk.rstrip(",. ")
     return (
         f"CRITICAL — preserve the exact surface pattern geometry from the references: {ia_trunc}. "
         "Do not reinterpret stripe direction, pattern angle, or pattern scale. "
@@ -458,17 +554,14 @@ def compile_edit_prompt(
     reference_guard_strength: str = "standard",
     reference_usage_rules: Optional[list[str]] = None,
     mode_guardrails: Optional[dict[str, Any]] = None,
-
-    user_prompt: Optional[str] = None,
     image_analysis: Optional[str] = None,
-    look_contract: Optional[dict[str, Any]] = None,
     angle_directive: str = "",
 ) -> str:
     """Compila o prompt final de edição: shell de fidelidade + soul criativo.
 
     Arquitetura:
       - Camadas determinísticas: locks, guards, reference policy, pattern lock,
-        neckline guard, look_contract, texture fidelity.
+        neckline guard, texture fidelity.
       - Camada criativa: art_direction_soul é injetado como bloco único.
         O LLM lê e INVENTA cena, pose, câmera, iluminação e styling.
     """
@@ -487,71 +580,38 @@ def compile_edit_prompt(
         mode_guardrails=mode_guardrails,
     )
 
-    # 4. Mode guardrails
-    mode_guardrail_clauses = _build_mode_guardrail_clauses(mode_guardrails)
-
     # 4. Neckline guard
     neckline_guard = _closed_neckline_guard(structural_contract)
 
-    # 5. Look contract constraints
-    lc = look_contract if isinstance(look_contract, dict) else {}
-    lc_active = bool(lc) and float(lc.get("confidence", 0) or 0) > 0.5
-    forbidden_bottoms_clause = ""
-    if lc_active and lc.get("forbidden_bottoms"):
-        items = ", ".join(
-            str(x).strip() for x in lc["forbidden_bottoms"] if str(x).strip()
-        )
-        if items:
-            forbidden_bottoms_clause = (
-                f"NEVER use these lower-body types for this garment "
-                f"(styling incoherence): {items}."
-            )
-
-
-    # 6. Texture fidelity
+    # 5. Texture fidelity
     texture_clause = (
         f"Render the garment with macro-accurate {garment_material}, "
         f"correct fabric weight, consistent stitch definition, "
         f"and realistic light absorption across {garment_color}."
     )
 
-    # 7. Compile: deterministic shell + creative soul
+    # 6. Compile: deterministic shell + creative soul
     sentences = [
         str(angle_directive or "").strip(),
         (
-            "IDENTITY REPLACEMENT: The person in the base image is a PLACEHOLDER "
-            "and must be fully replaced. Do not preserve ANY facial features, "
-            "skin tone, hair color, hair style, body type, or age from the "
-            "base image person OR from the reference images. "
-            "Create a completely new person."
+            "Replace the placeholder person in the base image completely. "
+            "Do not preserve any face, skin tone, hair, body type, or age impression from the base image person or from the references."
         ),
         "Keep the garment exactly the same: " + ", ".join(locks) + ".",
         pattern_lock,
         reference_policy,
         (
-            "Before rendering, internally plan the composition around a "
-            "locked garment object. Only the model identity, pose, camera, "
-            "and environment may change."
+            "Treat the garment as the locked object and redesign only the woman, the pose, the camera relation, and the environment around it."
         ),
-        *mode_guardrail_clauses,
 
         # Creative direction (SOUL — from mode, LLM invents freely)
         art_direction_soul,
         neckline_guard,
-        forbidden_bottoms_clause,
         texture_clause,
         (
-            "Keep the image highly photorealistic with natural skin texture, "
-            "visible pores, mild facial asymmetry, and realistic body proportions."
+            "Keep the result highly photorealistic with believable human skin and realistic body proportions."
         ),
     ]
-
-    # User prompt override
-    extra = (user_prompt or "").strip()
-    if extra:
-        from agent_runtime.normalize_user_intent import normalize_user_intent
-        intent = normalize_user_intent(extra)
-        sentences.append(f"Additional commercial direction: {intent['normalized']}.")
 
     return " ".join(s.strip() for s in sentences if s and s.strip())
 
@@ -563,10 +623,10 @@ def build_stage1_prompt(
     structural_hint: Optional[str],
     *,
     set_detection: Optional[dict[str, Any]] = None,
+    art_direction_soul: str = "",
     fidelity_mode: str = "balanceada",
     mode: str = "natural",
     angle_directive: str = "",
-    look_contract: Optional[dict[str, Any]] = None,
     use_image_grounding: bool = False,
     image_analysis: Optional[str] = None,
 ) -> str:
@@ -605,12 +665,9 @@ def build_stage1_prompt(
         "completely ignore their face, skin tone, hair color, hair style, body type, age, and ethnicity. "
         "Create a clearly different adult Brazilian woman for this photo."
     )
-    # Todos os modes usam o prompt padrão premium
+    creative_direction = str(art_direction_soul or "").strip()
     parts = [
-        "Ultra-realistic premium fashion catalog photo of a natural adult woman wearing the garment.",
         _identity_guard,
-        "Direct eye contact, realistic skin texture, natural body proportions, standing pose, full garment clearly visible.",
-        "Clean premium indoor composition, soft natural daylight.",
         "Preserve exact garment geometry, texture continuity, and construction details.",
     ]
     if angle_directive:
@@ -620,14 +677,20 @@ def build_stage1_prompt(
     if structure_guards:
         parts.append("Non-negotiable structure guards: " + "; ".join(structure_guards) + ".")
     parts.append(
-        "Treat the garment as the fixed object and build the model, camera, and background around it. "
+        "Treat the garment as the fixed object and build the woman, pose, camera relation, and environment around it. "
         "Never reshape the garment to solve composition."
     )
+    if creative_direction:
+        parts.append(creative_direction)
+    else:
+        parts.append(
+            "Invent a new Brazilian woman and a commercially believable setting around the locked garment. "
+            "Do not default to a premium indoor catalog setup unless the active image direction explicitly asks for it."
+        )
     if str(fidelity_mode).strip().lower() == "estrita":
         parts.append("Prioritize exact garment fidelity over editorial variation and avoid any reinterpretation of silhouette, length, or stitch logic.")
     styling_intro = (
-        "Catalog-ready minimal styling with the garment as the hero piece. "
-        "Keep accessories subtle and secondary to the garment. "
+        "Keep the garment as the visual hero and let styling stay secondary to it. "
     )
     parts.append(
         styling_intro
@@ -635,13 +698,6 @@ def build_stage1_prompt(
         + "Do not promote inner tops, jewelry, shoes, or unrelated accessories into coordinated product pieces. "
         + "Build new styling independent from the reference person's lower-body look, footwear, and props."
     )
-    if look_contract and float(look_contract.get("confidence", 0) or 0) > 0.5:
-        _lc_bottom = str(look_contract.get("bottom_style") or "").strip()
-        _lc_forbidden = [str(x).strip() for x in (look_contract.get("forbidden_bottoms") or []) if str(x).strip()]
-        if _lc_bottom:
-            parts.append(f"Preferred lower-body styling: {_lc_bottom}.")
-        if _lc_forbidden:
-            parts.append(f"Avoid these lower-body types (incoherent with this garment): {', '.join(_lc_forbidden)}.")
     if use_image_grounding:
         parts.insert(0,
             "Use image search to reference real examples of this garment type for accurate silhouette and texture."

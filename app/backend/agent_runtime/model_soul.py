@@ -3,11 +3,11 @@ Módulo Alma da Modelo — model_soul.py
 
 Responsável por entregar a diretiva criativa universal de casting.
 O agente recebe instruções de COMO PENSAR sobre a modelo,
-não uma lista prescritiva de atributos físicos.
+não uma lista prescritiva de atributos físicos ou referências prontas.
 
 A alma força o agente a INVENTAR uma mulher brasileira específica
-com detalhes de rosto, cabelo, pele, corpo, biotipo e etnia regional,
-escolhendo aleatoriamente a região e mistura étnica a cada geração.
+com detalhes de rosto, cabelo, pele, corpo e presença,
+sem recorrer a menus de arquétipos ou rótulos regionais.
 
 Quando recebe o contexto da peça (garment_context), o agente usa
 a personalidade da roupa para guiar o casting inteligente:
@@ -22,7 +22,7 @@ def get_model_soul(garment_context: str = "", mode_id: str = "") -> str:
     Args:
         garment_context: Descrição da peça vinda da triagem visual.
             Quando presente, guia o agente a escolher a modelo certa
-            para o tipo de roupa (idade, energia, biotipo, presença).
+            para o tipo de roupa (idade, energia, presença, fisicalidade).
         mode_id: Identificador do mode ativo (ex: "editorial_commercial").
             Quando editorial, injeta diretivas criativas de persona
             empoderada, gaze, acessórios e styling intencional.
@@ -34,16 +34,11 @@ def get_model_soul(garment_context: str = "", mode_id: str = "") -> str:
             "\n"
             "🎯 GARMENT-DRIVEN CASTING — THE GARMENT DEFINES WHO WEARS IT:\n"
             f"  The garment for this shoot is: {garment_context}\n"
-            "  Study this garment's personality, occasion, and target customer.\n"
-            "  Then CHOOSE the model who would BUY and WEAR this piece in real life:\n"
-            "  - A casual beach dress → younger, sun-kissed energy, relaxed posture.\n"
-            "  - A tailored blazer → mature professional, strong jawline, composed presence.\n"
-            "  - A cozy knit sweater → warm approachable woman, natural comfort.\n"
-            "  - A streetwear crop top → urban edge, bold attitude, younger energy.\n"
-            "  - An elegant evening dress → refined features, elongated silhouette, poise.\n"
-            "  These are EXAMPLES — use the actual garment description above to decide.\n"
-            "  The model's age, hair, body type, and energy must feel NATURAL for this garment.\n"
-            "  Do NOT default to the same model every time — let the garment lead.\n"
+            "  Study the garment's personality, occasion, structure, target customer, and emotional temperature.\n"
+            "  Then CHOOSE the woman who would authentically BUY and WEAR this piece in real life.\n"
+            "  Let the garment guide age impression, hair presence, frame, face geometry, and emotional register.\n"
+            "  The model must feel naturally right for this garment, not randomly beautiful beside it.\n"
+            "  Do NOT default to the same woman every time — let the garment lead the casting decision.\n"
             "\n"
         )
 
@@ -55,54 +50,89 @@ def get_model_soul(garment_context: str = "", mode_id: str = "") -> str:
         "\n"
         "⚠️ NATIONALITY ANCHOR — NON-NEGOTIABLE:\n"
         "  The model is ALWAYS a BRAZILIAN WOMAN born and raised in Brazil.\n"
-        "  Brazil's regional diversity comes from centuries of ancestral mixing.\n"
         "  NEVER label the model with foreign nationality terms.\n"
-        "  Describe her PHYSICAL FEATURES directly — ancestry shaped phenotype,\n"
-        "  it does NOT define identity. She is Brazilian, period.\n"
+        "  Describe her PHYSICAL FEATURES directly. She is Brazilian, period.\n"
         "\n"
         f"{garment_casting_block}"
         "MANDATORY PHYSICAL DETAIL — you MUST describe ALL of these with SPECIFICITY:\n"
         "  1. FACE: bone structure (jaw shape, cheekbone prominence, chin), nose bridge width,\n"
         "     lip fullness and natural color, eye shape and color, brow thickness and arch.\n"
-        "     Describe the GEOMETRY, not adjectives.\n"
+        "     Describe the GEOMETRY, not adjectives. Give enough structure that the face feels cast, not generic.\n"
         "  2. SKIN: exact undertone, texture (matte, natural sheen, sun-kissed glow),\n"
         "     any natural marks (freckles, beauty marks, tan lines).\n"
         "  3. HAIR (critical — do NOT skip): texture and curl pattern (straight, wavy, curly,\n"
         "     coily — describe the tightness), weight and movement (heavy, bouncy, flat),\n"
         "     length relative to body (chin, shoulder, mid-back, waist), natural sheen level,\n"
         "     color with variation (roots, mid-lengths, ends — uniform or gradient?),\n"
-        "     styling (center or side part, tucked behind ear, loose, wind-caught, pulled back).\n"
+        "     styling (center or side part, natural fall, loose, wind-caught, loosely pulled back when functionally justified).\n"
         "     Hair is a KEY identity marker — describe it with the same precision as the face.\n"
-        "  4. BODY: height impression, build, shoulder-to-hip ratio, posture energy.\n"
-        "     How does her body CARRY the garment?\n"
+        "  4. BODY / FRAME: height impression, build, shoulder-to-hip ratio, and how the garment sits on her frame.\n"
+        "     Describe fisicality, not pose choreography.\n"
         "  5. AGE: choose the age that FITS the garment's personality.\n"
-        "     Range: adult woman (early 20s to mid 40s). This is YOUR creative decision.\n"
-        "  6. MAKEUP: describe only what's VISIBLE on the face, not style labels.\n"
+        "     State it explicitly as an approximate age or age-range impression. Range: adult woman (early 20s to mid 40s).\n"
+        "  6. EXPRESSION: describe what is visible in her face — mouth set, eye energy, calm, warmth, reserve, or confidence.\n"
+        "     This must feel like a real commercially believable expression, not a vague attitude label.\n"
+        "  7. MAKEUP: describe only what's VISIBLE on the face, not style labels.\n"
+        "     All 7 dimensions must appear in the final prompt surface as visible authored traits, not remain implicit in your reasoning.\n"
         "\n"
-        "BRAZILIAN REGIONAL DIVERSITY — randomly choose ONE region per generation\n"
-        "and let its ancestral phenotype mix shape the model's physical appearance:\n"
-        "  - NORTE: river-dwelling mixed heritage, indigenous-European ancestry blend.\n"
-        "  - NORDESTE: African-indigenous-Portuguese ancestry blend.\n"
-        "  - SUDESTE (urban): dense urban ancestry mixing — African, European,\n"
-        "    Asian, and Middle Eastern ancestries blended into unique phenotypes.\n"
-        "  - SUDESTE (coastal): sun-shaped blend — Portuguese-African ancestry.\n"
-        "  - SUL: predominantly European ancestry with regional Brazilian character.\n"
-        "  - CENTRO-OESTE: indigenous-European ancestry with savanna-region character.\n"
-        "  Use the chosen region ONLY as phenotype inspiration — then INVENT every\n"
-        "  physical detail yourself. Do NOT recite regional descriptors back.\n"
+        "VARIATION RULE:\n"
+        "  Each generation must invent a different Brazilian woman from scratch.\n"
+        "  Do not rely on pre-made archetypes, menus, regional labels, or ancestry shorthand.\n"
+        "  Let variation emerge through concrete physical invention and through the garment's personality.\n"
         "\n"
         "CRITICAL RULES:\n"
         "  - The model is ALWAYS described as a Brazilian woman.\n"
-        "  - Each generation must produce a UNIQUE woman — never repeat phenotypes.\n"
-        "  - Vary the region each time. Do NOT default to the same phenotype.\n"
+        "  - Each generation must produce a UNIQUE woman — never repeat the same solution.\n"
         "  - Include subtle imperfections that break artificial perfection.\n"
         "  - NEVER use abstract labels without the specific physical geometry behind them.\n"
         "  - The model's physicality must COMPLEMENT the garment.\n"
+        "  - Do NOT use regional, ethnic, or ancestry labels as shortcuts for description.\n"
         "  - Do NOT echo these directives in the output — INVENT the person.\n"
-        "  - COMPLETENESS CHECK: your description MUST contain all 6 items (face, skin, hair,\n"
-        "    body, age, makeup). If any is missing, the output is INVALID. Hair is the most\n"
-        "    commonly skipped — verify it is present before finalizing.\n"
+        "  - COMPLETENESS CHECK: your description MUST contain all 7 items (face, skin, hair,\n"
+        "    body/frame, age, expression, makeup). If any is missing, the output is INVALID.\n"
+        "    Hair and age are the most commonly skipped — verify both before finalizing.\n"
     )
+
+    # ── Bloco natural condicional — presença não produzida ────────
+    natural_soul_block = ""
+    if mode_id == "natural":
+        natural_soul_block = (
+            "\n"
+            "NATURAL MODE HUMAN LOGIC:\n"
+            "  PRESENCE: the woman should feel close, ordinary, and encountered in real life rather than prepared for a shoot.\n"
+            "  EXPRESSION: she should not appear to be performing for the camera. Avoid polished professional engagement,\n"
+            "    direct presentational energy, an overly resolved smile, or a serene beauty-portrait calm.\n"
+            "    Her expression should arise from her own attention, not from offering her face to the viewer.\n"
+            "  MAKEUP: visible makeup should be absent or nearly absent. If any cosmetic trace appears, it must read as minimal real-life residue,\n"
+            "    never as shoot makeup.\n"
+            "  HAIR: hair should feel minimally handled, lightly imperfect, and non-salon-finished.\n"
+            "    Keep it believable for an ordinary day rather than a beauty setup.\n"
+            "    Avoid hair behavior that feels neatly arranged for the frame, deliberately face-flattering, or carefully tucked only to clean up the portrait.\n"
+            "  SKIN: preserve real-life texture, slight unevenness, natural shine, and small imperfections.\n"
+            "    Do not polish the face into cosmetic perfection.\n"
+            "  CAMERA AWARENESS: she may be aware of her surroundings, but she should not look like she is deliberately presenting herself to the photographer.\n"
+            "    Direct lens-lock should be rare unless the user explicitly asks for it.\n"
+            "  ANTI-BEAUTY-SETUP: do not turn her into a still, camera-ready beauty portrait. She should feel occupied by her own moment rather than available for admiration.\n"
+        )
+
+    # ── Bloco lifestyle condicional — presença socialmente viva ────
+    lifestyle_soul_block = ""
+    if mode_id == "lifestyle":
+        lifestyle_soul_block = (
+            "\n"
+            "LIFESTYLE MODE HUMAN LOGIC:\n"
+            "  PRESENCE: the woman should feel socially self-assured and engaged in her moment,\n"
+            "    not presenting herself for a camera or performing beauty for an audience.\n"
+            "  EXPRESSION: she is alive in the scene — her expression originates from what she is doing,\n"
+            "    not from awareness of being photographed. Brief camera acknowledgment is natural, not staged.\n"
+            "  MAKEUP: her makeup should feel intentional but not editorial — she prepared for her day,\n"
+            "    not for a photoshoot. The result reads as polished and self-aware, not bare-faced and not fashion-produced.\n"
+            "  HAIR: hair should feel cared-for and personal — it has her identity, not a salon's.\n"
+            "    It can be styled, but the styling reads as her daily choice, not a hairdresser's decision.\n"
+            "  SKIN: natural healthy texture with self-care evidence, not cosmetic perfection.\n"
+            "  VISUAL PERSONALITY: she should feel like someone with individual style and social identity,\n"
+            "    not a casting-call placeholder. Her specific traits make her memorable.\n"
+        )
 
     # ── Bloco editorial condicional — persona empoderada ──────────
     editorial_soul_block = ""
@@ -128,4 +158,4 @@ def get_model_soul(garment_context: str = "", mode_id: str = "") -> str:
             "    The hairstyle is a creative choice, not an afterthought.\n"
         )
 
-    return base_soul + editorial_soul_block
+    return base_soul + natural_soul_block + lifestyle_soul_block + editorial_soul_block

@@ -37,6 +37,7 @@ from agent_runtime.curation_policy import (
 from agent_runtime.fidelity import (
     _build_mode_guardrail_clauses,
     build_classifier_summary,
+    build_reference_edit_art_direction,
     build_stage1_prompt,
     build_structural_hint,
     compile_edit_prompt as build_soul_driven_edit_prompt,
@@ -54,7 +55,7 @@ from agent_runtime.fidelity_gate import (
 )
 from agent_runtime.creative_brief_builder import build_creative_brief_for_mode
 from agent_runtime.mode_profile import get_mode_profile
-from agent_runtime.modes import describe_mode_defaults, get_mode
+from agent_runtime.modes import get_mode
 from agent_runtime.generation_observability import (
     persist_review_inputs,
     write_v2_observability_report,
@@ -479,7 +480,6 @@ def run_generation_flow(
     set_detection = (unified_triage.get("set_detection") or {}) if isinstance(unified_triage, dict) else {}
     image_analysis = str((unified_triage.get("image_analysis") or "") if isinstance(unified_triage, dict) else "").strip()
     lighting_signature = (unified_triage.get("lighting_signature") or {}) if isinstance(unified_triage, dict) else {}
-    look_contract = (unified_triage.get("look_contract") or {}) if isinstance(unified_triage, dict) else {}
     garment_aesthetic = (unified_triage.get("garment_aesthetic") or {}) if isinstance(unified_triage, dict) else {}
     if structural_contract:
         structural_contract["enabled"] = True
@@ -619,8 +619,6 @@ def run_generation_flow(
         effective_art_direction_request.setdefault("image_analysis_hint", image_analysis[:400])
     if structural_hint:
         effective_art_direction_request.setdefault("structural_hint", structural_hint)
-    if look_contract and float(look_contract.get("confidence", 0) or 0) > 0.5:
-        effective_art_direction_request.setdefault("look_contract", look_contract)
     if garment_aesthetic:
         effective_art_direction_request.setdefault("garment_aesthetic", garment_aesthetic)
     effective_art_direction_request.setdefault("mode_guardrails", mode_guardrails)
@@ -646,6 +644,25 @@ def run_generation_flow(
         )
     effective_art_direction_request["directive_hints"] = directive_hints
 
+    reference_creative_prompt_surface = ""
+    try:
+        from agent import run_agent
+
+        reference_creative_brief = build_creative_brief_for_mode(_mode_config, user_prompt=prompt)
+        reference_agent_result = run_agent(
+            user_prompt=prompt or "",
+            uploaded_images=uploaded_bytes,
+            pool_context="",
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            diversity_target=reference_creative_brief,
+            unified_vision_triage_result=unified_triage if isinstance(unified_triage, dict) else None,
+            mode=_mode_config.id,
+        )
+        reference_creative_prompt_surface = str(reference_agent_result.get("prompt") or "").strip()
+    except Exception as reference_prompt_exc:
+        print(f"[GEN FLOW] ⚠️ reference creative prompt fallback: {reference_prompt_exc}")
+
     # ── 2. Stage 1: base fiel da peça ─────────────────────────────────────
     _emit("stabilizing_garment", {"message": "Estabilizando a peça..."})
 
@@ -653,9 +670,10 @@ def run_generation_flow(
 
     stage1_prompt = build_stage1_prompt(
         structural_contract, structural_hint,
+        art_direction_soul=reference_creative_prompt_surface,
         set_detection=set_detection, fidelity_mode=fidelity_mode,
         mode=mode, angle_directive=_stage1_angle_directive,
-        look_contract=look_contract, use_image_grounding=_use_image_grounding,
+        use_image_grounding=_use_image_grounding,
         image_analysis=image_analysis,
     )
 
@@ -729,6 +747,8 @@ def run_generation_flow(
     base_image_bytes = base_image_path.read_bytes()
 
     # ── 3. Stage 2: art direction + edit (liberdade criativa) ─────────────
+    stage2_creative_prompt_surface = reference_creative_prompt_surface
+
     all_results: list[dict[str, Any]] = []
     failed_indices: list[int] = []
     last_art_direction: dict[str, Any] = {}
@@ -748,7 +768,9 @@ def run_generation_flow(
                 reference_guard_strength=reference_guard_strength,
                 reference_usage_rules=reference_usage_rules,
                 mode_guardrails=mode_guardrails,
+                creative_prompt_surface=stage2_creative_prompt_surface,
 
+                prompt=prompt,
                 base_image_bytes=base_image_bytes, base_image_path=base_image_path,
                 aspect_ratio=aspect_ratio, resolution=resolution,
                 stage2_thinking_level=stage2_thinking_level,
@@ -984,6 +1006,7 @@ def _run_stage2_iteration(
     reference_guard_strength: str,
     reference_usage_rules: list[str],
     mode_guardrails: dict[str, Any],
+    creative_prompt_surface: Optional[str],
 
     prompt: Optional[str],
     base_image_bytes: bytes,
@@ -1010,19 +1033,25 @@ def _run_stage2_iteration(
     """
     _mode_config = get_mode(mode)
     _creative_brief = build_creative_brief_for_mode(_mode_config, user_prompt=prompt)
-    art_soul_briefing = describe_mode_defaults(_mode_config)
+    art_soul_briefing = str(creative_prompt_surface or "").strip()
+    creative_source = "prompt_agent"
+    if not art_soul_briefing:
+        art_soul_briefing = build_reference_edit_art_direction(
+            mode_id=_mode_config.id,
+            creative_brief=_creative_brief,
+        )
+        creative_source = "soul_stack"
 
     art_direction: dict[str, Any] = {
         "art_direction_soul": art_soul_briefing,
         "creative_brief": _creative_brief,
         "mode_guardrails": mode_guardrails,
-        "summary": {"mode": "soul_driven", "mode_id": _mode_config.id},
+        "summary": {"mode": "soul_driven", "mode_id": _mode_config.id, "creative_source": creative_source},
     }
 
     garment_material = derive_garment_material_text(structural_contract, image_analysis)
     garment_color = "the garment colors and yarn tones"
 
-    _lc = effective_art_direction_request.get("look_contract")
     _angle = str(directive_hints.get("angle_directive", "") or "").strip()
 
     edit_prompt = build_soul_driven_edit_prompt(
@@ -1034,10 +1063,7 @@ def _run_stage2_iteration(
         reference_guard_strength=reference_guard_strength,
         reference_usage_rules=reference_usage_rules,
         mode_guardrails=mode_guardrails,
-
-        user_prompt=prompt,
         image_analysis=image_analysis,
-        look_contract=_lc if isinstance(_lc, dict) else None,
         angle_directive=_angle,
     )
     if str(fidelity_mode).strip().lower() == "estrita":

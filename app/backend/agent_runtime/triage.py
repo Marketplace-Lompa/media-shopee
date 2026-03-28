@@ -144,11 +144,12 @@ def resolve_prompt_agent_visual_triage(
     }
     garment_hint = ""
     image_analysis = ""
-    look_contract: dict[str, Any] = {}
+    garment_aesthetic: dict[str, Any] = {}
 
     if uploaded_images:
         unified: Optional[dict[str, Any]] = None
         has_external_contract = isinstance(structural_contract_hint, dict) and bool(structural_contract_hint)
+        set_detection = _normalize_set_detection({})
 
         if has_external_contract:
             structural_contract = structural_contract_hint or {}
@@ -164,7 +165,7 @@ def resolve_prompt_agent_visual_triage(
             structural_contract = unified["structural_contract"]
             garment_hint = unified["garment_hint"]
             image_analysis = unified.get("image_analysis", "")
-            look_contract = unified.get("look_contract", {})
+            garment_aesthetic = unified.get("garment_aesthetic", {}) or {}
             set_detection = unified["set_detection"]
             if guided_enabled and guided_set_mode == "conjunto":
                 if set_detection.get("set_lock_mode") == "off":
@@ -183,10 +184,11 @@ def resolve_prompt_agent_visual_triage(
 
     return {
         "structural_contract": structural_contract,
+        "set_detection": set_detection if uploaded_images else _normalize_set_detection({}),
         "guided_set_detection": guided_set_detection,
         "garment_hint": garment_hint,
         "image_analysis": image_analysis,
-        "look_contract": look_contract,
+        "garment_aesthetic": garment_aesthetic,
     }
 
 
@@ -353,7 +355,7 @@ def _infer_unified_vision_triage(
 
     user_txt = (user_prompt or "").strip()
     instruction = (
-        "Analyze these garment reference images and return strict JSON with ALL five fields.\n\n"
+        "Analyze these garment reference images and return strict JSON with ALL six fields.\n\n"
         "1. garment_hint: identify the garment type and silhouette in 8 words max "
         "(e.g. ruana, poncho aberto, batwing cardigan, dolman sleeve). Plain text.\n\n"
         "2. image_analysis: 2-3 sentences describing the GARMENT visible in the reference. "
@@ -405,19 +407,8 @@ def _infer_unified_vision_triage(
         "light_direction: frontal|side|top|mixed. "
         "contrast_level: low|medium|high. "
         "integration_risk: low|medium|high, where high means the garment lighting would look pasted into many unrelated scenes unless the camera/lighting choice is carefully controlled.\n\n"
-        "7. look_contract: fashion styling constraints to ensure the generated outfit is coherent with THIS garment. "
-        "Analyze the garment's weight, structure, texture, formality, and seasonality. Then determine:\n"
-        "- bottom_style: the most cohesive type of bottom garment (e.g. 'calça de alfaiataria', 'jeans wide-leg', 'saia lápis', 'calça de couro', 'bermuda estruturada'). "
-        "Choose based on visual weight balance: heavy/structured top → slim/structured bottom. Flowy top → volume is ok.\n"
-        "- bottom_color: 1-3 best-fitting colors (e.g. 'preto, cinza antracite, caramelo')\n"
-        "- color_family: palette logic (e.g. 'neutros escuros com acento quente', 'monocromático', 'contraste suave')\n"
-        "- season: outono-inverno|primavera-verao|transicional\n"
-        "- occasion: casual-urbano|work-casual|elegante|esportivo|praia\n"
-        "- forbidden_bottoms: list 3-5 SPECIFIC bottom types that would look INCOHERENT with this garment "
-        "(e.g. 'saia plissada chiffon', 'shorts esportivo', 'calça esportiva', 'saia evasê floral'). Be specific, not generic.\n"
-        "- accessories: concise suggestion (e.g. 'cinto fino caramelo, bota cano curto, brincos simples')\n"
-        "- style_keywords: 3-4 words describing the garment's style DNA (e.g. ['estruturado', 'urbano', 'outono'])\n"
-        "- confidence: 0.0-1.0"
+        "Do NOT propose outfit formulas, bottoms, shoes, accessories, or styling completions. "
+        "This triage is only about understanding the hero garment."
     )
     if user_txt:
         instruction += f"\n\nUser context: {user_txt[:200]}"
@@ -462,28 +453,6 @@ def _infer_unified_vision_triage(
         }
         lighting_signature = _normalize_lighting_signature(parsed.get("lighting_signature"))
 
-        # look_contract: normalizar com fallback seguro
-        _raw_lc = parsed.get("look_contract") or {}
-        if not isinstance(_raw_lc, dict):
-            _raw_lc = {}
-        look_contract = {
-            "bottom_style":      str(_raw_lc.get("bottom_style") or "").strip()[:120],
-            "bottom_color":      str(_raw_lc.get("bottom_color") or "").strip()[:80],
-            "color_family":      str(_raw_lc.get("color_family") or "").strip()[:80],
-            "season":            str(_raw_lc.get("season") or "transicional").strip()[:40],
-            "occasion":          str(_raw_lc.get("occasion") or "casual-urbano").strip()[:60],
-            "forbidden_bottoms": [
-                str(x).strip() for x in (_raw_lc.get("forbidden_bottoms") or [])
-                if isinstance(x, str) and x.strip()
-            ][:6],
-            "accessories":       str(_raw_lc.get("accessories") or "").strip()[:150],
-            "style_keywords":    [
-                str(x).strip() for x in (_raw_lc.get("style_keywords") or [])
-                if isinstance(x, str) and x.strip()
-            ][:5],
-            "confidence":        float(_raw_lc.get("confidence") or 0.0),
-        }
-
         result = {
             "garment_hint":        garment_hint,
             "image_analysis":      image_analysis,
@@ -491,18 +460,11 @@ def _infer_unified_vision_triage(
             "set_detection":       _normalize_set_detection(parsed.get("set_detection") or {}),
             "garment_aesthetic":   garment_aesthetic,
             "lighting_signature":  lighting_signature,
-            "look_contract":       look_contract,
         }
         print(
             f"[AGENT] ✅ unified_vision_triage: success "
             f"(hint='{garment_hint[:60]}' aesthetic={garment_aesthetic} lighting={lighting_signature})"
         )
-        if look_contract.get("confidence", 0) > 0.5:
-            print(
-                f"[STYLE] 👗 look_contract: bottom={look_contract['bottom_style']!r} "
-                f"forbidden={look_contract['forbidden_bottoms']} "
-                f"conf={look_contract['confidence']:.2f}"
-            )
         return result
     except Exception as e:
         print(f"[AGENT] ⚠️  unified_vision_triage: failed ({e}), using fallback")

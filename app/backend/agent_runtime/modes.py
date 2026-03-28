@@ -240,12 +240,12 @@ def describe_mode_defaults(mode_config: ModeConfig) -> str:
         "nature_open_air": "open-air outdoor context with breathable natural depth",
         "curated_interior": "refined indoor commercial setting with deliberate styling restraint",
         "tropical_garden": "tropical garden or courtyard with organic warmth and natural shade",
-        "cafe_bistro": "neighborhood café, padaria, or bistro with warm social intimacy",
-        "beach_coastal": "coastal boardwalk, beach proximity, or marina with open-air luminosity",
-        "hotel_pousada": "boutique hotel or pousada with restrained hospitality charm",
-        "market_feira": "open market, feira, or mercado with vibrant everyday abundance",
-        "cultural_space": "museum, gallery, or cultural center with composed institutional calm",
-        "rooftop_terrace": "rooftop terrace with elevated urban openness or skyline depth",
+        "cafe_bistro": "social everyday interior or threshold space with warm public intimacy",
+        "beach_coastal": "open coastal air with luminous horizon depth",
+        "hotel_pousada": "restrained hospitality environment with softened transitional calm",
+        "market_feira": "public commerce environment with visible everyday density",
+        "cultural_space": "institutional or civic interior with composed spatial calm",
+        "rooftop_terrace": "elevated open-air urban context with broader city depth",
     }
     framing_map = {
         "full_body": "prefer full-body garment readability",
@@ -287,31 +287,27 @@ def describe_mode_defaults(mode_config: ModeConfig) -> str:
         "editorial_presence": "model presence should feel elevated, fashion-aware, and intentionally editorial",
     }
     p = mode_config.presets
-    # Modos criativos usam direção inspiracional; catalog_clean usa restrição rígida
     _PRESCRIPTIVE_MODES = {"catalog_clean"}
-    intro_line = "Treat these as preferred defaults for this job unless the user brief clearly asks otherwise:"
+
     if mode_config.id in _PRESCRIPTIVE_MODES:
         intro_line = "Treat these as hard commercial constraints for this job unless the user brief explicitly requests a compatible override:"
         scenario_line = f"- scenario constraint: {scenario_map.get(p.scenario_pool, '')}. Do not deviate from this backdrop type."
+        lines = [
+            f"Active visual mode: {mode_config.label}.",
+            intro_line,
+            scenario_line,
+            f"- framing: {framing_map[p.framing_profile]}",
+            f"- camera type: {camera_type_map[p.camera_type]}",
+            f"- capture geometry: {capture_geometry_map[p.capture_geometry]}",
+            f"- lighting: {lighting_map[p.lighting_profile]}",
+            f"- pose energy: {pose_map[p.pose_energy]}",
+            f"- casting: {casting_map[p.casting_profile]}",
+        ]
     else:
-        seed_desc = scenario_map.get(p.scenario_pool, "")
-        scenario_line = (
-            f"- scenario direction: use creative freedom to invent authentic Brazilian scenes "
-            f"(indoor or outdoor) that match this mode's tone. "
-            f"Seed inspiration: {seed_desc}. "
-            f"Treat this seed as a starting point, not a boundary — freely explore "
-            f"gardens, cafés, pousadas, rooftops, parks, feiras, cultural spaces, "
-            f"coastal areas, courtyards, and more. Prioritize variety."
-        )
-    lines = [
-        f"Active visual mode: {mode_config.label}.",
-        intro_line,
-        scenario_line,
-        f"- framing: {framing_map[p.framing_profile]}",
-        f"- camera type: {camera_type_map[p.camera_type]}",
-        f"- capture geometry: {capture_geometry_map[p.capture_geometry]}",
-        f"- lighting: {lighting_map[p.lighting_profile]}",
-        f"- pose energy: {pose_map[p.pose_energy]}",
-        f"- casting: {casting_map[p.casting_profile]}",
-    ]
+        # Soul-driven modes: souls handle scene, pose, capture, casting, styling.
+        # Presets omitted to avoid ambiguity and prescriptive references.
+        lines = [
+            f"Active visual mode: {mode_config.label}.",
+            f"- lighting: {lighting_map[p.lighting_profile]}",
+        ]
     return "\n".join(lines)

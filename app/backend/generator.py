@@ -193,7 +193,8 @@ def _build_content_parts(
             "The references show the garment only, not a person to copy. "
             "Never replicate any face, skin tone, body type, or hairstyle from reference people. "
             "Treat all visible people in references as anonymous mannequins for garment transfer only. "
-            "Generate a new and unique Brazilian fashion model identity wearing this garment in a catalog-worthy editorial look: "
+            "Generate a new and unique Brazilian woman wearing this garment. "
+            "Let the supplied creative direction determine the scene, body language, camera, and styling: "
         )
         _effective_prompt = _role_prefix + prompt
 
