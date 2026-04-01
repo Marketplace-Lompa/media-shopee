@@ -47,6 +47,39 @@ _SOCIAL_COMMERCE_DRIFT_TOKENS = (
 _CASTING_MIN_SURFACE_FIELDS = 5
 _CASTING_MIN_STATES = ("age", "face_structure", "hair", "presence", "expression", "beauty_read", "body")
 
+# 3 variantes rotativas para natural (o mode mais suscetível à convergência).
+# Seleção determinística por hash do garment_hint — nenhum LLM envolvido.
+_CASTING_FALLBACK_VARIANTS_NATURAL = [
+    {
+        "age": "mid 20s",
+        "face_structure": "round-to-oval face with soft wide cheekbones, full lips and warm expressive eyes",
+        "hair": "loose wavy dark-brown hair at shoulder length, slight natural frizz and warm movement",
+        "presence": "relaxed wide frame with warm hip-forward posture and comfortable energy",
+        "expression": "open and slightly distracted warmth, mouth neutral and eyes alive",
+        "beauty_read": "warm light-brown skin with natural sheen, soft unevenness and real-life texture",
+        "body": "full-shoulder medium-waist silhouette, soft and proportionate with natural curve presence",
+    },
+    {
+        "age": "early 30s",
+        "face_structure": "long-oval face with defined jawline, narrow nose bridge and calm direct eyes",
+        "hair": "natural coily 4A hair worn loose and voluminous at crown-length, rich dark brown",
+        "presence": "upright lean posture with quiet confidence and contained stillness",
+        "expression": "composed attention with soft jaw and unhurried focus",
+        "beauty_read": "deep warm-brown skin with matte natural finish and clean health read",
+        "body": "lean-to-medium frame with long torso, defined shoulders and balanced hip line",
+    },
+    {
+        "age": "late 20s",
+        "face_structure": "heart-shaped face with high cheekbones, soft pointed chin and full arched brows",
+        "hair": "curly type-3A auburn-tinted hair at mid-back, light and springy with natural movement",
+        "presence": "mid-height with active shoulder energy and light social readiness",
+        "expression": "subtle private smile, eyes slightly downcast and naturally lived-in",
+        "beauty_read": "medium olive-golden skin with light freckle scatter and warm healthy glow",
+        "body": "petite-to-medium build with natural waist definition and easy proportioned stance",
+    },
+]
+
+# Fallback base — usado por todos os modes como ponto de partida
 _CASTING_FALLBACK_STATE = {
     "age": "late 20s",
     "face_structure": "heart or oval face geometry with high cheekbones, soft jawline and balanced mouth",
@@ -59,11 +92,77 @@ _CASTING_FALLBACK_STATE = {
 _CASTING_WEAK_VALUES = {"", "none", "unknown", "not specified", "undefined", "to be defined"}
 
 
+def _select_natural_fallback_variant(garment_hint: str) -> dict[str, str]:
+    """Seleciona uma das 3 variantes de fallback natural por hash do garment_hint.
+    Determinístico: mesma peça → mesma variante. Sem LLM."""
+    seed = abs(hash(garment_hint.strip().lower())) if garment_hint.strip() else 0
+    return dict(_CASTING_FALLBACK_VARIANTS_NATURAL[seed % len(_CASTING_FALLBACK_VARIANTS_NATURAL)])
+
+
+def _build_wearer_logic(contract: dict[str, Any], aesthetic: dict[str, Any]) -> str:
+    """Converte campos estruturais da peça em 1 linha de wearer logic. Python puro, sem LLM."""
+    subtype = str(contract.get("garment_subtype") or "").lower().strip()
+    volume = str(contract.get("silhouette_volume") or "").lower().strip()
+    length = str(contract.get("garment_length") or "").lower().strip()
+    formality = str(aesthetic.get("formality") or "").lower().strip()
+    vibe = str(aesthetic.get("vibe") or "").lower().strip()
+    season = str(aesthetic.get("season") or "").lower().strip()
+
+    parts: list[str] = []
+
+    # Formalidade → presença e postura
+    if formality in ("formal", "semi-formal", "elegant"):
+        parts.append("upright presence and visible structure")
+    elif formality in ("casual", "streetwear", "relaxed"):
+        parts.append("easy relaxed stance")
+    elif formality in ("sporty", "athletic"):
+        parts.append("active body energy")
+
+    # Volume da silhueta → fisicalidade
+    if volume in ("fitted", "slim", "body-con"):
+        parts.append("clearly defined waist and hip ratio")
+    elif volume in ("oversized", "boxy", "loose"):
+        parts.append("easy broad-shoulder naturalness")
+    elif volume in ("flared", "full", "voluminous"):
+        parts.append("confident hip and waist proportion")
+
+    # Comprimento → proporção visível
+    if length in ("mini", "micro"):
+        parts.append("long lean leg impression")
+    elif length in ("maxi", "floor-length"):
+        parts.append("tall fluid presence")
+    elif length in ("midi", "knee-length"):
+        parts.append("balanced mid-length proportion")
+
+    # Vibe → temperatura emocional
+    if any(k in vibe for k in ("sensual", "bold", "sultry")):
+        parts.append("warm visual magnetism")
+    elif any(k in vibe for k in ("playful", "fun", "colorful")):
+        parts.append("light expressive personality")
+    elif any(k in vibe for k in ("minimal", "clean", "structured")):
+        parts.append("calm geometric presence")
+
+    # Sazonalidade → textura de pele visível
+    if season in ("summer", "spring"):
+        parts.append("healthy exposed skin read")
+    elif season in ("winter", "autumn"):
+        parts.append("layered grounded warmth")
+
+    if not parts:
+        return ""
+    return "Garment wearer profile: " + ", ".join(parts) + "."
+
+
 def _build_casting_fallback_direction(mode_id: str, *, user_prompt: str = "", garment_hint: str = "") -> dict[str, Any]:
     """Retorna direção de casting determinística quando o fluxo principal falha."""
     mode = str(mode_id or "").strip().lower() or "natural"
 
-    fallback_state = dict(_CASTING_FALLBACK_STATE)
+    # Natural: variante rotativa por hash da peça — quebra a convergência no fallback
+    if mode == "natural":
+        fallback_state = _select_natural_fallback_variant(garment_hint)
+    else:
+        fallback_state = dict(_CASTING_FALLBACK_STATE)
+
     if mode == "catalog_clean":
         fallback_state.update(
             {
@@ -495,6 +594,7 @@ def _build_casting_instruction(
     contract: dict[str, Any],
     aesthetic: dict[str, Any],
     has_images: bool,
+    wearer_logic: str = "",
 ) -> str:
     return (
         "Synthesize a casting direction for this job.\n"
@@ -525,7 +625,8 @@ def _build_casting_instruction(
         f"- garment_formality: {str(aesthetic.get('formality') or 'unknown')}\n"
         f"- garment_season: {str(aesthetic.get('season') or 'unknown')}\n"
         f"- garment_vibe: {str(aesthetic.get('vibe') or 'unknown')}\n"
-        f"- reference_mode: {'true' if has_images else 'false'}\n"
+        + (f"- wearer_logic: {weaver_logic}\n" if (weaver_logic := wearer_logic) else "")
+        + f"- reference_mode: {'true' if has_images else 'false'}\n"
         "</JOB_CONTEXT>\n\n"
         "OUTPUT RULES:\n"
         "- research_signals: exactly 5 short inferred market signals for this job.\n"
@@ -574,6 +675,7 @@ def resolve_casting_direction(
             max_tokens=1800,
             thinking_budget=0,
         )
+    wearer_logic = _build_wearer_logic(contract, aesthetic)
     instruction = _build_casting_instruction(
         mode_lines=mode_lines,
         model_soul=model_soul,
@@ -586,6 +688,7 @@ def resolve_casting_direction(
         contract=contract,
         aesthetic=aesthetic,
         has_images=has_images,
+        wearer_logic=wearer_logic,
     )
     try:
         response = _call_json_model(instruction, temperature=0.35, max_attempts=3)
