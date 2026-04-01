@@ -340,7 +340,6 @@ export interface JobEntry {
 export type GenerationStatus =
     | { type: 'idle' }
     // ── V2 pipeline stages (seller-facing) ──
-    | { type: 'preparing_references'; message: string }
     | { type: 'stabilizing_garment'; message: string }
     | { type: 'creating_listing'; message: string; current?: number; total?: number }
     // ── Legacy stages (mantidos para fluxo antigo) ──

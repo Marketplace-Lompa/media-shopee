@@ -20,15 +20,13 @@ def build_system_instruction(*, has_images: bool, has_prompt: bool) -> str:
     from agent_runtime.constants import (
         BASE_SYSTEM_BLOCKS,
         OUTPUT_SYSTEM_BLOCKS,
-        POLICY_SYSTEM_BLOCKS,
-        SYSTEM_OPERATING_MODES,
         SYSTEM_MODE_1_RULES,
         SYSTEM_MODE_2_RULES,
         SYSTEM_MODE_3_RULES,
     )
 
     # Seleciona apenas os modos relevantes ao cenário atual
-    scenario_blocks = [SYSTEM_OPERATING_MODES.strip()]
+    scenario_blocks: list[str] = []
     if has_prompt and not has_images:
         # Text-only: apenas MODE 1
         scenario_blocks.append(SYSTEM_MODE_1_RULES.strip())
@@ -45,7 +43,6 @@ def build_system_instruction(*, has_images: bool, has_prompt: bool) -> str:
         BASE_SYSTEM_BLOCKS
         + OUTPUT_SYSTEM_BLOCKS
         + scenario_blocks
-        + POLICY_SYSTEM_BLOCKS
     )
 
 
@@ -90,12 +87,6 @@ def _build_mode_block(
     return f"<MODE>\n{mode_info}\n</MODE>"
 
 
-def _build_mode_presets_block(mode_defaults_text: Optional[str]) -> Optional[str]:
-    if not mode_defaults_text:
-        return None
-    return f"<MODE_PRESETS>\n{mode_defaults_text}\n</MODE_PRESETS>"
-
-
 def _build_mode_identity_block(mode_id: Optional[str]) -> Optional[str]:
     """Bloco de identidade criativa do mode — simétrico ao model_soul."""
     from agent_runtime.mode_identity_soul import get_mode_identity_soul
@@ -105,27 +96,7 @@ def _build_mode_identity_block(mode_id: Optional[str]) -> Optional[str]:
     return f"<MODE_IDENTITY>\n" + "\n".join(lines) + "\n</MODE_IDENTITY>"
 
 
-def _build_semantic_briefs_block(diversity_target: Optional[dict[str, Any]]) -> Optional[str]:
-    dt = diversity_target or {}
-    semantic_briefs = dt.get("semantic_briefs") or {}
-    if not isinstance(semantic_briefs, dict) or not semantic_briefs:
-        return None
 
-    ordered_briefs = [
-        ("MODEL_BRIEF", semantic_briefs.get("model_brief")),
-        ("SCENE_BRIEF", semantic_briefs.get("scene_brief")),
-        ("POSE_BRIEF", semantic_briefs.get("pose_brief")),
-        ("ANGLE_BRIEF", semantic_briefs.get("angle_brief")),
-        ("CAMERA_BRIEF", semantic_briefs.get("camera_brief")),
-    ]
-    lines: list[str] = []
-    for label, value in ordered_briefs:
-        text = str(value or "").strip()
-        if text:
-            lines.append(f"{label}: {text}")
-    if not lines:
-        return None
-    return "<SEMANTIC_BRIEFS>\n" + "\n".join(lines) + "\n</SEMANTIC_BRIEFS>"
 
 
 def _build_model_soul_block(*, garment_hint: str, mode_id: Optional[str], has_images: bool) -> Optional[str]:
@@ -147,7 +118,38 @@ def _build_casting_direction_block(casting_direction: Optional[dict[str, Any]]) 
     payload = casting_direction or {}
     confidence = float(payload.get("confidence", 0) or 0)
     chosen = payload.get("chosen_direction") or {}
-    if confidence <= 0.35 or not isinstance(chosen, dict):
+    if not isinstance(chosen, dict):
+        return None
+
+    if not chosen.get("label") and not bool(payload.get("casting_state")) and not bool(payload.get("fallback_applied")):
+        return None
+
+    state = payload.get("casting_state") or {}
+    profile_checklist: list[str] = []
+    for key in (
+        "age_logic",
+        "face_geometry",
+        "skin_logic",
+        "hair_logic",
+        "body_logic",
+        "presence_logic",
+        "expression_logic",
+        "beauty_read",
+    ):
+        value = str(chosen.get(key) or "").strip()
+        if value and value not in profile_checklist:
+            profile_checklist.append(value)
+
+    for key in ("age", "face_structure", "hair", "presence", "expression", "beauty_read", "body"):
+        if len(profile_checklist) >= 5:
+            break
+        value = str((state or {}).get(key) or "").strip()
+        if value and value not in profile_checklist:
+            profile_checklist.append(value)
+
+    if not profile_checklist:
+        return None
+    if confidence <= 0.35 and not payload.get("fallback_applied"):
         return None
 
     candidate_labels = [
@@ -159,7 +161,7 @@ def _build_casting_direction_block(casting_direction: Optional[dict[str, Any]]) 
     anti_collapse = ", ".join(str(item).strip() for item in (payload.get("anti_collapse_signals") or []) if str(item).strip()) or "none"
     lines = [
         "<CASTING_DIRECTION>",
-        "[Grounded casting direction for this specific job]",
+        "[Job-specific casting direction for this specific job]",
         f"- alternates_considered: {', '.join(candidate_labels) or 'none'}",
         f"- chosen_direction: {str(payload.get('chosen_label') or chosen.get('label') or '').strip()}",
         f"- market_fit_summary: {str(payload.get('market_fit_summary') or '').strip()}",
@@ -177,7 +179,9 @@ def _build_casting_direction_block(casting_direction: Optional[dict[str, Any]]) 
         f"- commercial_read: {str(chosen.get('commercial_read') or '').strip()}",
         f"- distinction_markers: {distinction_markers}",
         f"- anti_collapse_signals: {anti_collapse}",
-        "Use this as grounded casting direction for the woman in this generation.",
+        f"- CASTING_CHECKLIST: {', '.join(profile_checklist[:5])}",
+        "CREATIVE FREEDOM: use this checklist as hard anatomical anchors and invent subtle natural variation in asymmetry, skin microtexture, and expression energy.",
+        "Use this as job-specific casting direction for the woman in this generation.",
         "Do not copy these labels literally into the final prompt — synthesize them into a new original Brazilian woman.",
         "</CASTING_DIRECTION>",
     ]
@@ -270,22 +274,15 @@ def _build_diversity_target_block(
     if dt.get("profile_id"):
         block += f"Model profile ID: {dt['profile_id']}.\n"
 
-    # ── Regras anti-cópia + fidelidade de roupa (só quando há imagens de referência) ────
+    # ── Regras anti-cópia: fidelidade de cor/textura/padrão (só com imagens) ────
     if has_images:
         block += (
-            "GARMENT-ONLY REFERENCE MODE:\n"
-            "  - The uploaded reference image is the SOLE SOURCE OF TRUTH for the garment.\n"
-            "  - Copy EXACTLY from reference: color, fabric, texture, pattern scale, construction, silhouette, drape.\n"
-            "  - Preserve garment geometry: opening style, sleeve architecture, hem behavior, garment length, neckline shape.\n"
+            "GARMENT FIDELITY:\n"
+            "  - Copy EXACTLY from reference: color, fabric, texture, pattern scale, and surface behavior.\n"
             "  - NEVER simplify, reinterpret, or hallucinate garment details that differ from the reference.\n"
-            "  - Discard the reference model completely. Invent a NEW person. Do not copy face, skin, hair, body, or pose.\n"
-            "  - Model and scene are FREE — only the GARMENT must match the reference with absolute fidelity.\n"
         )
 
     block += (
-        "Scenario, model, pose, angle, and camera direction come from MODE_IDENTITY and the active SOUL blocks.\n"
-        "Inside those directions, invent a fresh specific solution instead of repeating a generic safe default.\n"
-        "Never mention preset labels or metatextual terms like capture geometry, scenario family, or lighting profile in the final prompt.\n"
         "Write one canonical final prompt directly usable by the image generator.\n"
     )
     block += "</DIVERSITY_TARGET>"
@@ -468,18 +465,15 @@ def build_generate_context_text(
     structural_contract: dict[str, Any],
     casting_direction: Optional[dict[str, Any]],
     styling_direction: Optional[dict[str, Any]],
-    grounding_research: str,
-    grounding_effective: bool,
-    grounding_context_hint: Optional[str],
-    grounding_mode: str,
-    mode_defaults_text: Optional[str],
+
+
     reference_knowledge: str,
     mode_id: Optional[str] = None,
     garment_hint: str = "",
 ) -> str:
-    # A ordem dos blocos e deliberada: primeiro tarefa/constraints de alto nivel,
-    # depois contexto especializado. Mudar a sequencia sem validar pode degradar
-    # a qualidade do prompt por efeito de prioridade/lost-in-the-middle.
+    # A ordem dos blocos é deliberada e segue a hierarquia soul-first:
+    # 1. Tarefa (MODE) → 2. Contrato estrutural → 3. Identidade do mode →
+    # 4. Souls criativos → 5. Contexto factual → 6. Output
     blocks = [
         _build_mode_block(
             has_images=has_images,
@@ -500,6 +494,9 @@ def build_generate_context_text(
     if mode_identity_block:
         blocks.append(mode_identity_block)
 
+
+
+    # ── Souls criativos (ordem: model → casting → scene → pose → capture → styling) ──
     model_soul_block = _build_model_soul_block(
         garment_hint=garment_hint,
         mode_id=mode_id,
@@ -544,14 +541,7 @@ def build_generate_context_text(
     if styling_direction_block:
         blocks.append(styling_direction_block)
 
-    semantic_briefs_block = _build_semantic_briefs_block(diversity_target)
-    if semantic_briefs_block:
-        blocks.append(semantic_briefs_block)
-
-    mode_presets_block = _build_mode_presets_block(mode_defaults_text)
-    if mode_presets_block:
-        blocks.append(mode_presets_block)
-
+    # ── Contexto factual e constraints ──
     if pool_context.strip():
         blocks.append(f"<POOL_CONTEXT>\n{pool_context}\n</POOL_CONTEXT>")
 
@@ -578,24 +568,7 @@ def build_generate_context_text(
     if structural_block and not has_images:
         blocks.append(structural_block)
 
-    grounding_results_block = _build_grounding_results_block(
-        grounding_research=grounding_research,
-        grounding_effective=grounding_effective,
-    )
-    if grounding_results_block:
-        blocks.append(grounding_results_block)
-
-    triage_hint_block = _build_triage_hint_block(grounding_context_hint)
-    if triage_hint_block:
-        blocks.append(triage_hint_block)
-
-    grounding_constraints_block = _build_grounding_constraints_block(
-        grounding_mode=grounding_mode,
-        has_images=has_images,
-        structural_contract=structural_contract,
-    )
-    if grounding_constraints_block:
-        blocks.append(grounding_constraints_block)
+    # ── Grounding desabilitado (blocos preservados para reativação futura) ──
 
     if reference_knowledge.strip():
         blocks.append(reference_knowledge)

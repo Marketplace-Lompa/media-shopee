@@ -64,7 +64,6 @@ interface StepDef {
 
 // V2 pipeline steps — seller-facing
 const STEPS_V2: StepDef[] = [
-    { id: 'preparing_references', label: 'Analisando peça', icon: <Search size={16} /> },
     { id: 'stabilizing_garment', label: 'Preparando modelo', icon: <Layers size={16} /> },
     { id: 'creating_listing', label: 'Gerando fotos', icon: <Image size={16} /> },
 ];
@@ -174,7 +173,6 @@ function PipelineStepper({ status }: { status: GenerationStatus }) {
 /* ── Stage label map ─────────────────────────────────────── */
 const STAGE_LABELS: Record<string, string> = {
     queued: 'Aguardando…',
-    preparing_references: 'Analisando peça…',
     stabilizing_garment: 'Preparando modelo…',
     creating_listing: 'Gerando fotos do anúncio…',
     marketplace_started: 'Iniciando…',
@@ -523,7 +521,6 @@ export function Gallery({ status = { type: 'idle' }, mediaHistory, onDelete, onR
     const openLightboxWithItem = onLightboxItem ?? ((item: MediaHistoryItem) => setLocalLightbox(imageUrl(item.url)));
 
     const isPipeline =
-        status.type === 'preparing_references' ||
         status.type === 'stabilizing_garment' ||
         status.type === 'creating_listing' ||
         status.type === 'mode_selected' ||

@@ -24,8 +24,7 @@ const _SLOW_STAGES = new Set([
     'stage1_generate', 'stage2_edit', 'marketplace_started',
 ]);
 const _MEDIUM_STAGES = new Set([
-    'analyzing', 'researching', 'preparing_references',
-    'fidelity_gate', 'reference_selection',
+    'analyzing', 'researching',
 ]);
 
 function _adaptiveInterval(stage: string | null | undefined): number {

@@ -1,16 +1,80 @@
 """
-Testes para o reference_selector simplificado (Fase 1 Prompt-First).
+Testes para o reference_selector do fluxo upload vNext.
 
 Valida:
 1. Interface de retorno compatível com pipeline_v2.py
 2. Deduplicação por hash
 3. Derivação de identity_risk a partir da triagem unificada
 4. Detecção de garment complexo
-5. Todas as imagens vão para todos os subsets
+5. Replacement subset ordenado e limitado sem depender da ordem de upload
 """
 import sys
 import os
+import types
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
+
+os.environ.setdefault("GOOGLE_AI_API_KEY", "test-key")
+
+
+class _Blob:
+    def __init__(self, mime_type: str | None = None, data: bytes | None = None):
+        self.mime_type = mime_type
+        self.data = data
+
+
+class _Part:
+    def __init__(self, text: str | None = None, inline_data: _Blob | None = None, media_resolution=None):
+        self.text = text
+        self.inline_data = inline_data
+        self.media_resolution = media_resolution
+
+
+class _Content:
+    def __init__(self, role: str | None = None, parts=None):
+        self.role = role
+        self.parts = parts or []
+
+
+class _Simple:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
+class _Client:
+    def __init__(self, *args, **kwargs):
+        self.models = _Simple(generate_content=lambda *a, **k: None)
+
+
+google_mod = sys.modules.get("google") or types.ModuleType("google")
+genai_mod = sys.modules.get("google.genai") or types.ModuleType("google.genai")
+genai_types_mod = sys.modules.get("google.genai.types") or types.ModuleType("google.genai.types")
+
+genai_types_mod.Blob = _Blob
+genai_types_mod.Part = _Part
+genai_types_mod.Content = _Content
+genai_types_mod.MediaResolution = _Simple(MEDIA_RESOLUTION_HIGH="high")
+genai_types_mod.GenerateContentConfig = _Simple
+genai_types_mod.ImageConfig = _Simple
+genai_types_mod.ThinkingConfig = _Simple
+genai_types_mod.SafetySetting = _Simple
+genai_types_mod.HarmCategory = _Simple(
+    HARM_CATEGORY_SEXUALLY_EXPLICIT="sex",
+    HARM_CATEGORY_HARASSMENT="harassment",
+    HARM_CATEGORY_HATE_SPEECH="hate",
+    HARM_CATEGORY_DANGEROUS_CONTENT="danger",
+)
+genai_types_mod.HarmBlockThreshold = _Simple(BLOCK_NONE="none")
+genai_types_mod.Tool = _Simple
+genai_types_mod.GoogleSearch = _Simple
+genai_types_mod.SearchTypes = _Simple
+genai_types_mod.ImageSearch = _Simple
+genai_mod.Client = _Client
+genai_mod.types = genai_types_mod
+google_mod.genai = genai_mod
+
+sys.modules["google"] = google_mod
+sys.modules["google.genai"] = genai_mod
+sys.modules["google.genai.types"] = genai_types_mod
 
 from unittest.mock import patch
 from agent_runtime.reference_selector import (
@@ -39,6 +103,8 @@ MOCK_TRIAGE = {
 FAKE_IMG_A = b"\xff\xd8\xff\xe0" + b"\x00" * 100 + b"A"
 FAKE_IMG_B = b"\xff\xd8\xff\xe0" + b"\x00" * 100 + b"B"
 FAKE_IMG_C = b"\xff\xd8\xff\xe0" + b"\x00" * 100 + b"C"
+FAKE_IMG_D = b"\xff\xd8\xff\xe0" + b"\x00" * 100 + b"D"
+FAKE_IMG_E = b"\xff\xd8\xff\xe0" + b"\x00" * 100 + b"E"
 
 
 # ─── Testes de Interface ─────────────────────────────────────────────
@@ -51,18 +117,31 @@ def test_empty_input():
 
 
 @patch("agent_runtime.reference_selector._infer_unified_vision_triage", return_value=MOCK_TRIAGE)
-def test_all_subsets_contain_all_unique_images(mock_triage):
-    """Verifica que TODOS os subsets recebem TODAS as imagens únicas."""
-    images = [FAKE_IMG_A, FAKE_IMG_B, FAKE_IMG_C]
-    result = select_reference_subsets(images, filenames=["a.jpg", "b.jpg", "c.jpg"])
+@patch(
+    "agent_runtime.reference_selector._analyze_image",
+    side_effect=[
+        {"score": 0.2, "luma": 100.0, "edge": 10.0, "ratio": 1.0},
+        {"score": 0.9, "luma": 120.0, "edge": 50.0, "ratio": 1.0},
+        {"score": 0.5, "luma": 110.0, "edge": 20.0, "ratio": 1.0},
+        {"score": 0.7, "luma": 118.0, "edge": 30.0, "ratio": 1.0},
+        {"score": 0.8, "luma": 125.0, "edge": 40.0, "ratio": 1.0},
+    ],
+)
+def test_edit_anchors_are_sorted_and_capped(mock_analyze, mock_triage):
+    """Verifica que o pack de replacement é ordenado por score local e limitado."""
+    images = [FAKE_IMG_A, FAKE_IMG_B, FAKE_IMG_C, FAKE_IMG_D, FAKE_IMG_E]
+    result = select_reference_subsets(
+        images,
+        filenames=["a.jpg", "b.jpg", "c.jpg", "d.jpg", "e.jpg"],
+    )
 
-    assert result["stats"]["unique_count"] == 3
+    assert result["stats"]["unique_count"] == 5
     assert result["stats"]["duplicate_count"] == 0
-
-    # Todos os subsets devem ter exatamente 3 imagens
-    for key in ["base_generation", "strict_single_pass", "edit_anchors", "identity_safe"]:
-        assert len(result["selected_bytes"][key]) == 3, f"subset {key} deveria ter 3 imagens"
-        assert len(result["selected_names"][key]) == 3, f"subset names {key} deveria ter 3 nomes"
+    assert len(result["selected_bytes"]["base_generation"]) == 5
+    assert len(result["selected_bytes"]["strict_single_pass"]) == 5
+    assert len(result["selected_bytes"]["edit_anchors"]) == 4
+    assert result["selected_names"]["edit_anchors"] == ["b.jpg", "e.jpg", "d.jpg", "c.jpg"]
+    assert result["selected_names"]["identity_safe"] == result["selected_names"]["edit_anchors"]
 
 
 @patch("agent_runtime.reference_selector._infer_unified_vision_triage", return_value=MOCK_TRIAGE)
@@ -74,6 +153,32 @@ def test_dedup_removes_duplicates(mock_triage):
     assert result["stats"]["unique_count"] == 2
     assert result["stats"]["duplicate_count"] == 1
     assert len(result["selected_bytes"]["base_generation"]) == 2
+
+
+@patch(
+    "agent_runtime.reference_selector._infer_unified_vision_triage",
+    return_value={
+        **MOCK_TRIAGE,
+        "image_analysis": "model face person wearing garment and person posing in worn look",
+    },
+)
+@patch(
+    "agent_runtime.reference_selector._analyze_image",
+    side_effect=[
+        {"score": 0.2, "luma": 100.0, "edge": 10.0, "ratio": 1.0},
+        {"score": 0.9, "luma": 120.0, "edge": 50.0, "ratio": 1.0},
+        {"score": 0.5, "luma": 110.0, "edge": 20.0, "ratio": 1.0},
+    ],
+)
+def test_high_identity_risk_caps_edit_anchors_to_two(mock_analyze, mock_triage):
+    result = select_reference_subsets(
+        [FAKE_IMG_A, FAKE_IMG_B, FAKE_IMG_C],
+        filenames=["a.jpg", "b.jpg", "c.jpg"],
+    )
+
+    assert result["stats"]["identity_reference_risk"] == "high"
+    assert result["selected_names"]["edit_anchors"] == ["b.jpg", "c.jpg"]
+    assert len(result["selected_bytes"]["identity_safe"]) == 2
 
 
 @patch("agent_runtime.reference_selector._infer_unified_vision_triage", return_value=MOCK_TRIAGE)

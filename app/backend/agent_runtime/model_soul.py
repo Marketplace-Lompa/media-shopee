@@ -59,7 +59,7 @@ def get_model_soul(garment_context: str = "", mode_id: str = "") -> str:
         "     lip fullness and natural color, eye shape and color, brow thickness and arch.\n"
         "     Describe the GEOMETRY, not adjectives. Give enough structure that the face feels cast, not generic.\n"
         "  2. SKIN: exact undertone, texture (matte, natural sheen, sun-kissed glow),\n"
-        "     any natural marks (freckles, beauty marks, tan lines).\n"
+        "     and any subtle natural variation or small visible marks only when they are genuinely useful to the casting.\n"
         "  3. HAIR (critical — do NOT skip): texture and curl pattern (straight, wavy, curly,\n"
         "     coily — describe the tightness), weight and movement (heavy, bouncy, flat),\n"
         "     length relative to body (chin, shoulder, mid-back, waist), natural sheen level,\n"

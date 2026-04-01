@@ -18,6 +18,10 @@ from agent_runtime.triage import _infer_unified_vision_triage
 from pipeline_effectiveness import _analyze_image, _sha1
 
 
+_DEFAULT_EDIT_ANCHOR_LIMIT = 4
+_HIGH_RISK_EDIT_ANCHOR_LIMIT = 2
+
+
 def _is_complex_garment(unified_triage: Optional[dict[str, Any]]) -> bool:
     if not unified_triage:
         return False
@@ -83,6 +87,31 @@ def _derive_identity_risk_from_triage(
     }
 
 
+def _sort_unique_rows(rows: List[dict[str, Any]]) -> List[dict[str, Any]]:
+    """Ordena referências de forma determinística pelo melhor sinal local."""
+    return sorted(
+        rows,
+        key=lambda row: (
+            -float(row.get("local_quality_score", 0.0) or 0.0),
+            str(row.get("filename") or ""),
+            str(row.get("sha1") or ""),
+        ),
+    )
+
+
+def _select_edit_anchor_rows(
+    rows: List[dict[str, Any]],
+    *,
+    identity_risk: str,
+) -> List[dict[str, Any]]:
+    limit = (
+        _HIGH_RISK_EDIT_ANCHOR_LIMIT
+        if str(identity_risk or "").strip().lower() == "high"
+        else _DEFAULT_EDIT_ANCHOR_LIMIT
+    )
+    return list(rows[:limit])
+
+
 def select_reference_subsets(
     uploaded_images: List[bytes],
     filenames: Optional[List[str]] = None,
@@ -130,6 +159,8 @@ def select_reference_subsets(
         }
         unique_rows.append(row)
 
+    unique_rows = _sort_unique_rows(unique_rows)
+
     # ─── 1 chamada Gemini: triagem unificada (contexto semântico) ──
     unified_triage = _infer_unified_vision_triage(
         [row["bytes"] for row in unique_rows[:6]],
@@ -138,10 +169,14 @@ def select_reference_subsets(
 
     complex_garment = _is_complex_garment(unified_triage)
     risk_stats = _derive_identity_risk_from_triage(unified_triage, len(unique_rows))
+    identity_risk = str(risk_stats.get("identity_reference_risk") or "low").strip().lower()
 
-    # ─── Todos os subsets = todas as imagens únicas ────────────────
+    # ─── Base ordenada e subset dedicado para replacement ──────────
     all_bytes = [row["bytes"] for row in unique_rows]
     all_names = [row["filename"] for row in unique_rows]
+    edit_anchor_rows = _select_edit_anchor_rows(unique_rows, identity_risk=identity_risk)
+    edit_anchor_bytes = [row["bytes"] for row in edit_anchor_rows]
+    edit_anchor_names = [row["filename"] for row in edit_anchor_rows]
     item_summaries = [
         {
             "filename": row["filename"],
@@ -150,6 +185,15 @@ def select_reference_subsets(
             "detail_score": row["local_quality_score"],
         }
         for row in unique_rows
+    ]
+    edit_anchor_summaries = [
+        {
+            "filename": row["filename"],
+            "role": "edit_anchor",
+            "score": row["local_quality_score"],
+            "detail_score": row["local_quality_score"],
+        }
+        for row in edit_anchor_rows
     ]
 
     return {
@@ -167,18 +211,18 @@ def select_reference_subsets(
         },
         "base_generation": item_summaries,
         "strict_single_pass": item_summaries,
-        "edit_anchors": item_summaries,
+        "edit_anchors": edit_anchor_summaries,
         "selected_bytes": {
             "base_generation": all_bytes,
             "strict_single_pass": all_bytes,
-            "edit_anchors": all_bytes,
-            "identity_safe": all_bytes,
+            "edit_anchors": edit_anchor_bytes,
+            "identity_safe": edit_anchor_bytes,
         },
         "selected_names": {
             "base_generation": all_names,
             "strict_single_pass": all_names,
-            "edit_anchors": all_names,
-            "identity_safe": all_names,
+            "edit_anchors": edit_anchor_names,
+            "identity_safe": edit_anchor_names,
         },
         "unified_triage": unified_triage,
     }

@@ -1,0 +1,166 @@
+{
+  "plataforma": "instagram",
+  "timestamp": "2026-03-30T17:55:55.504873",
+  "perfis": [
+    {
+      "nome": "Lojas Renner",
+      "url": "https://www.instagram.com/lojasrenner/",
+      "status": "sucesso",
+      "bio": null,
+      "seguidores": null,
+      "posts_visiveis": 5,
+      "imagens_extraidas": [],
+      "screenshot": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/tests/visual_search_test/output_social/instagram_perfil_1.png",
+      "erro": null,
+      "dados_extraidos": {
+        "bio": "",
+        "og_description": "9M seguidores, seguindo 19, 5,152 posts — Veja as fotos e vídeos de Lojas Renner (@lojasrenner)",
+        "og_title": "Lojas Renner (@lojasrenner) • Fotos e vídeos do Instagram",
+        "og_image": "https://scontent.cdninstagram.com/v/t51.2885-19/456241392_1236867780830648_7086831493029390992_n.jpg?stp=dst-jpg_s100x100_tt6&_nc_cat=1&ccb=7-5&_nc_sid=bf7eb4&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLnd3dy43MjAuQzMifQ%3D%3D&_nc_ohc=mRzbJZ5WxAwQ7kNvwGf1AKG&_nc_oc=AdqaUxuoBnLDcEBtEpLQg0lTn5VUel2kUbVm3hUFAT1ONhsnm6a5I4yE1icu-jHeWR0&_nc_zt=24&_nc_ht=scontent.cdninstagram.com&_nc_ss=7a389&oh=00_AfwgrxGoEq0q2dk7lxThGJVPStcPFE3dUCblRZbH_HqbsA&oe=69D0C43F",
+        "total_images": 40,
+        "image_samples": [
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.2885-19/456241392_1236867780830648_7086831493029390992_n.jpg?stp=dst-jpg_s150x150_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby43MjAuYzIifQ&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=1&_nc_oc=Q6cZ2gE2mU5LHvobA9OGnjByg0dsty8lzk4F_FSb53qWWg_8JUcBq_abYCYTSLnrpFEItXw&_nc_ohc=eZygEGuvhLIQ7kNvwEUoo5l&_nc_gid=f7LTG5sMjJeTX1kWlvNZlg&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfzrNCmbA_B_GyWNcRyDgHU4Gm3u0qjCanVDc8BEhQibgQ&oe=69D0C43F&_nc_sid=10d13b",
+            "alt": "Foto do perfil de lojasrenner"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/637216357_1462088678847069_3446256563363539030_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=109&_nc_oc=Q6cZ2gGJ7p5NuU-NRTe_z9EfV0ovT9Z6RidrRzbQ9vBdpGgNLoNxKpIhrsUBBr9XLmb6eoc&_nc_ohc=RrKl4tZGd9gQ7kNvwGySVQR&_nc_gid=4MUSXE_56dOTioJ_rsTcXA&edm=APs17CUBAAAA&ccb=7-5&oh=00_Afzi7oIqkpji4t0KicxLyK2rPoxZxfTbtfYOYqDVcfpTvw&oe=69D0C6C8&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Novidades"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/650395719_1547859237340360_3231696277792616334_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=104&_nc_oc=Q6cZ2gGJ7p5NuU-NRTe_z9EfV0ovT9Z6RidrRzbQ9vBdpGgNLoNxKpIhrsUBBr9XLmb6eoc&_nc_ohc=a3rcmXWY8XEQ7kNvwH3W5-f&_nc_gid=4MUSXE_56dOTioJ_rsTcXA&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfwNQDYefQNrTw9cImjxEXaJBj77guAsdBBajpi44NUQkA&oe=69D0B281&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Outono Inverno"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/637086993_947481887944816_3820617766310477473_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=104&_nc_oc=Q6cZ2gGJ7p5NuU-NRTe_z9EfV0ovT9Z6RidrRzbQ9vBdpGgNLoNxKpIhrsUBBr9XLmb6eoc&_nc_ohc=zFPbgA286KsQ7kNvwHybfa8&_nc_gid=4MUSXE_56dOTioJ_rsTcXA&edm=APs17CUBAAAA&ccb=7-5&oh=00_Afw7LoCkbnAeHjSSdn1_sgsW1asYU5_KbNMTALGw1g0cfA&oe=69D09D59&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Beleza"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/640166316_895726899922644_4301031119015230982_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=100&_nc_oc=Q6cZ2gGJ7p5NuU-NRTe_z9EfV0ovT9Z6RidrRzbQ9vBdpGgNLoNxKpIhrsUBBr9XLmb6eoc&_nc_ohc=h2ko5yWXii8Q7kNvwEj5vXG&_nc_gid=4MUSXE_56dOTioJ_rsTcXA&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfzvoXxZi97pTmeKKiibTWVTh3QXFzN4vTpV_Wcux6602g&oe=69D09AFB&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Blog"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/606231162_1481884166245260_6185164108896958861_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=100&_nc_oc=Q6cZ2gGJ7p5NuU-NRTe_z9EfV0ovT9Z6RidrRzbQ9vBdpGgNLoNxKpIhrsUBBr9XLmb6eoc&_nc_ohc=JdvJgevXSkEQ7kNvwHX9hdr&_nc_gid=4MUSXE_56dOTioJ_rsTcXA&edm=APs17CUBAAAA&ccb=7-5&oh=00_Afz7frbRvalOhYi0g5CHZOBZfC9Scvv0Kjq-yPvSFgKqPg&oe=69D0A6F3&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Rádio Renner"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/648962405_1444884580325560_8090736672925829157_n.jpg?stp=c0.247.640.640a_dst-jpg_e15_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=104&_nc_oc=Q6cZ2gGJ7p5NuU-NRTe_z9EfV0ovT9Z6RidrRzbQ9vBdpGgNLoNxKpIhrsUBBr9XLmb6eoc&_nc_ohc=mYRWR2iT05QQ7kNvwF_sv2O&_nc_gid=4MUSXE_56dOTioJ_rsTcXA&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfwSPtIvScqpGWVhYdPdO2X_zQHJJXqA4gzD7yEioqeNog&oe=69D0A2E8&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Desfile"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/637700163_1292015996081387_572374143413520919_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=111&_nc_oc=Q6cZ2gGJ7p5NuU-NRTe_z9EfV0ovT9Z6RidrRzbQ9vBdpGgNLoNxKpIhrsUBBr9XLmb6eoc&_nc_ohc=HfuWC2zJ4zQQ7kNvwFtSJR2&_nc_gid=4MUSXE_56dOTioJ_rsTcXA&edm=APs17CUBAAAA&ccb=7-5&oh=00_Afy_-KNMaJFhYyOoSJ8rVsKyj36XWcnlgxNnWnTvtlhzhw&oe=69D0B530&_nc_sid=10d13b",
+            "alt": "Foto do perfil de #ÉDaRenner"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/589911660_1506582540400400_2708559783095232679_n.jpg?stp=c0.247.640.640a_dst-jpg_e15_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=108&_nc_oc=Q6cZ2gGJ7p5NuU-NRTe_z9EfV0ovT9Z6RidrRzbQ9vBdpGgNLoNxKpIhrsUBBr9XLmb6eoc&_nc_ohc=rId8ccvXgJ4Q7kNvwGI7-oQ&_nc_gid=4MUSXE_56dOTioJ_rsTcXA&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfywoJoCYlzln1e4dvw8GReu-qA4o2mpgAOPuk_G1Kpnlg&oe=69D0C82E&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Em loja"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.2885-15/500121152_696919773272092_7820552716224104130_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=104&_nc_oc=Q6cZ2gGJ7p5NuU-NRTe_z9EfV0ovT9Z6RidrRzbQ9vBdpGgNLoNxKpIhrsUBBr9XLmb6eoc&_nc_ohc=6wm0WbxYCSAQ7kNvwGaZlUH&_nc_gid=4MUSXE_56dOTioJ_rsTcXA&edm=APs17CUBAAAA&ccb=7-5&oh=00_Afy3hXR96UahkaeOH82UzYUHSukE5FafeD5h32Ur-phJfg&oe=69D0C7FB&_nc_sid=10d13b",
+            "alt": "Foto do perfil de #SomosRe"
+          }
+        ],
+        "page_title": "Lojas Renner (@lojasrenner) • Fotos e vídeos do Instagram",
+        "post_links": [
+          "https://www.instagram.com/lojasrenner/p/DWhHxijEUwB/",
+          "https://www.instagram.com/lojasrenner/p/DWeJB2IAawe/",
+          "https://www.instagram.com/lojasrenner/p/DWbqg58DAqz/",
+          "https://www.instagram.com/lojasrenner/p/DWY_TK5kboq/",
+          "https://www.instagram.com/lojasrenner/p/DWWysYtiY32/"
+        ]
+      }
+    },
+    {
+      "nome": "AMFR",
+      "url": "https://www.instagram.com/amfrfrm/",
+      "status": "parcial",
+      "bio": null,
+      "seguidores": null,
+      "posts_visiveis": 0,
+      "imagens_extraidas": [],
+      "screenshot": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/tests/visual_search_test/output_social/instagram_perfil_2.png",
+      "erro": null,
+      "dados_extraidos": {
+        "total_images": 0,
+        "image_samples": [],
+        "page_title": "Profile não está disponível • Instagram",
+        "post_links": []
+      }
+    },
+    {
+      "nome": "C&A Brasil",
+      "url": "https://www.instagram.com/cea_brasil/",
+      "status": "sucesso",
+      "bio": null,
+      "seguidores": null,
+      "posts_visiveis": 5,
+      "imagens_extraidas": [],
+      "screenshot": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/tests/visual_search_test/output_social/instagram_perfil_3.png",
+      "erro": null,
+      "dados_extraidos": {
+        "bio": "",
+        "og_description": "7M seguidores, seguindo 11, 5,037 posts — Veja as fotos e vídeos de C&A Brasil (@cea_brasil)",
+        "og_title": "C&A Brasil (@cea_brasil) • Fotos e vídeos do Instagram",
+        "og_image": "https://scontent.cdninstagram.com/v/t51.82787-19/652831566_18581498986003745_7665821900932314430_n.jpg?stp=dst-jpg_s100x100_tt6&_nc_cat=1&ccb=7-5&_nc_sid=bf7eb4&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLnd3dy4xMDAwLkMzIn0%3D&_nc_ohc=K84eiIMN0qkQ7kNvwHatIhG&_nc_oc=AdqXJzQqfiFNCVsGVrC8nQmxSYT-X5bVtFI4642R3EwL1WUomc1OL5qnPo4MCFjIygw&_nc_zt=24&_nc_ht=scontent.cdninstagram.com&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&_nc_ss=7a389&oh=00_Afxu-7rl1ELAMIXw5PNFTXM13eJem11KML9QDbilzZo8Rw&oe=69D0C761",
+        "total_images": 43,
+        "image_samples": [
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.82787-19/652831566_18581498986003745_7665821900932314430_n.jpg?stp=dst-jpg_s150x150_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDAwLmMyIn0&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=1&_nc_oc=Q6cZ2gFNZqT2EcWt3Dnf7zcyAE6KPRG6KzRTThWtshdWp-ODb3blmSwvnpn85sZyvj3PLos&_nc_ohc=pmPVQzb4g-gQ7kNvwHsMVb7&_nc_gid=XhVnR-OKdHLt0JQpIvRzHA&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfxmmmRN11ZHjDC8OTG9NSuSGaPJcnQr5lc0ZrvviQwCfQ&oe=69D0C761&_nc_sid=10d13b",
+            "alt": "Foto do perfil de cea_brasil"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/654017506_2519574441791779_3213562589656614993_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=107&_nc_oc=Q6cZ2gE5qS_XLQGv6_2ScfOa9gfjsXh9KOYOIXammZTbDVcBYahQBU-9OB980H8HSsJBVlc&_nc_ohc=UqGbjj7jJJMQ7kNvwHPMgew&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfzDWL-Sa2U-eYoKUNavmIKd3BhND7LG7tskZgE1LkYLOQ&oe=69D0B531&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Jeans C&A"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/642724152_957734570018890_3948573817847396549_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=110&_nc_oc=Q6cZ2gE5qS_XLQGv6_2ScfOa9gfjsXh9KOYOIXammZTbDVcBYahQBU-9OB980H8HSsJBVlc&_nc_ohc=cFsXGBytEFAQ7kNvwHKe3Dx&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfzYOxXFLTq9cS2hahOfGF6ZvtLT9y_w3Wfmq3pqSGjaxg&oe=69D09D74&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Blog C&A"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/641337570_4432481187080377_7694563836961987250_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=101&_nc_oc=Q6cZ2gE5qS_XLQGv6_2ScfOa9gfjsXh9KOYOIXammZTbDVcBYahQBU-9OB980H8HSsJBVlc&_nc_ohc=Rg3Vd6WYbogQ7kNvwE-enIi&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&edm=APs17CUBAAAA&ccb=7-5&oh=00_Afzi7eauo9m68FPkuuwil8i15ZlTPA1dTn5fiEBMoCrwDw&oe=69D0B605&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Outono"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.2885-15/464660699_524068880420355_5025689871697688706_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=103&_nc_oc=Q6cZ2gE5qS_XLQGv6_2ScfOa9gfjsXh9KOYOIXammZTbDVcBYahQBU-9OB980H8HSsJBVlc&_nc_ohc=2-V9PQAyqA0Q7kNvwFG0U0a&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfyZU4nJ9XV1FbPasVVa5h1UrXaKcOscSg_voXLeHYel1Q&oe=69D09E58&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Sustentabilidad"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/582081739_25795570150040420_3146671627973997097_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=108&_nc_oc=Q6cZ2gE5qS_XLQGv6_2ScfOa9gfjsXh9KOYOIXammZTbDVcBYahQBU-9OB980H8HSsJBVlc&_nc_ohc=XJyq5Kr82xIQ7kNvwEfzrZj&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&edm=APs17CUBAAAA&ccb=7-5&oh=00_Afy1ATm1SLuSwFDq32edsL897t2CVFxLKZpMimnE7mRPYQ&oe=69D0BEED&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Novidades"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.71878-15/539106679_1091188369785120_8208230096574121265_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=100&_nc_oc=Q6cZ2gE5qS_XLQGv6_2ScfOa9gfjsXh9KOYOIXammZTbDVcBYahQBU-9OB980H8HSsJBVlc&_nc_ohc=Gbe8WHuWQOsQ7kNvwGGrGvD&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfwpJTGxoA37Tn4omJUpBJhaQRE67W-a8tgnP2w7Mcjxog&oe=69D0A382&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Lojas"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.2885-15/486621676_1172124487737542_2200143035529203877_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=102&_nc_oc=Q6cZ2gE5qS_XLQGv6_2ScfOa9gfjsXh9KOYOIXammZTbDVcBYahQBU-9OB980H8HSsJBVlc&_nc_ohc=GLO6vzFWuTMQ7kNvwEMZhh3&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfxOooZbhkvVrBGIJRbqOU4U2aRoNVsRUhWLkXRwK7MUDA&oe=69D0C8E4&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Collabs"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.2885-15/464627180_903966325009303_8744960643315623624_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=107&_nc_oc=Q6cZ2gE5qS_XLQGv6_2ScfOa9gfjsXh9KOYOIXammZTbDVcBYahQBU-9OB980H8HSsJBVlc&_nc_ohc=lnCoxVMkObYQ7kNvwGP8ldU&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfyVRP9mU5SchqJ4jWkOPYNCpvrozwldJRQj70BVZWF7wA&oe=69D0CC96&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Rock in Rio"
+          },
+          {
+            "src": "https://instagram.fppy4-1.fna.fbcdn.net/v/t51.2885-15/464540340_1904375900051273_8534610622510670219_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=instagram.fppy4-1.fna.fbcdn.net&_nc_cat=105&_nc_oc=Q6cZ2gE5qS_XLQGv6_2ScfOa9gfjsXh9KOYOIXammZTbDVcBYahQBU-9OB980H8HSsJBVlc&_nc_ohc=cB6CI1kPQbYQ7kNvwHEc_Dg&_nc_gid=5pkjaoDt1CJkuOqdCrjSpg&edm=APs17CUBAAAA&ccb=7-5&oh=00_Afw7uNjzTcjcDcMWeZQC2aGFoj8XhgZPzeVWnZq-r1OYgA&oe=69D0A29D&_nc_sid=10d13b",
+            "alt": "Foto do perfil de Beleza"
+          }
+        ],
+        "page_title": "C&A Brasil (@cea_brasil) • Fotos e vídeos do Instagram",
+        "post_links": [
+          "https://www.instagram.com/cea_brasil/p/DUqx-yMDxWL/",
+          "https://www.instagram.com/cea_brasil/p/DWhPgPED3wB/",
+          "https://www.instagram.com/cea_brasil/p/DWbWm42j4u4/",
+          "https://www.instagram.com/cea_brasil/p/DWZEMybDbS8/",
+          "https://www.instagram.com/loracarola/p/DWXKEfJieyI/"
+        ]
+      }
+    }
+  ],
+  "hashtag_test": {
+    "tipo": "hashtag",
+    "status": "login_required",
+    "url_final": "https://www.instagram.com/accounts/login/",
+    "redirecionou_login": true,
+    "screenshot": "/Users/lompa-marketplace/Documents/MEDIA-SHOPEE/tests/visual_search_test/output_social/instagram_hashtag.png"
+  }
+}

@@ -273,90 +273,48 @@ UNIFIED_VISION_SCHEMA = {
 # Mantemos o comportamento atual, mas explicitamos o que e:
 # base universal, dominio, cenario, policy auxiliar e formato de saida.
 # ═══════════════════════════════════════════════════════════════════════════════
-BASE_ROLE = """
-You are an expert prompt engineer for Nano Banana 2 (gemini-3.1-flash-image-preview).
+SYSTEM_IDENTITY = """
+You are an expert prompt engineer for Nano Banana 2 (gemini-3.1-flash-image-preview),
+specializing in Brazilian e-commerce fashion catalog photography.
+You think like a fashion image director, casting director, stylist, and commercial
+photographer simultaneously — your job is to create commercially strong fashion scenes,
+fresh Brazilian human identities, coherent styling, and capture choices that make the
+garment more desirable. Your output MUST match the provided JSON schema exactly.
 """
 
-DOMAIN_FASHION_RULES = """
-You specialize in Brazilian e-commerce fashion catalog photography.
-"""
 
-FASHION_PERSONA_ROLE = """
-You think like a Brazilian fashion image director, casting director, stylist, and commercial fashion photographer at the same time.
-Your job is not only to format prompts: your job is to create commercially strong fashion scenes, fresh Brazilian human identities, coherent styling, and capture choices that make the garment more desirable.
-"""
 
-OUTPUT_JSON_REQUIREMENT = """
-Your output MUST match the provided JSON schema exactly.
-"""
-
-SYSTEM_INTRO = "\n".join(
-    [
-        BASE_ROLE.strip(),
-        DOMAIN_FASHION_RULES.strip(),
-        FASHION_PERSONA_ROLE.strip(),
-        OUTPUT_JSON_REQUIREMENT.strip(),
-    ]
-)
 
 SYSTEM_CORE_RULES = """
 CORE RULES:
 1. Always write prompts in English, narrative paragraph, max 200 words.
 2. Always start the canonical final prompt with "RAW photo," to trigger photorealism.
-3. Structure the consolidated prompt as: shot_type framing → model presence → garment (3D: Material + Construction + Behavior) → pose → scenario → lighting → capture flavor.
-4. Garment is ALWAYS the visual protagonist. Describe it with physical precision: fiber type, textile structure, drape behavior under gravity, light interaction.
-5. Write like a photographer directing a real shoot — continuous narrative, not keyword lists.
-6. Ensure physical coherence: shadows follow the described light direction, fabric responds to gravity and the model's pose, reflections match the scene's lighting. If the model is still, fabric hangs; if there is wind or movement, describe the cause.
-7. The final image must read as one coherent real photograph with unified lighting and perspective, never as a composite or collage of separate elements.
+3. Garment is ALWAYS the visual protagonist. Describe it with physical precision: fiber type, textile structure, drape behavior under gravity, light interaction.
+4. Write like a photographer directing a real shoot — continuous narrative, not keyword lists.
+5. Ensure physical coherence: shadows follow the described light direction, fabric responds to gravity and the model's pose, reflections match the scene's lighting. If the model is still, fabric hangs; if there is wind or movement, describe the cause.
+6. The final image must read as one coherent real photograph with unified lighting and perspective, never as a composite or collage of separate elements.
 """
 
 SYSTEM_ANTI_PATTERNS = """
 ANTI-PATTERNS (hard forbidden):
 - NO keyword lists or comma-separated tags. Write flowing narrative paragraphs.
 - NO quality tags: 8K, ultra HD, masterpiece, best quality, high quality, award-winning, professional photo.
-- NO quality-tag negative prompts ("no ugly, no blurry, no bad anatomy").
-- Structural guardrails ("Never transfer identity", "do not clone pose") are ALLOWED — they are semantic rules, not keyword soup. Describe what IS whenever possible.
+- NEGATIVE PROMPTS ARE ABSOLUTELY FORBIDDEN. Never write "no X", "avoid Y", "without Z" in the final prompt. Gemini activates the unwanted concept when you name it. Always describe what IS, never what should NOT be. Structural guardrails in system instructions are allowed — but they must NEVER appear in the generated prompt text.
 - NO anatomical perfection: "perfect face", "symmetrical features", "flawless skin", "perfect body".
-- NO generic beauty: "stunning", "gorgeous", "beautiful". Use physics: "golden-hour rim light catching fabric texture".
-- NO vague materials: "nice fabric", "quality material". Use precise physical descriptions: fiber type, textile structure, surface behavior.
+- NO generic beauty: "stunning", "gorgeous", "beautiful", "amazing". Use physics: "golden-hour rim light catching fabric texture".
+- NO vague quality signals: "ultra realistic", "professional photography", "premium" (without visible evidence), "cinematic" (without concrete camera behavior), "nice fabric", "quality material". Use precise physical descriptions instead.
+- NO vague materials: use fiber type, textile structure, surface behavior.
 """
 
-SYSTEM_CREATIVE_OPERATION_RULES = """
-CREATIVE OPERATION RULES:
-- Presets define territory and limits, not the final visual answer.
-- Always create a fresh solution inside the allowed territory instead of repeating the safest generic outcome.
-- Casting must be created, not defaulted: vary age energy, face impression, hair silhouette, polish level, and social presence in a commercially coherent way.
-- Scene must be created, not reused: invent a specific microcontext inside the chosen scenario family instead of defaulting to the same apartment, sidewalk, or premium backdrop.
-- Capture must be chosen for the garment: let silhouette, proportion, textile behavior, and selling points drive framing, geometry, and camera feel.
-- Styling must complete the image when needed, but always stay subordinate to the garment.
-- When multiple valid solutions exist, prefer a new coherent variation over a repeated safe pattern.
-- Never expose this internal decision logic in the final prompt. The output must read like one authored fashion image direction.
-"""
 
 SYSTEM_OUTPUT_JSON_CONTRACT = """
-OUTPUT JSON CONTRACT:
-- prompt: REQUIRED. This is the single canonical final prompt for generation. Consolidate all visual direction here.
-- In text_mode, do NOT split authorship across base_prompt and camera_and_realism. Use prompt as the source of truth.
-- In reference_mode, prompt is still canonical. Legacy helper fields may be included temporarily if useful, but they must stay aligned with prompt.
-- garment_narrative: GARMENT-ONLY description (max 30 words). Color, pattern, texture, construction, drape behavior. Do NOT include model/person description or scenario. Core garment identity for consistency.
-- base_prompt: optional legacy compatibility field. If present, it should reflect the main body of the canonical prompt.
-- camera_and_realism: optional legacy compatibility field. If present, keep it concise and never use it as a second prompt.
+OUTPUT CONTRACT:
+- prompt: REQUIRED. Single canonical final prompt. Consolidate all visual direction here.
+- garment_narrative: GARMENT-ONLY (max 30 words). Color, pattern, texture, construction, drape.
+  Do NOT include model/person or scenario.
 """
 
-SYSTEM_PROMPT_CONSOLIDATION = """
-PROMPT CONSOLIDATION:
-- Modes and presets are internal decision inputs, not separate prompt fragments.
-- Latent casting, scene, capture, and styling states are internal creative inputs, not visible labels to be copied literally.
-- Use MODE_PRESETS and DIVERSITY_TARGET as guidance, then synthesize ONE coherent final prompt in the prompt field.
-- Do not write the prompt as independent blocks that need to be glued together later.
-- The prompt field must be directly usable by the image generator without requiring additional authorial text.
-- In text_mode, process the creative brief in this priority order: garment/user locks → mode territory → framing + capture geometry → scenario + pose → lighting + camera type as finishing capture flavor.
-- Camera type and capture geometry should guide capture feel, not force technical spec-sheet language. Prefer natural photographic wording over repetitive camera-body, lens, or f-stop lists unless the brief clearly requires them.
-"""
 
-SYSTEM_OPERATING_MODES = """
-OPERATING MODES:
-"""
 
 SYSTEM_MODE_1_RULES = """
 MODE 1 — User gave a text prompt:
@@ -364,31 +322,21 @@ MODE 1 — User gave a text prompt:
   Translate casual wording into professional fashion-photography language; consult REFERENCE KNOWLEDGE when useful but do not treat it as a rigid checklist.
   The garment is always the visual protagonist — build every creative choice around showcasing it.
   When it helps, describe the garment through material, construction, and drape behavior, but do not invent details the user did not imply.
-  Choose framing, capture geometry, model presence, scene, lighting, and camera feel with premium commercial taste.
-  If camera language helps, keep it elegant and high-level. Prefer natural capture wording over explicit lens/spec narration unless the brief truly depends on it.
-  Keep Brazil present as a believable commercial anchor, never as stereotype or tourism shorthand.
-  Use the DIVERSITY_TARGET name-blending cue as a stable persona anchor instead of dropping it entirely.
-  Create genuinely varied Brazilian women across runs: vary age energy, face impression, hair silhouette, polish level, and social presence instead of collapsing to the same safe commercial model.
-  Externalize the casting in the final prompt: include apparent age, concrete face geometry, visible skin read, a clear hair description, body/frame read, and a specific facial expression instead of reducing the model to a generic polished Brazilian woman.
-  Externalize the pose in the final prompt: describe a specific stance, weight shift, arm placement, or garment interaction instead of vague phrasing like stable pose or composed stance.
-  Choose the model, styling, footwear, and scene the way a fashion specialist would: based on the garment, its silhouette, and its commercial intention.
+  Follow MODEL_SOUL, POSE_SOUL, CAPTURE_SOUL, SCENE_SOUL, and STYLING_SOUL directives for all creative decisions about model, pose, camera, scenario, and styling.
   Never expose preset mechanics in the final prompt (for example: "capture geometry", "scenario family", or "lighting profile").
-  For full-body fashion looks, default to commercially complete styling and include discreet coherent footwear unless the brief explicitly asks for barefoot or the product category clearly justifies it.
   Fill gaps with restraint and coherence. Deliver a complete photographic direction, never a mechanical paraphrase of the input.
 """
 
 SYSTEM_MODE_2_RULES = """
 MODE 2 — User sent reference images (with or without text):
-  FIDELITY LOCK: The reference image is the ABSOLUTE AUTHORITY for the garment.
   STEP 1: Analyze images. Fill "image_analysis" with HIGH-LEVEL observations IN PORTUGUESE:
     category, color(s), material family, silhouette/fit.
     Describe geometric structure only, ignoring literal texture pattern names (like zigzag, diamond).
-  STEP 2: In the canonical prompt, describe the garment ONLY by its structural skeleton: garment type/category, silhouette, fit, length, and opening behavior. The reference images ARE the garment specification — the image generator sees them directly.
-    SURFACE DETAIL GUARD: Do NOT describe surface details in the prompt text. Pattern geometry, stitch type, texture relief, decorative elements, and specific color names are already conveyed by the reference images with higher fidelity than text can achieve. Describing them textually risks conflicting with the visual evidence.
-    PERSON GUARD: DO NOT describe the person/model in the reference (do not mention her age, ethnicity, skin color, hair, face, or body). DO NOT describe the background or pose from the reference.
-  STEP 3: In the canonical prompt, create a completely new Brazilian woman around the garment and externalize the casting clearly in the visible prompt surface.
-    Include apparent age, concrete face geometry, visible skin read, clear hair description, body/frame read, and a specific facial expression.
-    The reference person MUST NOT appear in the canonical prompt in any form — she is replaced entirely.
+  STEP 2: In the canonical prompt, describe the garment ONLY by its structural skeleton: garment type/category, silhouette, fit, length, and opening behavior.
+    The reference images ARE the garment specification — the image generator sees them directly.
+    Do NOT describe surface details (pattern, stitch, texture, color names) — the images convey these with higher fidelity than text.
+  STEP 3: Follow MODEL_SOUL to create a completely new Brazilian woman. Follow DIVERSITY_TARGET for garment fidelity rules.
+    The reference person is irrelevant — MODEL_SOUL handles full casting replacement.
   When user adds text asking for a scene or styling change, change ONLY what they requested. Everything else comes from the image.
 """
 
@@ -398,41 +346,19 @@ MODE 3 — No prompt or images:
   Apply full 3D garment description, Brazilian model diversity, and e-commerce composition rules.
 """
 
-SYSTEM_THINKING_LEVEL = """
-THINKING LEVEL:
-  HIGH: garments with complex construction, layered structures, rich surface textures, or multiple coordinated pieces.
-  MINIMAL: single-piece garments with standard construction and straightforward textile surfaces.
-"""
-
-SYSTEM_REFERENCE_KNOWLEDGE_NOTE = """
-Consult the [REFERENCE KNOWLEDGE] block in user content for garment vocabulary, Brazilian term mapping,
-scenario library, realism levers, and shot composition templates.
-"""
-
 BASE_SYSTEM_BLOCKS = [
-    BASE_ROLE.strip(),
-    DOMAIN_FASHION_RULES.strip(),
-    FASHION_PERSONA_ROLE.strip(),
+    SYSTEM_IDENTITY.strip(),
     SYSTEM_CORE_RULES.strip(),
-    SYSTEM_CREATIVE_OPERATION_RULES.strip(),
     SYSTEM_ANTI_PATTERNS.strip(),
 ]
 
 SCENARIO_SYSTEM_BLOCKS = [
-    SYSTEM_OPERATING_MODES.strip(),
     SYSTEM_MODE_1_RULES.strip(),
     SYSTEM_MODE_2_RULES.strip(),
     SYSTEM_MODE_3_RULES.strip(),
 ]
 
-POLICY_SYSTEM_BLOCKS = [
-    SYSTEM_THINKING_LEVEL.strip(),
-    SYSTEM_REFERENCE_KNOWLEDGE_NOTE.strip(),
-]
-
 OUTPUT_SYSTEM_BLOCKS = [
-    OUTPUT_JSON_REQUIREMENT.strip(),
-    SYSTEM_PROMPT_CONSOLIDATION.strip(),
     SYSTEM_OUTPUT_JSON_CONTRACT.strip(),
 ]
 
@@ -440,7 +366,6 @@ SYSTEM_INSTRUCTION = "\n\n".join(
     BASE_SYSTEM_BLOCKS
     + OUTPUT_SYSTEM_BLOCKS
     + SCENARIO_SYSTEM_BLOCKS
-    + POLICY_SYSTEM_BLOCKS
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -525,42 +450,11 @@ CLOSE-UP (texture): 80%+ of frame is garment surface. Macro-level detail.
 AUTO: Select the shot that best showcases the garment's primary selling point.
 """
 
-# ── Seção 5: Modelo e cenário ─────────────────────────────────────────────────
-# 🏷️ category-dependent | 🔮 futuro: modelos e cenários variam por categoria
-_RK_MODEL_AND_SCENE = """
-── MODEL & SCENE ──
-
-Use this section as reference repertoire, not as a fixed recipe. Prefer coherence with the garment brief over literal reuse.
-Skin realism may be used when it strengthens realism, but it is not mandatory in every prompt.
-Presentation reference: professionally styled hair appropriate to garment vibe, warm confident expression, natural eye contact.
-Scenario references (use only as abstract reasoning anchors, never as a location menu):
-  URBAN: everyday circulation, layered material wear, mixed public-private edges, believable street depth
-  NATURE: breathable open air, organic light variation, ordinary environmental texture, grounded horizon or greenery
-  INDOOR: lived-in interior light, practical surfaces, secondary background presence, believable spatial use
-Color strategy references: White garment → dark or saturated background | Black garment → light neutral background |
-  Pastels → warm neutral tones | Saturated colors → clean, minimal background
-"""
-
-# ── Seção 6: Alavancas de realismo ────────────────────────────────────────────
-# 🏷️ category-independent | 🔮 futuro: modular por mode/preset sem voltar a um knob genérico de realismo
-_RK_REALISM_LEVERS = """
-── REALISM LEVERS ──
-
-Use these as optional realism cues when they improve the brief. Do not stack them all by default.
-1. CAPTURE LANGUAGE: choose appropriate photographic language when useful; use explicit camera specs only if they genuinely strengthen the brief.
-2. NATURAL LIGHT: prefer physically plausible light, e.g. "afternoon side-light filtering through sheer curtain".
-3. ORGANIC COMPOSITION: slight asymmetry or rule-of-thirds can help avoid stiffness.
-4. SURFACE TEXTURE: skin pores, fabric wear creases, or thread texture may be used selectively.
-5. MOMENT NOT POSE: subtle lived-in action can help realism when appropriate.
-6. IMPERFECT DEPTH: soft foreground/background elements can add photographic depth.
-Reference examples: natural side light | selective skin or fabric texture | believable depth cues
-"""
-
 _RK_TEXT_MODE_COMPACT_NOTE = """
 ── TEXT MODE NOTE ──
 
 In text_mode, use this block only for garment vocabulary and Brazilian term translation.
-Scene, pose, shot, lighting, and capture direction come from MODE_PRESETS and latent states.
+Scene, pose, shot, lighting, and capture direction come from the active SOUL directives.
 Do not treat reference examples as substitute presets or fallback recipes.
 """
 
@@ -570,8 +464,6 @@ REFERENCE_KNOWLEDGE = (
     + _RK_TERM_MAPPING
     + _RK_GARMENT_VOCABULARY
     + _RK_SHOT_COMPOSITION
-    + _RK_MODEL_AND_SCENE
-    + _RK_REALISM_LEVERS
 )
 
 # ── Filtragem inteligente do Reference Knowledge ─────────────────────────────
@@ -601,7 +493,7 @@ def build_reference_knowledge(
 ) -> str:
     """Monta o Reference Knowledge com apenas as seções relevantes ao brief.
 
-    Sempre inclui: header, term mapping, shot composition, model & scene, realism levers.
+    Sempre inclui: header, term mapping, shot composition.
     Condicionalmente inclui: garment vocabulary (~300 tokens) — apenas quando o brief
     menciona material/têxtil ou quando imagens de referência estão presentes.
     """
@@ -623,7 +515,7 @@ def build_reference_knowledge(
         sections.append(_RK_TEXT_MODE_COMPACT_NOTE)
         return "".join(sections)
 
-    sections.extend([_RK_SHOT_COMPOSITION, _RK_MODEL_AND_SCENE, _RK_REALISM_LEVERS])
+    sections.append(_RK_SHOT_COMPOSITION)
     return "".join(sections)
 
 _SLEEVE_TYPE_PHRASES: dict[str, str] = {
@@ -703,22 +595,6 @@ _WITHOUT_MAP: list[tuple[re.Pattern, str]] = [
     (re.compile(r'\bno\s+hood\b',          re.I), "hoodless"),
     (re.compile(r'\bno\s+extra\s+\w+\b',   re.I), ""),
 ]
-
-# ── Scene composition — keyword sets por tipo de cenário ─────────────────────
-_OUTDOOR_URBAN_KW = frozenset({
-    "downtown", "rooftop", "street", "urban", "city", "shopping", "district",
-    "storefront", "boutique", "plaza", "terrace", "sidewalk", "avenue",
-    "cityscape", "skyline", "architecture",
-})
-_OUTDOOR_NATURE_KW = frozenset({
-    "park", "garden", "botanical", "tropical", "beach", "mountain", "pathway",
-    "greenery", "forest", "orchard", "nature", "outdoor", "exterior",
-})
-_INDOOR_KW = frozenset({
-    "apartment", "living room", "living-room", "café", "cafe", "coffee",
-    "studio", "showroom", "interior", "indoor", "room", "lounge", "home",
-    "loft", "warehouse",
-})
 
 _POSE_KEYWORDS = frozenset({
     "pose", "arm", "arms", "stand", "standing", "position", "angle", "front",

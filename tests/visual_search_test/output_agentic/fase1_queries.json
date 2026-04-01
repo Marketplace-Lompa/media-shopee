@@ -1,0 +1,21 @@
+{
+  "pinterest_queries": [
+    "Street style moda feminina casual brasileira",
+    "Moda casual brasileira e-commerce looks",
+    "Look do dia casual feminino Brasil"
+  ],
+  "instagram_profiles": [
+    {
+      "handle": "@cea_brasil",
+      "motivo": "Marca de fast fashion com forte presença no Brasil, oferece moda casual acessível e frequentemente apresenta looks reais e campanhas focadas em tendências, com fotos de produto de alta qualidade para e-commerce."
+    },
+    {
+      "handle": "@riachuelo",
+      "motivo": "Uma das maiores varejistas de moda do Brasil, com foco em fast fashion e preços acessíveis. Seu perfil no Instagram é rico em fotos de produto de alta qualidade, incluindo moda casual feminina, e a marca possui um marketplace robusto."
+    },
+    {
+      "handle": "@lojasrenner",
+      "motivo": "Outra gigante do varejo de moda brasileira, a Renner é conhecida por suas coleções de fast fashion e moda casual. O Instagram da marca exibe fotos de produto de alta qualidade e estilos que refletem o e-commerce e as tendências atuais."
+    }
+  ]
+}

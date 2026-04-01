@@ -1,7 +1,7 @@
 import './Sidebar.css';
-import { Images, BookOpen, Sparkles, Search } from 'lucide-react';
+import { Images, BookOpen, Sparkles } from 'lucide-react';
 
-export type Tab = 'criar' | 'revisao' | 'historico' | 'biblioteca';
+export type Tab = 'criar' | 'historico' | 'biblioteca';
 
 interface Props {
     activeTab: Tab;
@@ -10,7 +10,6 @@ interface Props {
 
 const nav = [
     { id: 'criar' as const, icon: Sparkles, label: 'Criar' },
-    { id: 'revisao' as const, icon: Search, label: 'Revisão' },
     { id: 'historico' as const, icon: Images, label: 'Histórico' },
     { id: 'biblioteca' as const, icon: BookOpen, label: 'Biblioteca' },
 ];

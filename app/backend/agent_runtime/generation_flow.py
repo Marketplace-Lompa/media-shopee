@@ -4,7 +4,7 @@ Generation Flow — túnel unificado de criação.
 Suporta dois caminhos dentro da mesma espinha dorsal:
 
   A) Reference mode (com uploads):
-    1. reference_selector classifica uploads por role visual
+    1. triagem unificada leve dos uploads
     2. generate_images() cria base fiel da peça (stage 1, locks fortes)
     3. edit_image() cria imagem final (stage 2, soul criativo + fidelidade)
 
@@ -14,8 +14,8 @@ Suporta dois caminhos dentro da mesma espinha dorsal:
 
 Este módulo NÃO contém lógica de negócio — delega para:
   - fidelity.py: prompts, guards, classificação
-  - fidelity_gate.py: gates, seleção de candidatos, repair
-  - reference_selector.py: triagem, merge de referências
+  - fidelity_gate.py: utilitários legados de gate/retry
+  - reference_selector.py: dedup e triagem unificada leve
   - curation_policy.py: budgets, pose flex, guard config
   - generator.py: execução Nano Banana
   - agent.py (run_agent): síntese criativa text-only
@@ -30,24 +30,21 @@ from typing import Any, Callable, Optional
 
 from agent_runtime.curation_policy import (
     derive_art_direction_selection_policy,
-    derive_reference_budget,
     derive_reference_guard_config,
     stage1_candidate_count,
 )
+from agent_runtime.editing.contracts import ImageEditExecutionRequest
+from agent_runtime.editing.executor import execute_image_edit_request
 from agent_runtime.fidelity import (
     _build_mode_guardrail_clauses,
     build_classifier_summary,
-    build_reference_edit_art_direction,
-    build_stage1_prompt,
     build_structural_hint,
-    compile_edit_prompt as build_soul_driven_edit_prompt,
-    derive_garment_material_text,
+    prepare_garment_replacement_prompt,
     should_use_image_grounding,
 )
 from agent_runtime.fidelity_gate import (
     build_fidelity_repair_patch,
     build_targeted_repair_prompt,
-    build_visual_fidelity_gate_policy,
     classify_stage2_repair_strategy,
     evaluate_visual_fidelity,
     pick_best_stage1_candidate,
@@ -57,16 +54,14 @@ from agent_runtime.creative_brief_builder import build_creative_brief_for_mode
 from agent_runtime.mode_profile import get_mode_profile
 from agent_runtime.modes import get_mode
 from agent_runtime.generation_observability import (
-    persist_review_inputs,
     write_v2_observability_report,
 )
+from agent_runtime.reference_creative_planner import plan_reference_creative_flow
 from agent_runtime.reference_selector import (
-    limit_reference_pack,
     merge_reference_bytes,
-    merge_reference_names,
     select_reference_subsets,
 )
-from generator import edit_image, generate_images
+from generator import generate_images
 from history import add_entry as history_add, purge_oldest as history_purge
 from models import GenerateResponse, GeneratedImage
 from pipeline_effectiveness import assess_generated_image
@@ -458,8 +453,8 @@ def run_generation_flow(
     _mode_config = get_mode(mode)
     _mode_profile = get_mode_profile(mode)
 
-    # ── 1. Reference selection ────────────────────────────────────────────
-    _emit("preparing_references", {"message": "Classificando referências..."})
+    # ── 1. Análise leve dos uploads (sem stage seller-facing de referências) ──
+    _emit("stabilizing_garment", {"message": "Preparando modelo..."})
 
     filenames: list[str] = []
     for i in range(len(uploaded_bytes)):
@@ -486,17 +481,11 @@ def run_generation_flow(
 
     structural_hint = build_structural_hint(structural_contract)
 
-    # Subsets de referências e review inputs
+    # Subsets de referências
     selected_bytes = selector_result.get("selected_bytes", {}) or {}
     selected_names = selector_result.get("selected_names", {}) or {}
     selector_stats = selector_result.get("stats", {}) or {}
-    review_input_assets = persist_review_inputs(
-        session_id=session_id,
-        uploaded_bytes=uploaded_bytes,
-        uploaded_filenames=filenames,
-        selected_bytes=selected_bytes,
-        selected_names=selected_names,
-    )
+    review_input_assets: dict[str, Any] = {}
 
     # Construir pacotes de referência por estágio
     base_generation_bytes = list(selected_bytes.get("base_generation", []) or [])
@@ -543,54 +532,30 @@ def run_generation_flow(
     mode_guardrail_text = " ".join(_build_mode_guardrail_clauses(mode_guardrails))
 
 
-    # Merge de referências por fidelity mode
-    if str(fidelity_mode).strip().lower() == "estrita":
-        base_gen_bytes = strict_single_pass_bytes or base_generation_bytes
-        base_gen_names = strict_single_pass_names or base_generation_names
-        edit_reference_bytes = merge_reference_bytes(edit_anchor_bytes, identity_safe_bytes[:3])
-        edit_reference_names = merge_reference_names(edit_anchor_names, identity_safe_names[:3])
-        if not edit_reference_bytes:
-            edit_reference_bytes = merge_reference_bytes(edit_anchor_bytes, strict_single_pass_bytes[:2])
-            edit_reference_names = merge_reference_names(edit_anchor_names, strict_single_pass_names[:2])
-    else:
-        base_gen_bytes = base_generation_bytes or strict_single_pass_bytes
-        base_gen_names = base_generation_names or strict_single_pass_names
-        if bool(selector_stats.get("complex_garment")):
-            edit_reference_bytes = merge_reference_bytes(edit_anchor_bytes, identity_safe_bytes[:3])
-            edit_reference_names = merge_reference_names(edit_anchor_names, identity_safe_names[:3])
-        else:
-            edit_reference_bytes = merge_reference_bytes(edit_anchor_bytes, identity_safe_bytes[:2])
-            edit_reference_names = merge_reference_names(edit_anchor_names, identity_safe_names[:2])
+    # O novo upload path gera a base sem referências visuais.
+    base_gen_bytes: list[bytes] = []
+    base_gen_names: list[str] = []
+    edit_reference_bytes = list(identity_safe_bytes or edit_anchor_bytes)
+    edit_reference_names = list(identity_safe_names or edit_anchor_names)
 
-    if not edit_reference_bytes:
-        if identity_risk == "high":
-            edit_reference_bytes = merge_reference_bytes(identity_safe_bytes[:2], edit_anchor_bytes[:2], base_gen_bytes[:1])
-            edit_reference_names = merge_reference_names(identity_safe_names[:2], edit_anchor_names[:2], base_gen_names[:1])
-        else:
-            edit_reference_bytes = merge_reference_bytes(identity_safe_bytes[:2], edit_anchor_bytes[:2], strict_single_pass_bytes[:2], base_gen_bytes[:2])
-            edit_reference_names = merge_reference_names(identity_safe_names[:2], edit_anchor_names[:2], strict_single_pass_names[:2], base_gen_names[:2])
+    reference_budget = {
+        "stage1_max_refs": 0,
+        "stage2_max_refs": len(edit_reference_bytes),
+        "judge_max_refs": 0,
+    }
 
-    reference_budget = derive_reference_budget(
-        selector_stats=selector_stats, fidelity_mode=fidelity_mode, identity_risk=identity_risk,
-    )
-    base_gen_bytes, base_gen_names = limit_reference_pack(
-        base_gen_bytes, base_gen_names, limit=int(reference_budget.get("stage1_max_refs", 4) or 4),
-    )
-    edit_reference_bytes, edit_reference_names = limit_reference_pack(
-        edit_reference_bytes, edit_reference_names, limit=int(reference_budget.get("stage2_max_refs", 4) or 4),
-    )
-
-    # Classificador + gate policy
+    # Classificador
     classifier_summary = build_classifier_summary(structural_contract, selector_stats)
-    gate_policy = build_visual_fidelity_gate_policy(
-        structural_contract=structural_contract, set_detection=set_detection,
-        selector_stats=selector_stats, fidelity_mode=fidelity_mode,
-    )
-    judge_reference_bytes = merge_reference_bytes(
-        strict_single_pass_bytes[: int(reference_budget.get("stage1_max_refs", 4) or 4)],
-        base_generation_bytes[: int(reference_budget.get("stage1_max_refs", 4) or 4)],
-        uploaded_bytes[:2],
-    )[: int(reference_budget.get("judge_max_refs", 4) or 4)]
+    
+    # Gate policy está hardcoded para False no V2. O retry foi desativado.
+    gate_policy = {
+        "enabled": False,
+        "reasons": [],
+        "stage1_retry_enabled": False,
+        "stage2_targeted_repair_enabled": False,
+        "stage2_full_retry_enabled": False,
+    }
+    judge_reference_bytes: list[bytes] = []
     observability_runs: list[dict[str, Any]] = []
     reason_codes: set[str] = set()
     if gate_policy.get("enabled"):
@@ -643,39 +608,24 @@ def run_generation_flow(
             "references are garment-only evidence; avoid identity transfer and pose cloning",
         )
     effective_art_direction_request["directive_hints"] = directive_hints
-
-    reference_creative_prompt_surface = ""
-    try:
-        from agent import run_agent
-
-        reference_creative_brief = build_creative_brief_for_mode(_mode_config, user_prompt=prompt)
-        reference_agent_result = run_agent(
-            user_prompt=prompt or "",
-            uploaded_images=uploaded_bytes,
-            pool_context="",
-            aspect_ratio=aspect_ratio,
-            resolution=resolution,
-            diversity_target=reference_creative_brief,
-            unified_vision_triage_result=unified_triage if isinstance(unified_triage, dict) else None,
-            mode=_mode_config.id,
-        )
-        reference_creative_prompt_surface = str(reference_agent_result.get("prompt") or "").strip()
-    except Exception as reference_prompt_exc:
-        print(f"[GEN FLOW] ⚠️ reference creative prompt fallback: {reference_prompt_exc}")
+    reference_creative_plan = plan_reference_creative_flow(
+        mode_id=_mode_config.id,
+        user_prompt=prompt,
+        scene_preference=scene_preference,
+        garment_hint=str((unified_triage.get("garment_hint") or "") if isinstance(unified_triage, dict) else ""),
+        image_analysis=image_analysis,
+        structural_contract=structural_contract,
+        set_detection=set_detection,
+        garment_aesthetic=garment_aesthetic,
+        lighting_signature=lighting_signature,
+        mode_guardrail_text=mode_guardrail_text,
+    )
+    planner_payload = reference_creative_plan.to_dict()
+    planner_summary = dict(reference_creative_plan.summary or {})
 
     # ── 2. Stage 1: base fiel da peça ─────────────────────────────────────
     _emit("stabilizing_garment", {"message": "Estabilizando a peça..."})
-
-    _stage1_angle_directive = str(directive_hints.get("angle_directive", "") or "").strip()
-
-    stage1_prompt = build_stage1_prompt(
-        structural_contract, structural_hint,
-        art_direction_soul=reference_creative_prompt_surface,
-        set_detection=set_detection, fidelity_mode=fidelity_mode,
-        mode=mode, angle_directive=_stage1_angle_directive,
-        use_image_grounding=_use_image_grounding,
-        image_analysis=image_analysis,
-    )
+    stage1_prompt = str(reference_creative_plan.base_scene_prompt or "").strip()
 
     stage1_candidate_count_val = stage1_candidate_count(
         fidelity_mode=fidelity_mode, selector_stats=selector_stats,
@@ -685,7 +635,7 @@ def run_generation_flow(
         prompt=stage1_prompt, thinking_level="MINIMAL",
         aspect_ratio=aspect_ratio, resolution=resolution,
         n_images=stage1_candidate_count_val,
-        uploaded_images=base_gen_bytes,
+        uploaded_images=[],
         session_id=f"v2base_{session_id}",
         structural_hint=structural_hint,
         use_image_grounding=_use_image_grounding,
@@ -746,16 +696,26 @@ def run_generation_flow(
     base_image_path = Path(selected_base_result["path"])
     base_image_bytes = base_image_path.read_bytes()
 
-    # ── 3. Stage 2: art direction + edit (liberdade criativa) ─────────────
-    stage2_creative_prompt_surface = reference_creative_prompt_surface
-
+    # ── 3. Stage 2: garment replacement sobre a mesma base ────────────────
     all_results: list[dict[str, Any]] = []
     failed_indices: list[int] = []
-    last_art_direction: dict[str, Any] = {}
+    last_art_direction: dict[str, Any] = {
+        "summary": planner_summary,
+        "creative_plan": planner_payload,
+        "action_context": None,
+    }
     last_primary_edit_prompt = ""
     last_applied_edit_prompt = ""
     stage2_thinking_level = "MINIMAL" if str(fidelity_mode).strip().lower() == "estrita" else "HIGH"
     any_repair_applied = bool(stage1_recovery.get("applied"))
+    prepared_replacement_prompt = prepare_garment_replacement_prompt(
+        structural_contract=structural_contract,
+        garment_hint=str((unified_triage.get("garment_hint") or "") if isinstance(unified_triage, dict) else ""),
+        image_analysis=image_analysis,
+        set_detection=set_detection,
+        mode_id=_mode_config.id,
+        source_prompt_context=stage1_prompt,
+    )
 
     for img_idx in range(n_images):
         _emit("creating_listing", {"message": f"Criando anúncio {img_idx + 1}/{n_images}...", "current": img_idx + 1, "total": n_images})
@@ -763,14 +723,11 @@ def run_generation_flow(
             result_data = _run_stage2_iteration(
                 img_idx=img_idx, session_id=session_id, mode=mode,
                 structural_contract=structural_contract, set_detection=set_detection,
-                image_analysis=image_analysis, effective_art_direction_request=effective_art_direction_request,
-                directive_hints=directive_hints, fidelity_mode=fidelity_mode,
+                image_analysis=image_analysis, fidelity_mode=fidelity_mode,
                 reference_guard_strength=reference_guard_strength,
                 reference_usage_rules=reference_usage_rules,
-                mode_guardrails=mode_guardrails,
-                creative_prompt_surface=stage2_creative_prompt_surface,
-
-                prompt=prompt,
+                art_direction_summary=planner_summary,
+                source_prompt_context=stage1_prompt,
                 base_image_bytes=base_image_bytes, base_image_path=base_image_path,
                 aspect_ratio=aspect_ratio, resolution=resolution,
                 stage2_thinking_level=stage2_thinking_level,
@@ -779,9 +736,7 @@ def run_generation_flow(
                 classifier_summary=classifier_summary,
                 gate_policy=gate_policy, judge_reference_bytes=judge_reference_bytes,
                 reference_budget=reference_budget,
-                uploaded_bytes=uploaded_bytes,
-                edit_anchor_bytes=edit_anchor_bytes,
-
+                prepared_replacement_prompt=prepared_replacement_prompt,
                 identity_risk=identity_risk,
                 edit_reference_names=edit_reference_names,
                 reason_codes=reason_codes,
@@ -857,7 +812,7 @@ def run_generation_flow(
 
     observability_meta = write_v2_observability_report(session_id, {
         "fidelity_gate": gate_policy,
-        "request": {
+            "request": {
             "prompt": prompt, "user_intent": user_intent_payload,
             "mode": mode, "scene_preference": scene_preference,
             "fidelity_mode": fidelity_mode, "n_images": n_images,
@@ -865,6 +820,7 @@ def run_generation_flow(
             "uploaded_count": len(uploaded_bytes), "uploaded_filenames": filenames,
             "art_direction_request": art_direction_request,
             "effective_art_direction_request": effective_art_direction_request,
+            "reference_creative_plan": planner_payload,
             "reference_guard_strength": reference_guard_strength,
             "reference_guard_rules": reference_usage_rules,
             "identity_guard": identity_guard,
@@ -1000,15 +956,11 @@ def _run_stage2_iteration(
     structural_contract: dict[str, Any],
     set_detection: dict[str, Any],
     image_analysis: str,
-    effective_art_direction_request: dict[str, Any],
-    directive_hints: dict[str, Any],
     fidelity_mode: str,
     reference_guard_strength: str,
     reference_usage_rules: list[str],
-    mode_guardrails: dict[str, Any],
-    creative_prompt_surface: Optional[str],
-
-    prompt: Optional[str],
+    art_direction_summary: dict[str, str],
+    source_prompt_context: str,
     base_image_bytes: bytes,
     base_image_path: Path,
     aspect_ratio: str,
@@ -1020,9 +972,7 @@ def _run_stage2_iteration(
     gate_policy: dict[str, Any],
     judge_reference_bytes: list[bytes],
     reference_budget: dict[str, int],
-    uploaded_bytes: list[bytes],
-    edit_anchor_bytes: list[bytes],
-
+    prepared_replacement_prompt: Any,
     identity_risk: str,
     edit_reference_names: list[str],
     reason_codes: set[str],
@@ -1031,61 +981,26 @@ def _run_stage2_iteration(
 
     Retorna dict com result, art_direction, prompts, observability, ou None se falhou.
     """
-    _mode_config = get_mode(mode)
-    _creative_brief = build_creative_brief_for_mode(_mode_config, user_prompt=prompt)
-    art_soul_briefing = str(creative_prompt_surface or "").strip()
-    creative_source = "prompt_agent"
-    if not art_soul_briefing:
-        art_soul_briefing = build_reference_edit_art_direction(
-            mode_id=_mode_config.id,
-            creative_brief=_creative_brief,
-        )
-        creative_source = "soul_stack"
-
     art_direction: dict[str, Any] = {
-        "art_direction_soul": art_soul_briefing,
-        "creative_brief": _creative_brief,
-        "mode_guardrails": mode_guardrails,
-        "summary": {"mode": "soul_driven", "mode_id": _mode_config.id, "creative_source": creative_source},
+        "summary": dict(art_direction_summary or {}),
+        "action_context": None,
     }
-
-    garment_material = derive_garment_material_text(structural_contract, image_analysis)
-    garment_color = "the garment colors and yarn tones"
-
-    _angle = str(directive_hints.get("angle_directive", "") or "").strip()
-
-    edit_prompt = build_soul_driven_edit_prompt(
-        structural_contract,
-        art_direction_soul=art_soul_briefing,
-        set_detection=set_detection,
-        garment_material=garment_material,
-        garment_color=garment_color,
-        reference_guard_strength=reference_guard_strength,
-        reference_usage_rules=reference_usage_rules,
-        mode_guardrails=mode_guardrails,
-        image_analysis=image_analysis,
-        angle_directive=_angle,
-    )
-    if str(fidelity_mode).strip().lower() == "estrita":
-        edit_prompt += (
-            " Prioritize exact garment fidelity over scene creativity. "
-            "Do not alter garment silhouette, length, sleeve architecture, hem behavior, or stripe placement."
-        )
-
-    primary_edit_prompt = edit_prompt
+    primary_edit_prompt = str(prepared_replacement_prompt.display_prompt or "").strip()
     selected_edit_prompt = primary_edit_prompt
     edit_session_id = f"v2edit_{session_id}_{img_idx + 1}"
-
-    edit_results = edit_image(
-        source_image_bytes=base_image_bytes,
-        edit_prompt=edit_prompt,
-        aspect_ratio=aspect_ratio,
-        resolution=resolution,
-        thinking_level=stage2_thinking_level,
-        session_id=edit_session_id,
-        reference_images_bytes=edit_reference_bytes,
-        use_image_grounding=_use_image_grounding,
-        lock_person=False,
+    edit_results = execute_image_edit_request(
+        ImageEditExecutionRequest(
+            source_image_bytes=base_image_bytes,
+            prepared_prompt=prepared_replacement_prompt,
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            session_id=edit_session_id,
+            source_prompt_context=source_prompt_context,
+            reference_images_bytes=edit_reference_bytes,
+            thinking_level=stage2_thinking_level,
+            use_image_grounding=_use_image_grounding,
+            lock_person=True,
+        )
     )
 
     if not edit_results:
@@ -1095,14 +1010,14 @@ def _run_stage2_iteration(
     result["index"] = img_idx + 1
     result["art_direction_summary"] = art_direction.get("summary", {})
 
-    final_assessment = assess_generated_image(str(result.get("path", "")), edit_prompt, classifier_summary)
+    final_assessment = assess_generated_image(str(result.get("path", "")), primary_edit_prompt, classifier_summary)
     final_gate = (
         evaluate_visual_fidelity(
             stage="stage2", reference_images=judge_reference_bytes,
             base_image_path=str(base_image_path),
             candidate_image_path=str(result.get("path", "")),
             structural_contract=structural_contract, set_detection=set_detection,
-            prompt=edit_prompt,
+            prompt=primary_edit_prompt,
         )
         if gate_policy.get("enabled") and judge_reference_bytes else None
     )
@@ -1111,18 +1026,17 @@ def _run_stage2_iteration(
     recovery_info = _run_stage2_recovery(
         result=result, final_assessment=final_assessment, final_gate=final_gate,
         gate_policy=gate_policy, structural_contract=structural_contract,
-        set_detection=set_detection, edit_prompt=edit_prompt,
+        set_detection=set_detection, prepared_replacement_prompt=prepared_replacement_prompt,
         base_image_bytes=base_image_bytes, base_image_path=base_image_path,
         aspect_ratio=aspect_ratio, resolution=resolution,
         stage2_thinking_level=stage2_thinking_level,
         edit_reference_bytes=edit_reference_bytes,
         judge_reference_bytes=judge_reference_bytes,
         reference_budget=reference_budget,
-        uploaded_bytes=uploaded_bytes,
-        edit_anchor_bytes=edit_anchor_bytes,
         edit_session_id=edit_session_id,
         classifier_summary=classifier_summary,
         _use_image_grounding=_use_image_grounding,
+        source_prompt_context=source_prompt_context,
 
         fidelity_mode=fidelity_mode,
         reason_codes=reason_codes,
@@ -1176,7 +1090,7 @@ def _run_stage2_recovery(
     gate_policy: dict[str, Any],
     structural_contract: dict[str, Any],
     set_detection: dict[str, Any],
-    edit_prompt: str,
+    prepared_replacement_prompt: Any,
     base_image_bytes: bytes,
     base_image_path: Path,
     aspect_ratio: str,
@@ -1185,11 +1099,10 @@ def _run_stage2_recovery(
     edit_reference_bytes: list[bytes],
     judge_reference_bytes: list[bytes],
     reference_budget: dict[str, int],
-    uploaded_bytes: list[bytes],
-    edit_anchor_bytes: list[bytes],
     edit_session_id: str,
     classifier_summary: dict[str, Any],
     _use_image_grounding: bool,
+    source_prompt_context: str,
 
     fidelity_mode: str,
     reason_codes: set[str],
@@ -1197,11 +1110,15 @@ def _run_stage2_recovery(
     art_direction: dict[str, Any],
 ) -> dict[str, Any]:
     """Executa lógica de recovery do stage 2: targeted repair + full retry."""
+    edit_prompt = str(prepared_replacement_prompt.display_prompt or "").strip()
+    stage2_ref_limit = int(reference_budget.get("stage2_max_refs", 4) or 4)
+    judge_ref_limit = int(reference_budget.get("judge_max_refs", 0) or 0)
     targeted_reference_bytes = merge_reference_bytes(
-        edit_reference_bytes[: int(reference_budget.get("stage2_max_refs", 4) or 4)],
-        judge_reference_bytes[: int(reference_budget.get("judge_max_refs", 4) or 4)],
-        uploaded_bytes[:2],
-    )[: int(reference_budget.get("judge_max_refs", 4) or 4)]
+        edit_reference_bytes[:stage2_ref_limit],
+        judge_reference_bytes[:judge_ref_limit],
+    )
+    if stage2_ref_limit > 0:
+        targeted_reference_bytes = targeted_reference_bytes[:stage2_ref_limit]
 
     localized_repair_enabled = _targeted_stage2_repair_enabled()
     localized_repair_plan = (
@@ -1235,13 +1152,27 @@ def _run_stage2_recovery(
         )
         try:
             localized_source_bytes = Path(str(result.get("path", ""))).read_bytes()
-            localized_results = edit_image(
-                source_image_bytes=localized_source_bytes,
-                edit_prompt=localized_prompt,
-                aspect_ratio=aspect_ratio, resolution=resolution,
-                thinking_level="MINIMAL",
-                session_id=f"{edit_session_id}_microrepair",
-                reference_images_bytes=targeted_reference_bytes,
+            localized_prepared_prompt = prepared_replacement_prompt.__class__(
+                **{
+                    **prepared_replacement_prompt.__dict__,
+                    "display_prompt": localized_prompt,
+                    "model_prompt": localized_prompt,
+                    "structured_edit_goal": localized_prompt,
+                }
+            )
+            localized_results = execute_image_edit_request(
+                ImageEditExecutionRequest(
+                    source_image_bytes=localized_source_bytes,
+                    prepared_prompt=localized_prepared_prompt,
+                    aspect_ratio=aspect_ratio,
+                    resolution=resolution,
+                    session_id=f"{edit_session_id}_microrepair",
+                    source_prompt_context=source_prompt_context,
+                    reference_images_bytes=targeted_reference_bytes,
+                    thinking_level="MINIMAL",
+                    use_image_grounding=_use_image_grounding,
+                    lock_person=True,
+                )
             )
             localized_result = localized_results[0] if localized_results else None
             localized_assessment = assess_generated_image(str(localized_result.get("path", "")), localized_prompt, classifier_summary) if localized_result else None
@@ -1313,15 +1244,27 @@ def _run_stage2_recovery(
 
         retry_thinking_level = "MINIMAL" if _current_gate.get("verdict") == "hard_fail" else stage2_thinking_level
         try:
-            retry_results = edit_image(
-                source_image_bytes=base_image_bytes,
-                edit_prompt=retry_prompt,
-                aspect_ratio=aspect_ratio, resolution=resolution,
-                thinking_level=retry_thinking_level,
-                session_id=f"{edit_session_id}_retry",
-                reference_images_bytes=edit_reference_bytes,
-                use_image_grounding=_use_image_grounding,
-                lock_person=False,
+            retry_prepared_prompt = prepared_replacement_prompt.__class__(
+                **{
+                    **prepared_replacement_prompt.__dict__,
+                    "display_prompt": retry_prompt,
+                    "model_prompt": retry_prompt,
+                    "structured_edit_goal": retry_prompt,
+                }
+            )
+            retry_results = execute_image_edit_request(
+                ImageEditExecutionRequest(
+                    source_image_bytes=base_image_bytes,
+                    prepared_prompt=retry_prepared_prompt,
+                    aspect_ratio=aspect_ratio,
+                    resolution=resolution,
+                    session_id=f"{edit_session_id}_retry",
+                    source_prompt_context=source_prompt_context,
+                    reference_images_bytes=edit_reference_bytes,
+                    thinking_level=retry_thinking_level,
+                    use_image_grounding=_use_image_grounding,
+                    lock_person=True,
+                )
             )
             retry_result = retry_results[0] if retry_results else None
             retry_assessment = assess_generated_image(str(retry_result.get("path", "")), retry_prompt, classifier_summary) if retry_result else None

@@ -52,20 +52,6 @@ export async function listHistory(limit = 200, offset = 0) {
     return r.json();
 }
 
-export async function getLatestReview(refresh = false) {
-    const suffix = refresh ? '?refresh=true' : '';
-    const r = await fetch(`${BASE}/review/latest${suffix}`);
-    if (!r.ok) throw await toApiError(r, 'Falha ao carregar revisão');
-    return r.json();
-}
-
-export async function getReviewBySession(sessionId: string, refresh = false) {
-    const suffix = refresh ? '?refresh=true' : '';
-    const r = await fetch(`${BASE}/review/session/${encodeURIComponent(sessionId)}${suffix}`);
-    if (!r.ok) throw await toApiError(r, 'Falha ao carregar revisão da sessão');
-    return r.json();
-}
-
 export async function deleteHistoryEntry(id: string) {
     const r = await fetch(`${BASE}/history/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!r.ok) throw await toApiError(r, 'Falha ao remover entry');

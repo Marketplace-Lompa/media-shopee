@@ -34,16 +34,7 @@ def get_scene_soul(*, mode_id: Optional[str], has_images: bool) -> str:
         )
 
     mode_overlay = ""
-    if normalized == "catalog_clean":
-        mode_overlay = (
-            "\n"
-            "MODE-SPECIFIC SCENE LOGIC:\n"
-            "  The setting MUST be a minimal, controlled studio backdrop with near-zero contextual interference.\n"
-            "  The background exists ONLY to let the garment read cleanly — make it intentionally forgettable.\n"
-            "  Use a neutral, tonal surface with restrained texture and low visual competition.\n"
-            "  Do NOT invent a real-world location. The studio is not a place with personality — it is an absence of place.\n"
-        )
-    elif normalized == "natural":
+    if normalized == "natural":
         mode_overlay = (
             "\n"
             "MODE-SPECIFIC SCENE LOGIC:\n"
@@ -62,6 +53,18 @@ def get_scene_soul(*, mode_id: Optional[str], has_images: bool) -> str:
             "  Avoid both the quiet domesticity of 'natural' and the curated premium of 'editorial'.\n"
             "  The setting must support the model's activity — she is doing something HERE, and the place explains WHY.\n"
             "  YOU choose the specific location — the soul only requires it to feel socially alive and narratively coherent.\n"
+        )
+    elif normalized == "editorial_commercial":
+        mode_overlay = (
+            "\n"
+            "MODE-SPECIFIC SCENE LOGIC:\n"
+            "  The scene is an AUTHORED STAGE — selected for its architectural geometry, material contrast, and spatial drama.\n"
+            "  The environment serves the composition, not the narrative. Unlike lifestyle (scene explains the activity),\n"
+            "  editorial uses the scene as a visual counterpoint to the garment and the model's presence.\n"
+            "  Prefer unexpected Brazilian architectural contexts over generic prestige interiors.\n"
+            "  A weathered brutalist staircase, a tiled colonial corridor, an industrial concrete frame with geometric shadows —\n"
+            "  these are editorial scenes. A marble lobby or luxury penthouse is NOT.\n"
+            "  The place must feel CHOSEN by an art director, not stumbled upon (natural) or arrived at for an activity (lifestyle).\n"
         )
 
     return (

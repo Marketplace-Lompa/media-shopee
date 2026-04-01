@@ -10,7 +10,37 @@ from __future__ import annotations
 from typing import Optional
 
 
-def get_styling_soul(*, mode_id: Optional[str], has_images: bool) -> str:
+_WARM_SEASONS = {"summer", "verão", "spring", "primavera"}
+_COLD_SEASONS = {"winter", "inverno", "fall", "autumn", "outono"}
+
+
+def _get_seasonal_footwear_mandate(garment_season: Optional[str]) -> str:
+    season = str(garment_season or "").strip().lower()
+    if not season or season == "unknown":
+        return ""
+    if season in _COLD_SEASONS:
+        return (
+            "\n"
+            "SEASONAL FOOTWEAR MANDATE (COLD SEASON — ENFORCE):\n"
+            "  The hero garment signals a cold-weather context (winter, autumn, or transitional cold).\n"
+            "  Footwear MUST be weather-coherent: closed shoes, boots, ankle boots, sneakers, loafers, or similar.\n"
+            "  NEVER suggest open-toe sandals, flip-flops, slides, or bare feet when the garment is cold-season.\n"
+            "  If the crop does not show feet, keep footwear unspecified rather than guessing an incompatible option.\n"
+        )
+    if season in _WARM_SEASONS:
+        return (
+            "\n"
+            "SEASONAL FOOTWEAR MANDATE (WARM SEASON — GUIDE):\n"
+            "  The hero garment signals a warm-weather context (summer or spring).\n"
+            "  Footwear can be open (sandals, slides) or lightweight closed (sneakers, espadrilles).\n"
+            "  Avoid heavy boots or thick-sole winter footwear unless the mode explicitly contrasts season.\n"
+        )
+    return ""
+
+
+def get_styling_soul(
+    *, mode_id: Optional[str], has_images: bool, garment_season: Optional[str] = None
+) -> str:
     normalized = str(mode_id or "").strip().lower()
 
     reference_guard = ""
@@ -60,6 +90,8 @@ def get_styling_soul(*, mode_id: Optional[str], has_images: bool) -> str:
             "  Use finishing choices to sharpen silhouette and image authority without turning the frame into an accessories story.\n"
         )
 
+    seasonal_mandate = _get_seasonal_footwear_mandate(garment_season)
+
     return (
         "STYLING SOUL (universal look-completion directive — you MUST follow this to resolve the styling):\n"
         "You are inventing how the garment is completed and framed by the rest of the look, not decorating the image with random fashion add-ons.\n"
@@ -81,6 +113,7 @@ def get_styling_soul(*, mode_id: Optional[str], has_images: bool) -> str:
         "  3. finish logic only when it supports the garment rather than competes with it; accessories are optional, not mandatory\n"
         "  If the look feels unfinished or randomly embellished, the styling is wrong.\n"
         f"{mode_overlay}"
+        f"{seasonal_mandate}"
         "\n"
         "VARIATION RULE:\n"
         "  Each generation must invent a fresh styling resolution from scratch.\n"

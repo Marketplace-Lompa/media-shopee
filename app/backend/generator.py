@@ -17,6 +17,8 @@ import uuid
 import random
 from io import BytesIO
 from pathlib import Path
+import hashlib
+import re
 from typing import Any, List, Optional
 
 from google import genai
@@ -168,6 +170,42 @@ def _build_retry_reference_subset(images: List[bytes], attempt: int, *, minimum_
         return images
     keep = max(minimum_keep, len(images) - (attempt - 1))
     return images[:keep]
+
+
+def _prompt_signature(text: str) -> str:
+    """Assinatura simples do prompt para rastreamento entre tentativas."""
+    normalized = re.sub(r"\s+", " ", (text or "").strip())
+    if not normalized:
+        return "len=0 words=0 hash=none"
+    prompt_hash = hashlib.md5(normalized.encode("utf-8")).hexdigest()[:10]
+    return f"len={len(normalized)} words={len(normalized.split())} hash={prompt_hash}"
+
+
+def _prompt_head_tail(text: str, max_chars: int = 250) -> str:
+    """Retorna cabeçalho + cauda para inspeção rápida do texto enviado."""
+    normalized = re.sub(r"\s+", " ", (text or "").strip())
+    if len(normalized) <= max_chars:
+        return normalized
+    half = max_chars // 2
+    return f"{normalized[:half]} ... {normalized[-half:]}"
+
+
+def _log_gemini_request(
+    *,
+    stage: str,
+    attempt: int,
+    prompt: str,
+    lock_person: bool,
+    use_image_grounding: bool,
+    uploaded_count: int,
+    grounded_count: int,
+) -> None:
+    print(
+        "[GENERATOR_DEBUG] "
+        f"stage={stage} attempt={attempt} lock_person={lock_person} image_grounding={use_image_grounding} "
+        f"refs={uploaded_count + grounded_count}({uploaded_count}u/{grounded_count}g) {_prompt_signature(prompt)}"
+    )
+    print(f"[GENERATOR_DEBUG] prompt={_prompt_head_tail(prompt)}")
 
 
 def _build_content_parts(
@@ -342,6 +380,15 @@ async def generate_images_async(
                 structural_hint=structural_hint,
                 scope="garment",
             )
+            _log_gemini_request(
+                stage="generate_images_async",
+                attempt=attempt,
+                prompt=prompt,
+                lock_person=True,
+                use_image_grounding=use_image_grounding,
+                uploaded_count=len(current_uploaded),
+                grounded_count=len(current_grounded),
+            )
 
             try:
                 async with _API_SEM:
@@ -464,6 +511,15 @@ async def edit_image_async(
                     )
                 )
         content_parts.append(types.Part(text=edit_prompt))
+        _log_gemini_request(
+            stage="edit_image_async",
+            attempt=attempt,
+            prompt=edit_prompt,
+            lock_person=lock_person,
+            use_image_grounding=use_image_grounding,
+            uploaded_count=len(current_references),
+            grounded_count=0,
+        )
 
         try:
             _edit_modalities = ["IMAGE"] if EDIT_IMAGE_ONLY_MODALITY else ["TEXT", "IMAGE"]
@@ -565,6 +621,15 @@ def generate_images(
                 grounded_images=current_grounded,
                 structural_hint=structural_hint,
                 scope="garment",
+            )
+            _log_gemini_request(
+                stage="generate_images",
+                attempt=attempt,
+                prompt=prompt,
+                lock_person=True,
+                use_image_grounding=use_image_grounding,
+                uploaded_count=len(current_uploaded),
+                grounded_count=len(current_grounded),
             )
 
             try:
@@ -686,6 +751,15 @@ def edit_image(
                     )
                 )
         content_parts.append(types.Part(text=edit_prompt))
+        _log_gemini_request(
+            stage="edit_image",
+            attempt=attempt,
+            prompt=edit_prompt,
+            lock_person=lock_person,
+            use_image_grounding=use_image_grounding,
+            uploaded_count=len(current_references),
+            grounded_count=0,
+        )
 
         try:
             _edit_modalities = ["IMAGE"] if EDIT_IMAGE_ONLY_MODALITY else ["TEXT", "IMAGE"]

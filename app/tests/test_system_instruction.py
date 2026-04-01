@@ -9,25 +9,17 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from agent_runtime.constants import (
-    BASE_ROLE,
     BASE_SYSTEM_BLOCKS,
-    DOMAIN_FASHION_RULES,
-    FASHION_PERSONA_ROLE,
-    OUTPUT_JSON_REQUIREMENT,
     OUTPUT_SYSTEM_BLOCKS,
-    POLICY_SYSTEM_BLOCKS,
     SCENARIO_SYSTEM_BLOCKS,
     SYSTEM_ANTI_PATTERNS,
-    SYSTEM_CREATIVE_OPERATION_RULES,
     SYSTEM_CORE_RULES,
+    SYSTEM_IDENTITY,
     SYSTEM_INSTRUCTION,
     SYSTEM_MODE_1_RULES,
     SYSTEM_MODE_2_RULES,
     SYSTEM_MODE_3_RULES,
     SYSTEM_OUTPUT_JSON_CONTRACT,
-    SYSTEM_PROMPT_CONSOLIDATION,
-    SYSTEM_REFERENCE_KNOWLEDGE_NOTE,
-    SYSTEM_THINKING_LEVEL,
 )
 from agent_runtime.prompt_context import build_system_instruction
 
@@ -38,19 +30,13 @@ from agent_runtime.prompt_context import build_system_instruction
 
 def test_system_instruction_keeps_expected_sections_in_order() -> None:
     sections = [
-        BASE_ROLE.strip(),
-        DOMAIN_FASHION_RULES.strip(),
-        FASHION_PERSONA_ROLE.strip(),
+        SYSTEM_IDENTITY.strip(),
         SYSTEM_CORE_RULES.strip(),
-        SYSTEM_CREATIVE_OPERATION_RULES.strip(),
         SYSTEM_ANTI_PATTERNS.strip(),
-        OUTPUT_JSON_REQUIREMENT.strip(),
         SYSTEM_OUTPUT_JSON_CONTRACT.strip(),
         SYSTEM_MODE_1_RULES.strip(),
         SYSTEM_MODE_2_RULES.strip(),
         SYSTEM_MODE_3_RULES.strip(),
-        SYSTEM_THINKING_LEVEL.strip(),
-        SYSTEM_REFERENCE_KNOWLEDGE_NOTE.strip(),
     ]
 
     indexes = [SYSTEM_INSTRUCTION.index(section) for section in sections]
@@ -60,37 +46,30 @@ def test_system_instruction_keeps_expected_sections_in_order() -> None:
 def test_system_instruction_still_contains_key_behavioral_markers() -> None:
     assert 'Always start the canonical final prompt with "RAW photo,"' in SYSTEM_INSTRUCTION
     assert "Brazilian e-commerce fashion catalog photography" in SYSTEM_INSTRUCTION
-    # MODE 1 now uses semantic language instead of procedural "Treat"
+    # MODE 1 uses semantic language instead of procedural "Treat"
     assert "Read the user's text as a fashion/e-commerce creative brief" in SYSTEM_INSTRUCTION
     assert "MODE 2 — User sent reference images" in SYSTEM_INSTRUCTION
-    assert "Consult the [REFERENCE KNOWLEDGE] block" in SYSTEM_INSTRUCTION
-    assert "Always create a fresh solution inside the allowed territory" in SYSTEM_INSTRUCTION
+    # Anti-patterns must be present
+    assert "ANTI-PATTERNS" in SYSTEM_INSTRUCTION
 
 
 def test_system_instruction_exposes_compositional_layers() -> None:
     assert BASE_SYSTEM_BLOCKS == [
-        BASE_ROLE.strip(),
-        DOMAIN_FASHION_RULES.strip(),
-        FASHION_PERSONA_ROLE.strip(),
+        SYSTEM_IDENTITY.strip(),
         SYSTEM_CORE_RULES.strip(),
-        SYSTEM_CREATIVE_OPERATION_RULES.strip(),
         SYSTEM_ANTI_PATTERNS.strip(),
     ]
     assert OUTPUT_SYSTEM_BLOCKS == [
-        OUTPUT_JSON_REQUIREMENT.strip(),
-        SYSTEM_PROMPT_CONSOLIDATION.strip(),
         SYSTEM_OUTPUT_JSON_CONTRACT.strip(),
     ]
     assert SCENARIO_SYSTEM_BLOCKS == [
-        "OPERATING MODES:",
         SYSTEM_MODE_1_RULES.strip(),
         SYSTEM_MODE_2_RULES.strip(),
         SYSTEM_MODE_3_RULES.strip(),
     ]
-    assert POLICY_SYSTEM_BLOCKS == [
-        SYSTEM_THINKING_LEVEL.strip(),
-        SYSTEM_REFERENCE_KNOWLEDGE_NOTE.strip(),
-    ]
+    # POLICY_SYSTEM_BLOCKS foi removido na arquitetura soul-first
+    # (thinking_level era meta-instrução ineficaz)
+    assert len(BASE_SYSTEM_BLOCKS) == 3  # identity, core_rules, anti_patterns
 
 
 # ------------------------------------------------------------------
@@ -117,7 +96,7 @@ def test_mode_1_keeps_core_fashion_principles() -> None:
     assert "garment" in m1.lower()
     assert "protagonist" in m1.lower() or "showcasing" in m1.lower()
     assert "REFERENCE KNOWLEDGE" in m1
-    assert "framing" in m1.lower()
+    assert "photographic direction" in m1.lower()
     assert "Portuguese" in m1
 
 
@@ -153,16 +132,15 @@ def test_build_si_no_input_has_mode3_only() -> None:
     assert "MODE 2" not in si
 
 
-def test_build_si_text_only_still_has_base_and_policy() -> None:
-    """Mesmo filtrando modos, base + output + policy continuam presentes."""
+def test_build_si_text_only_still_has_base_and_output() -> None:
+    """Mesmo filtrando modos, base + output continuam presentes."""
     si = build_system_instruction(has_images=False, has_prompt=True)
     assert "Brazilian e-commerce fashion catalog photography" in si
     assert 'Always start the canonical final prompt with "RAW photo,"' in si
-    assert "Consult the [REFERENCE KNOWLEDGE] block" in si
 
 
 def test_build_si_no_compiler_leak() -> None:
     """OUTPUT CONTRACT não deve vazar detalhes de implementação."""
     si = build_system_instruction(has_images=False, has_prompt=True)
     assert "Used by compiler" not in si
-    assert "Core garment identity" in si
+    assert "GARMENT-ONLY" in si

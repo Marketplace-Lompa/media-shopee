@@ -233,7 +233,7 @@ def _normalize_styling_direction(
     }
 
 
-def resolve_styling_direction(
+def derive_styling_context(
     *,
     mode_id: Optional[str],
     user_prompt: Optional[str],
@@ -248,18 +248,75 @@ def resolve_styling_direction(
     inferred_hero_family = _infer_hero_family(garment_hint, structural_contract, set_detection)
     inferred_components = _infer_hero_components(garment_hint, set_detection)
 
-    mode_lines = get_mode_identity_soul(mode_id)
-    styling_soul = get_styling_soul(mode_id=mode_id, has_images=has_images)
+    return {
+        "inferred_topology": inferred_topology,
+        "inferred_hero_family": inferred_hero_family,
+        "inferred_components": inferred_components,
+        "mode_lines": get_mode_identity_soul(mode_id),
+        "styling_soul": get_styling_soul(
+            mode_id=mode_id,
+            has_images=has_images,
+            garment_season=str((garment_aesthetic or {}).get("season") or "").strip().lower() or None,
+        ),
+        "mode_styling_mandate": _get_mode_styling_mandate(mode_id),
+        "contract": structural_contract or {},
+        "aesthetic": garment_aesthetic or {},
+        "set_info": set_detection or {},
+        "prompt_text": _clean_text(user_prompt, limit=220),
+        "garment_text": _clean_text(garment_hint, limit=120),
+        "analysis_text": _clean_text(image_analysis, limit=500),
+        "mode_label": str(mode_id or "natural").strip().lower(),
+    }
 
-    contract = structural_contract or {}
-    aesthetic = garment_aesthetic or {}
-    set_info = set_detection or {}
-    prompt_text = _clean_text(user_prompt, limit=220)
-    garment_text = _clean_text(garment_hint, limit=120)
-    analysis_text = _clean_text(image_analysis, limit=500)
-    mode_label = str(mode_id or "natural").strip().lower()
+
+def normalize_styling_direction_payload(
+    payload: Optional[dict[str, Any]],
+    *,
+    styling_context: dict[str, Any],
+) -> dict[str, Any]:
+    return _normalize_styling_direction(
+        payload,
+        inferred_topology=str(styling_context.get("inferred_topology") or "single_piece"),
+        inferred_hero_family=str(styling_context.get("inferred_hero_family") or "unclear"),
+        inferred_components=list(styling_context.get("inferred_components") or []),
+    )
+
+
+def resolve_styling_direction(
+    *,
+    mode_id: Optional[str],
+    user_prompt: Optional[str],
+    garment_hint: Optional[str],
+    image_analysis: Optional[str],
+    structural_contract: Optional[dict[str, Any]],
+    set_detection: Optional[dict[str, Any]],
+    garment_aesthetic: Optional[dict[str, Any]] = None,
+    has_images: bool = False,
+) -> dict[str, Any]:
+    styling_context = derive_styling_context(
+        mode_id=mode_id,
+        user_prompt=user_prompt,
+        garment_hint=garment_hint,
+        image_analysis=image_analysis,
+        structural_contract=structural_contract,
+        set_detection=set_detection,
+        garment_aesthetic=garment_aesthetic,
+        has_images=has_images,
+    )
+    inferred_components = list(styling_context.get("inferred_components") or [])
     components_text = ", ".join(inferred_components) if inferred_components else "hero product only"
-    mode_styling_mandate = _get_mode_styling_mandate(mode_id)
+    mode_lines = list(styling_context.get("mode_lines") or [])
+    styling_soul = str(styling_context.get("styling_soul") or "").strip()
+    mode_styling_mandate = str(styling_context.get("mode_styling_mandate") or "").strip()
+    contract = styling_context.get("contract") or {}
+    aesthetic = styling_context.get("aesthetic") or {}
+    set_info = styling_context.get("set_info") or {}
+    prompt_text = str(styling_context.get("prompt_text") or "")
+    garment_text = str(styling_context.get("garment_text") or "")
+    analysis_text = str(styling_context.get("analysis_text") or "")
+    mode_label = str(styling_context.get("mode_label") or "natural")
+    inferred_topology = str(styling_context.get("inferred_topology") or "single_piece")
+    inferred_hero_family = str(styling_context.get("inferred_hero_family") or "unclear")
 
     instruction = (
         "Resolve the styling direction for a single generation after garment analysis.\n\n"
@@ -319,11 +376,9 @@ def resolve_styling_direction(
             return {}
         parsed = repaired
 
-    normalized = _normalize_styling_direction(
+    normalized = normalize_styling_direction_payload(
         parsed,
-        inferred_topology=inferred_topology,
-        inferred_hero_family=inferred_hero_family,
-        inferred_components=inferred_components,
+        styling_context=styling_context,
     )
     if normalized.get("confidence", 0.0) > 0.0:
         print(

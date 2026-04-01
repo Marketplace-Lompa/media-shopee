@@ -19,9 +19,8 @@ import type { Tab } from './components/Sidebar';
 import { ChatInput } from './components/ChatInput';
 import { Gallery } from './components/Gallery';
 import { PoolPanel } from './components/PoolPanel';
-import { ReviewPanel } from './components/ReviewPanel';
 import { DEFAULT_CREATE_CATEGORY } from './config/createCategories';
-import { listPool, listHistory, deleteHistoryEntry, getLatestReview, getReviewBySession } from './lib/api';
+import { listPool, listHistory, deleteHistoryEntry } from './lib/api';
 import {
   humanizeMode,
   humanizeFidelityMode,
@@ -39,7 +38,6 @@ import type {
   PoolItem,
   MediaHistoryItem,
   EditTarget,
-  JobReviewPayload,
   CreateCategory,
   Resolution,
 } from './types';
@@ -153,9 +151,6 @@ export default function App() {
   const [lightboxEditDraft, setLightboxEditDraft] = useState<LightboxEditDraft | null>(null);
   const [reuseData, setReuseData] = useState<{ prompt?: string; references?: string[] } | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
-  const [reviewData, setReviewData] = useState<JobReviewPayload | null>(null);
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
 
   useDialogA11y(!!lightbox, lightboxRef, () => setLightbox(null));
@@ -211,41 +206,7 @@ export default function App() {
     }
   }, []);
 
-  const fetchLatestReviewData = useCallback(async (refresh = false) => {
-    setReviewLoading(true);
-    setReviewError(null);
-    try {
-      const data = await getLatestReview(refresh);
-      setReviewData(data as JobReviewPayload);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Falha ao carregar revisão';
-      setReviewError(message);
-    } finally {
-      setReviewLoading(false);
-    }
-  }, []);
-
-  const fetchReviewSessionData = useCallback(async (sessionId: string, refresh = false) => {
-    setReviewLoading(true);
-    setReviewError(null);
-    try {
-      const data = await getReviewBySession(sessionId, refresh);
-      setReviewData(data as JobReviewPayload);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Falha ao carregar revisão';
-      setReviewError(message);
-    } finally {
-      setReviewLoading(false);
-    }
-  }, []);
-
   useEffect(() => { fetchPool(); fetchHistory(); }, [fetchPool, fetchHistory]);
-
-  useEffect(() => {
-    if (tab === 'revisao' && !reviewData && !reviewLoading) {
-      fetchLatestReviewData();
-    }
-  }, [tab, reviewData, reviewLoading, fetchLatestReviewData]);
 
   // ── Job Queue ─────────────────────────────────────────────
   const { jobs, submitGenerateJob, submitFreeformEditJob, submitGuidedAngleJob, submitMarketplaceJob, dismissJob } = useJobQueue({
@@ -285,14 +246,6 @@ export default function App() {
     });
     // Rola para o topo onde está o input
     document.querySelector('.generate-content')?.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function handleUseReviewInCreate(review: JobReviewPayload) {
-    setReuseData({
-      prompt: review.context.prompt || undefined,
-      references: review.assets.reuse_reference_urls || [],
-    });
-    setTab('criar');
   }
 
   function handleGenerate(payload: Parameters<typeof submitGenerateJob>[0]) {
@@ -395,32 +348,6 @@ export default function App() {
                   editTarget={editTarget}
                   onEditSubmit={(instruction, files) => editTarget && handleEdit(instruction, editTarget, files)}
                   onEditCancel={() => setEditTarget(null)}
-                />
-              </motion.div>
-            )}
-
-            {tab === 'revisao' && (
-              <motion.div
-                key="revisao"
-                className="generate-layout"
-                initial={{ opacity: 0, x: 12 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -12 }}
-                transition={{ duration: 0.2 }}
-              >
-                <ReviewPanel
-                  data={reviewData}
-                  loading={reviewLoading}
-                  error={reviewError}
-                  onRefresh={() => {
-                    if (reviewData?.session_id) {
-                      fetchReviewSessionData(reviewData.session_id, true);
-                    } else {
-                      fetchLatestReviewData(true);
-                    }
-                  }}
-                  onUseInCreate={handleUseReviewInCreate}
-                  onGoToCreate={() => setTab('criar')}
                 />
               </motion.div>
             )}

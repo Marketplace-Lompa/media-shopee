@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from typing import Any, Optional
 
 from agent_runtime.constants import (
     _RESIDUAL_NEG_RE,
@@ -13,10 +13,86 @@ from agent_runtime.structural import (
 )
 
 _SENTENCE_SPLIT_RE = re.compile(r'(?<=[.!?])\s+(?=[A-Z\"\']|$)')
+_CASTING_KEY_VALUE_RE = re.compile(r"(?im)^\s*[-•]\s*([A-Za-z0-9_\- ]+):\s*(.+?)\s*$")
 
 
 def _count_words(text: str) -> int:
     return len(text.split()) if text.strip() else 0
+
+
+def _extract_tagged_block(text: str, start_tag: str, end_tag: str) -> tuple[str, str]:
+    """Extrai um bloco tagado e retorna (bloco, texto_sem_bloco)."""
+    source = text or ""
+    start = source.find(start_tag)
+    if start < 0:
+        return "", source
+    end = source.find(end_tag, start + len(start_tag))
+    if end < 0:
+        return "", source
+
+    end = end + len(end_tag)
+    extracted = source[start:end].strip()
+    before = source[:start].strip()
+    after = source[end:].strip()
+    if before and after:
+        return extracted, f"{before}\n\n{after}"
+    return extracted, before or after
+
+
+def _extract_casting_checklist_text(casting_block: str) -> str:
+    if not casting_block:
+        return ""
+    checklist_items: list[str] = []
+    for match in _CASTING_KEY_VALUE_RE.finditer(casting_block):
+        key = (match.group(1) or "").strip().lower()
+        value = (match.group(2) or "").strip().rstrip(".")
+        if not value:
+            continue
+        if key == "casting_checklist" or key == "casting checklist":
+            for part in re.split(r"[,;]+", value):
+                part = part.strip()
+                if part and part.lower() not in {"none", "unknown", "undefined", "to be defined"}:
+                    checklist_items.append(part)
+            continue
+        if key in {
+            "age_logic",
+            "face_geometry",
+            "skin_logic",
+            "hair_logic",
+            "body_logic",
+            "presence_logic",
+            "expression_logic",
+            "beauty_logic",
+        }:
+            if value.lower() not in {"none", "unknown", "undefined", "to be defined"}:
+                checklist_items.append(value)
+    if not checklist_items:
+        return ""
+    reduced = ", ".join(part for part in checklist_items[:5])
+    return f"CASTING CHECKLIST: {reduced}"
+
+
+def _format_casting_clause_for_nano(casting_clause: str) -> str:
+    """Converte checklist técnico em cláusula narrativa limpa para o gerador de imagem."""
+
+    if not casting_clause:
+        return ""
+    cleaned = re.sub(r"(?i)\bcasting checklist:\s*", "", casting_clause).strip()
+    if not cleaned:
+        return ""
+    cleaned_low = cleaned.lower()
+    if re.match(r"^(?:a |an |the |she )", cleaned_low):
+        return cleaned
+    age_match = re.match(r"(?i)^(?:in her\s+)?((?:late|mid|early|mid-to-late)\s+\d{2}s)\b(?:,\s*(.*))?$", cleaned)
+    if age_match:
+        age = (age_match.group(1) or "").strip()
+        rest = (age_match.group(2) or "").strip().strip(",")
+        if rest:
+            return f"a woman in her {age} with {rest}"
+        return f"a woman in her {age}"
+    if re.match(r"^\d", cleaned_low):
+        return f"a woman in her {cleaned}"
+    return f"a woman with {cleaned}"
 
 
 def _truncate_by_sentence(text: str, max_words: int) -> tuple[str, bool]:
@@ -98,6 +174,7 @@ def _compile_prompt_v2(
     shot_type: str = "medium",
     framing_profile: str = "",
     pose_energy: str = "",
+    casting_state: Optional[dict[str, Any]] = None,
     casting_profile: str = "",
     mode_id: str = "",
 ) -> tuple[str, dict]:
@@ -132,6 +209,33 @@ def _compile_prompt_v2(
 
     # ── Strip labels from base prompt (defensive) ──────────────────
     base = prompt.strip() if prompt else ""
+
+    casting_block, base = _extract_tagged_block(base, "<CASTING_DIRECTION>", "</CASTING_DIRECTION>")
+    casting_clause = _extract_casting_checklist_text(casting_block)
+
+    if not casting_clause and casting_state and pipeline_mode not in {"text_mode", "reference_mode"}:
+        state_parts = [
+            str((casting_state or {}).get("age", "") or "").strip(),
+            str((casting_state or {}).get("face_structure", "") or "").strip(),
+            str((casting_state or {}).get("hair", "") or "").strip(),
+            str((casting_state or {}).get("presence", "") or "").strip(),
+            str((casting_state or {}).get("expression", "") or "").strip(),
+            str((casting_state or {}).get("beauty_read", "") or "").strip(),
+            str((casting_state or {}).get("body", "") or "").strip(),
+        ]
+        normalized_parts = [
+            part for part in state_parts
+            if part and part.lower() not in {"none", "unknown", "undefined", "to be defined"}
+        ]
+        if normalized_parts:
+            casting_clause = "CASTING CHECKLIST: " + ", ".join(normalized_parts[:5])
+
+    if casting_clause:
+        casting_clause = _format_casting_clause_for_nano(casting_clause)
+        casting_clause = casting_clause[:320]
+        clauses.append((casting_clause, 0, "casting_surface"))
+
+    base = base.strip()
     base = _neg_to_pos(base)
     base = _prune_structural_conflicts(base, contract)
     base = _resolve_structural_conflicts(base, contract)
@@ -158,15 +262,9 @@ def _compile_prompt_v2(
             1, "garment_fidelity_anchor"
         ))
 
-    # ── P2: Anti-cópia de modelo (reference_mode) ──────────────────
-    # O Gemini copia a aparência da modelo na imagem de referência (bias visual).
-    # Instrução direta para inventar uma pessoa completamente diferente.
-    if has_images and mode_id != "catalog_clean" and not suppress_reference_mechanics:
-        clauses.append((
-            "invent a completely new model — do NOT copy or resemble the person "
-            "visible in the reference image in age, hair, skin, or body type",
-            2, "anti_copy_model"
-        ))
+    # ── P2: Anti-cópia de modelo ──────────────────────────────────
+    # REMOVIDO (soul-first): consolidado na reference policy única do
+    # compile_edit_prompt() em fidelity.py. Evita repetição no prompt.
 
     # ── P1: Atypical silhouette / Complex matching (grounding full) ──
     if grounding_mode == "full" and mode_id != "catalog_clean" and not suppress_reference_mechanics:
@@ -216,8 +314,8 @@ def _compile_prompt_v2(
 
 
     # ── P2: Fidelidade de textura ────────────────────────────────────
-    if has_images and mode_id != "catalog_clean" and not suppress_reference_mechanics:
-        clauses.append(("exact texture, stitch, and fiber relief", 2, "quality_texture"))
+    # REMOVIDO (soul-first): delegado ao corredor de repair/recovery.
+    # O prompt de geração foca na direção criativa, não em specs de textura.
 
     # ── P3: Composição comercial (guardrails apenas) ──────────────────
     # Direção criativa de model_presence, gaze, scene_composition e pose_body
@@ -298,22 +396,25 @@ def _compile_prompt_v2(
     #   3. Adiciona P1 (garantido).
     #   4. Preenche P2-P4 com o espaço restante.
 
+    p0_clauses   = [(t, s) for t, p, s in clauses if p == 0]
     p1_clauses   = [(t, s) for t, p, s in clauses if p == 1]
     p2p_clauses  = [(t, p, s) for t, p, s in clauses if p > 1]
 
-    # P1 tem prioridade máxima: processado primeiro contra o budget completo.
+    # P0 e P1 têm prioridade máxima: processado primeiro contra o budget completo.
     # Estratégia de condensação: se todos os P1 cabem → inclui na ordem original.
     # Se não cabem → ordena por tamanho crescente (maximiza número de cláusulas
     # incluídas) e descarta apenas as que não couberem por último.
     # Nota: não é garantia absoluta em budgets extremamente apertados (< ~30w),
     # mas em operação normal (budget=220, P1 total ≈ 50-80w) todas entram.
     used: list[tuple[str, str]] = []
-    current_budget = word_budget
+    p0_total_words = sum(_count_words(t) for t, _ in p0_clauses)
+    used.extend(p0_clauses)
+    current_budget = max(0, word_budget - p0_total_words)
 
     p1_total_words = sum(_count_words(t) for t, _ in p1_clauses)
     if p1_total_words <= current_budget:
         # Caso comum: todos P1 cabem — mantém ordem de geração
-        used = list(p1_clauses)
+        used.extend(p1_clauses)
         current_budget -= p1_total_words
     else:
         # Condensação: prefere cláusulas menores para maximizar cobertura de P1
@@ -338,6 +439,8 @@ def _compile_prompt_v2(
     # de espaço para modelo+cenário no base); 12w default para manter frame directive apenas.
     _has_diversity_context = bool(profile_hint or scenario_hint or suppress_reference_mechanics)
     _base_cap = 50 if _has_diversity_context else 12
+    if pipeline_mode == "text_mode":
+        _base_cap = max(_base_cap, 180)
     if has_images and mode_id == "catalog_clean":
         _base_cap = max(_base_cap, 110)
     elif suppress_reference_mechanics:
@@ -357,8 +460,8 @@ def _compile_prompt_v2(
         )
 
     base_words = _count_words(base)
-    # Remaining real após base + P1 (não limitado pelo base_allowed)
-    remaining = word_budget - p1_total_words - base_words
+    # Remaining real após base + P1 + P0 (não limitado pelo base_allowed)
+    remaining = word_budget - p0_total_words - p1_total_words - base_words
 
     # P2-P4: preenche por prioridade com o que couber
     for text, priority, source in sorted(p2p_clauses, key=lambda x: x[1]):

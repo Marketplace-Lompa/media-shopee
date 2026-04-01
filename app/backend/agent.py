@@ -19,7 +19,7 @@ from agent_runtime.gemini_client import generate_with_system_instruction
 
 from agent_runtime.prompt_assets_registry import get_generate_prompt_assets
 from agent_runtime.prompt_context import build_generate_context_text, build_system_instruction
-from agent_runtime.prompt_result import finalize_prompt_agent_result
+from agent_runtime.prompt_result import _strip_reference_prompt_noise
 from agent_runtime.prompt_response import decode_prompt_agent_response
 from agent_runtime.styling_direction import resolve_styling_direction
 from agent_runtime.model_grounding import resolve_casting_direction
@@ -32,13 +32,9 @@ from agent_runtime.creative_brief_builder import (
     harmonize_creative_brief_for_mode,
 )
 from agent_runtime.constants import AGENT_RESPONSE_SCHEMA, build_reference_knowledge
-from agent_runtime.fidelity import (
-    compile_edit_prompt,
-    should_use_image_grounding,
-    derive_garment_material_text,
-)
+
+
 from agent_runtime.modes import (
-    describe_mode_defaults,
     get_mode,
     preferred_shot_type_for_framing,
     preferred_shot_type_for_mode,
@@ -264,11 +260,7 @@ def run_agent(
     # para não reintroduzir direção autoral fora da síntese principal.
     scenario = ""
 
-    # Grounding: Camada 2 (pesquisa separada) removida — API-level ImageSearch (Camada 1) é suficiente.
-    grounding_research = ""
-    grounding_meta = {"effective": False, "mode": "off", "reason_codes": ["layer2_removed"]}
-    grounded_images: List[bytes] = []
-    grounding_pose_clause: str = ""
+    # Grounding: desabilitado — reativar quando necessário.
 
     context_text = build_generate_context_text(
         has_images=has_images,
@@ -287,11 +279,7 @@ def run_agent(
         structural_contract=structural_contract,
         casting_direction=casting_direction,
         styling_direction=styling_direction,
-        grounding_research=grounding_research,
-        grounding_effective=bool(grounding_meta.get("effective")),
-        grounding_context_hint=grounding_context_hint,
-        grounding_mode=grounding_mode,
-        mode_defaults_text=describe_mode_defaults(effective_mode) if effective_mode else None,  # Sempre injetado (text + ref)
+
         reference_knowledge=build_reference_knowledge(
             user_prompt,
             has_images,
@@ -376,32 +364,14 @@ def run_agent(
     if result.get("realism_level") not in [1, 2, 3]:
         result["realism_level"] = 2
 
-    result = finalize_prompt_agent_result(
-        result=result,
-        has_images=has_images,
-        has_prompt=has_prompt,
-        user_prompt=user_prompt,
-        structural_contract=structural_contract,
-        guided_brief=guided_brief,
-        guided_enabled=guided_enabled,
-        guided_set_mode=guided_set_mode,
-        guided_set_detection=guided_set_detection,
-        grounding_mode=grounding_mode,
-        pipeline_mode=pipeline_mode,
-        aspect_ratio=aspect_ratio,
-        pose="",  # legado: MODE_PRESETS cuida da pose
-        grounding_pose_clause=grounding_pose_clause,
-        profile=profile,
-        scenario=scenario,
-        diversity_target=diversity_target,
-        mode_id=effective_mode.id if effective_mode else "",
-        framing_profile=effective_mode.presets.framing_profile if effective_mode else "",
-        camera_type=effective_mode.presets.camera_type if effective_mode else "",
-        capture_geometry=effective_mode.presets.capture_geometry if effective_mode else "",
-        lighting_profile=effective_mode.presets.lighting_profile if effective_mode else "",
-        pose_energy=effective_mode.presets.pose_energy if effective_mode else "",
-        casting_profile=effective_mode.presets.casting_profile if effective_mode else "",
-    )
+    # ── Soul cru — sanitização mínima ──────────────────────────────────
+    # O orchestrator (generation_flow) monta os prompts finais em ambos os modos.
+    # Aqui fazemos apenas sanitização — remove lixo que Gemini vaza.
+    _raw_soul = str(result.get("prompt") or result.get("base_prompt") or "").strip()
+    _raw_soul = _strip_reference_prompt_noise(_raw_soul)
+    result["prompt"] = _raw_soul
+    result["raw_creative_soul"] = _raw_soul
+    print(f"[AGENT] ⚡ soul cru entregue ao orchestrator ({len(_raw_soul)} chars)")
 
     result["grounding"] = grounding_meta
     result["pipeline_mode"] = pipeline_mode
@@ -422,26 +392,6 @@ def run_agent(
     result["styling_direction"] = styling_direction
     result["_grounded_images"] = grounded_images
 
-    # ── Fidelity layer (somente fluxo com imagem) ──────────────────────
-    if has_images:
-        _garment_material = derive_garment_material_text(structural_contract, image_analysis)
-        _use_image_grounding = should_use_image_grounding(
-            structural_contract=structural_contract,
-            image_analysis=image_analysis,
-            n_uploaded=len(uploaded_images or []),
-        )
-        _art_soul = str(result.get("prompt") or "").strip()
-        if not _art_soul:
-            _art_soul = describe_mode_defaults(effective_mode) if effective_mode else ""
-        _edit_prompt = compile_edit_prompt(
-            structural_contract,
-            art_direction_soul=_art_soul,
-            garment_material=_garment_material,
-            image_analysis=image_analysis,
-        )
-        result["edit_prompt"] = _edit_prompt
-        result["garment_material"] = _garment_material
-        result["use_image_grounding"] = _use_image_grounding
 
     # ── Log de observabilidade ─────────────────────────────────────
     prompt_text = result.get("prompt", "")

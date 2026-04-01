@@ -11,7 +11,6 @@ from routers import (
     generate,
     history as history_router,
     pool as pool_router,
-    review as review_router,
     stream,
 )
 from config import OUTPUTS_DIR
@@ -37,7 +36,6 @@ app.include_router(stream.router)
 app.include_router(edit_router.router)
 app.include_router(pool_router.router)
 app.include_router(history_router.router)
-app.include_router(review_router.router)
 
 # ── Serve imagens geradas como estático ──────────────────────────────────────
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -58,8 +56,6 @@ async def root():
             "DELETE /pool/{id}": "Remove referência do pool",
             "GET  /history": "Histórico de gerações (paginado)",
             "DELETE /history/{id}": "Remove entry do histórico",
-            "GET  /review/latest": "Revisão do último job v2",
-            "GET  /review/session/{session_id}": "Revisão de um job específico",
         },
     }
 

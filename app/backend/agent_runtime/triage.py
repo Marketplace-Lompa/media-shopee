@@ -153,8 +153,12 @@ def resolve_prompt_agent_visual_triage(
 
         if has_external_contract:
             structural_contract = structural_contract_hint or {}
-            garment_hint = _infer_garment_hint(uploaded_images)
             print("[AGENT] unified_vision_triage: skipped (external structural_contract_hint provided)")
+            if isinstance(unified_vision_triage_result, dict) and unified_vision_triage_result:
+                garment_hint = str(unified_vision_triage_result.get("garment_hint") or "")
+                print("[AGENT] unified_vision_triage: reusing garment_hint from unified result")
+            else:
+                garment_hint = _infer_garment_hint(uploaded_images)
         elif isinstance(unified_vision_triage_result, dict) and unified_vision_triage_result:
             unified = unified_vision_triage_result
             print("[AGENT] unified_vision_triage: using pre-computed result")

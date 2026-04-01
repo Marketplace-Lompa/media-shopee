@@ -20,32 +20,29 @@ from agent_runtime.constants import (
     _RK_TERM_MAPPING,
     _RK_GARMENT_VOCABULARY,
     _RK_SHOT_COMPOSITION,
-    _RK_MODEL_AND_SCENE,
-    _RK_REALISM_LEVERS,
 )
 
 
 def test_composition_equals_concatenation() -> None:
-    """REFERENCE_KNOWLEDGE deve ser a concatenação exata das 6 seções."""
+    """REFERENCE_KNOWLEDGE deve ser a concatenação exata das 4 seções ativas."""
     composed = (
         _RK_HEADER
         + _RK_TERM_MAPPING
         + _RK_GARMENT_VOCABULARY
         + _RK_SHOT_COMPOSITION
-        + _RK_MODEL_AND_SCENE
-        + _RK_REALISM_LEVERS
     )
     assert REFERENCE_KNOWLEDGE == composed
 
 
 def test_all_sections_present() -> None:
-    """Cada seção funcional deve estar presente no REFERENCE_KNOWLEDGE final."""
+    """Cada seção funcional ativa deve estar presente no REFERENCE_KNOWLEDGE final."""
     assert "[REFERENCE KNOWLEDGE" in REFERENCE_KNOWLEDGE
     assert "── BRAZILIAN TERM MAPPING" in REFERENCE_KNOWLEDGE
     assert "── GARMENT DESCRIPTION" in REFERENCE_KNOWLEDGE
     assert "── SHOT COMPOSITION RULES" in REFERENCE_KNOWLEDGE
-    assert "── MODEL & SCENE" in REFERENCE_KNOWLEDGE
-    assert "── REALISM LEVERS" in REFERENCE_KNOWLEDGE
+    # MODEL & SCENE e REALISM LEVERS migraram para souls (model_soul, scene_soul)
+    assert "── MODEL & SCENE" not in REFERENCE_KNOWLEDGE
+    assert "── REALISM LEVERS" not in REFERENCE_KNOWLEDGE
 
 
 def test_section_order_preserved() -> None:
@@ -54,8 +51,6 @@ def test_section_order_preserved() -> None:
         REFERENCE_KNOWLEDGE.index("BRAZILIAN TERM MAPPING"),
         REFERENCE_KNOWLEDGE.index("GARMENT DESCRIPTION"),
         REFERENCE_KNOWLEDGE.index("SHOT COMPOSITION RULES"),
-        REFERENCE_KNOWLEDGE.index("MODEL & SCENE"),
-        REFERENCE_KNOWLEDGE.index("REALISM LEVERS"),
     ]
     assert indices == sorted(indices), f"Seções fora de ordem: {indices}"
 
@@ -68,19 +63,13 @@ def test_known_content_fingerprints() -> None:
     # Regras de composição (abstracted, sem specs literais de câmera)
     assert "garment-readable framing" in REFERENCE_KNOWLEDGE
     assert "tight observational detail framing" in REFERENCE_KNOWLEDGE
-    # Realism lever
-    assert "choose appropriate photographic language" in REFERENCE_KNOWLEDGE
-    assert "skin pores" in REFERENCE_KNOWLEDGE
-    assert "Reference examples: natural side light" in REFERENCE_KNOWLEDGE
+    # MODEL & SCENE e REALISM migraram p/ souls — não devem estar aqui
     assert "CAPTURE ARTIFACTS" not in REFERENCE_KNOWLEDGE
-    # Cenários brasileiros
-    assert "cobblestone street" in REFERENCE_KNOWLEDGE
-    assert "botanical garden" in REFERENCE_KNOWLEDGE
 
 
 def test_char_count_stable() -> None:
     """O tamanho total não deve mudar sem intenção (± 50 chars de margem)."""
-    EXPECTED_CHARS = 6265
+    EXPECTED_CHARS = 4288
     MARGIN = 50
     actual = len(REFERENCE_KNOWLEDGE)
     assert abs(actual - EXPECTED_CHARS) <= MARGIN, (

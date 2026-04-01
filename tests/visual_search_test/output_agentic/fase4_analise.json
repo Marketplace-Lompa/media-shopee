@@ -1,0 +1,110 @@
+{
+  "analise_individual": [
+    {
+      "imagem": "pinterest_1",
+      "tipo_foto": "Street style / Lifestyle",
+      "modelo": "Mulher jovem (20s-30s), biotipo magro-médio, tom de pele morena clara, cabelo castanho escuro longo e ondulado.",
+      "roupa": "Camisa oversized de manga longa com estampa abstrata colorida (vermelho, azul, amarelo, verde, branco), calça jeans wide leg clara e folgada, tênis Adidas Gazelle vermelho com listras brancas. Acessórios: óculos de sol retangulares escuros, fone de ouvido over-ear verde menta, colar de corrente dourada grosso, bolsa tote grande de crochê/malha bege.",
+      "pose": "Em pé, encostada na parede, segurando um celular na mão direita e dois copos de bebida na mão esquerda. Expressão neutra/relaxada, leve sorriso, olhando para a câmera.",
+      "iluminacao": "Natural, luz do dia, suave, temperatura neutra a ligeiramente quente (sol indireto).",
+      "cenario": "Parede de concreto/reboco clara e texturizada, com rachaduras e imperfeições, sugerindo um ambiente urbano. Chão de calçada.",
+      "nota_comercial": 9
+    },
+    {
+      "imagem": "pinterest_2",
+      "tipo_foto": "Lifestyle / Street style (selfie em espelho)",
+      "modelo": "Mulher jovem (20s), biotipo magro, tom de pele morena clara, cabelo castanho escuro liso com franja, tatuagens nos braços e abdômen.",
+      "roupa": "Camisa de futebol cropped vermelha (parece uniforme retrô ou estilizado, com gola preta e listras brancas nas mangas), calça jeans baggy cinza escura de cintura baixa com cinto preto, tênis Vans Old Skool preto e branco. Acessórios: óculos de sol retangulares, brincos pequenos, bolsa preta a tiracolo.",
+      "pose": "Selfie em espelho, mão no bolso da calça, outra mão segurando o celular. Expressão levemente sorrindo, confiante, olhando para o celular/espelho.",
+      "iluminacao": "Interna, difusa, temperatura neutra (luz ambiente de casa).",
+      "cenario": "Quarto/closet organizado com prateleiras de sapatos e roupas, cortinas brancas, espelho grande. Planta no canto.",
+      "nota_comercial": 8
+    },
+    {
+      "imagem": "pinterest_3",
+      "tipo_foto": "Lifestyle / Street style",
+      "modelo": "Mulher jovem (20s-30s), biotipo magro-médio, tom de pele morena clara, cabelo castanho escuro longo e ondulado. Várias tatuagens e acessórios.",
+      "roupa": "Suéter de tricô oversized com padrão de camisa de futebol 'BRASIL 10' (verde, amarelo, azul marinho), calça jeans reta/larga verde militar com estampa de bolinhas brancas texturizadas, sandálias pretas de tira larga com plataforma. Acessórios: muitos colares em camadas, brincos grandes, pulseiras e anéis dourados em várias mãos, bolsa tote grande de couro marrom.",
+      "pose": "Em pé, encostada na parede, mão na cabeça/cabelo, olhar para baixo, pensativo/sério.",
+      "iluminacao": "Interna, luz difusa, temperatura neutra.",
+      "cenario": "Parede branca simples, lisa, com chão de cimento.",
+      "nota_comercial": 8
+    },
+    {
+      "imagem": "pinterest_4",
+      "tipo_foto": "Lifestyle / Street style (selfie em espelho com acompanhante)",
+      "modelo": "Mulher jovem (20s), biotipo magro-médio, tom de pele morena clara, cabelo castanho escuro preso em rabo de cavalo alto. Tatuagens nas pernas e braços.",
+      "roupa": "Colete de tricô verde escuro sobre uma polo branca de manga curta com gola azul marinho, minissaia jeans azul clara, tênis Adidas Gazelle brancos com listras brancas. Acessórios: óculos de sol na gola, bolsa tote de lona bege.",
+      "pose": "Selfie em espelho, abraçada a um homem (parcialmente visível). Expressão sorridente, feliz, olhando para o celular/espelho.",
+      "iluminacao": "Interna, luz difusa, temperatura neutra.",
+      "cenario": "Corredor interno, porta de elevador metálica, parede clara.",
+      "nota_comercial": 7
+    },
+    {
+      "imagem": "pinterest_5",
+      "tipo_foto": "Street style / Lifestyle",
+      "modelo": "Mulher jovem (20s), biotipo magro, tom de pele morena clara, cabelo castanho escuro liso solto.",
+      "roupa": "Top cropped regata preto, calça jeans wide leg azul claro de cintura baixa com cinto preto, tênis verdes (parecem Adidas Gazelle ou similar). Acessórios: colar de corrente dourada, óculos de sol retangulares escuros, bolsa de ombro preta.",
+      "pose": "Em pé, com uma mão no bolso, olhar direto para a câmera, expressão neutra/confiante.",
+      "iluminacao": "Natural, luz do dia, sol pleno, temperatura quente. Sombras nítidas.",
+      "cenario": "Rua urbana com palmeiras, carros estacionados, prédios ao fundo. Calçada de pedras portuguesas.",
+      "nota_comercial": 9
+    },
+    {
+      "imagem": "instagram_1",
+      "tipo_foto": "Street style / Lifestyle (conteúdo de marca)",
+      "modelo": "Mulher jovem (20s-30s), biotipo magro-médio, tom de pele morena clara, cabelo castanho escuro preso em coque despojado.",
+      "roupa": "Jaqueta bomber de couro marrom, camiseta branca básica, minissaia jeans azul clara, cinto marrom. Acessórios: óculos de sol retangulares pretos, vários colares de corrente prateados em camadas, bolsa preta de mão.",
+      "pose": "Em pé, olhando para o lado, expressão séria/pensativa.",
+      "iluminacao": "Mista, luz ambiente noturna de evento (luzes coloridas ao fundo), iluminação frontal mais suave. Temperatura neutra a ligeiramente fria.",
+      "cenario": "Praia/arena de show noturno, com muitas pessoas ao fundo e luzes decorativas.",
+      "nota_comercial": 8
+    },
+    {
+      "imagem": "instagram_2",
+      "tipo_foto": "Lookbook / Produto",
+      "modelo": "Mulher jovem (20s), biotipo magro e alto, tom de pele morena escura, cabelo castanho escuro longo e trançado (box braids).",
+      "roupa": "Jaqueta bomber de couro marrom, camisa branca abotoada, calça jeans wide leg azul clara e folgada, sandálias brancas de salto bloco.",
+      "pose": "Em pé, mãos nos bolsos da calça, olhar direto para a câmera, expressão neutra/séria.",
+      "iluminacao": "Estúdio, luz suave e difusa, direção frontal/lateral, temperatura neutra.",
+      "cenario": "Fundo azul escuro liso com elementos de design curvos (colunas azuis).",
+      "nota_comercial": 9
+    },
+    {
+      "imagem": "instagram_3",
+      "tipo_foto": "Lookbook / Produto",
+      "modelo": "Duas modelos jovens (20s), biotipos magros e altos. Modelo 1: Tom de pele morena escura, cabelo castanho escuro longo trançado (box braids). Modelo 2: Tom de pele escura, cabelo crespo curto.",
+      "roupa": "Modelo 1: Blusa sem manga de botões com peplum e calça pantalona, ambos em estampa floral azul e branco. Sapatos sociais pretos de plataforma. Modelo 2: Top tomara que caia jeans com peplum e calça jeans flare escura. Sapatos sociais pretos de salto.",
+      "pose": "Ambas em pé, encostadas na parede, braços cruzados (modelo 1), mãos nos bolsos (modelo 2). Ambas com expressões neutras a levemente sorrindo.",
+      "iluminacao": "Estúdio, luz suave e difusa, direção frontal/lateral, temperatura neutra.",
+      "cenario": "Fundo azul claro liso.",
+      "nota_comercial": 9
+    },
+    {
+      "imagem": "instagram_4",
+      "tipo_foto": "Lookbook / Produto",
+      "modelo": "Mulher jovem (20s), biotipo magro e alto, tom de pele escura, cabelo crespo curto.",
+      "roupa": "Top tomara que caia listrado branco e cinza claro com peplum, calça jeans flare escura. Sapatos sociais pretos de salto. Acessórios: brincos pequenos.",
+      "pose": "Em pé, braços estendidos para os lados, mãos abertas, expressão sorridente e alegre, olhando para a câmera.",
+      "iluminacao": "Estúdio, luz suave e difusa, direção frontal, temperatura neutra.",
+      "cenario": "Fundo azul claro liso.",
+      "nota_comercial": 9
+    },
+    {
+      "imagem": "instagram_5",
+      "tipo_foto": "Produto (manequim)",
+      "modelo": "Manequim branco, sem características faciais realistas, com cabelo estilizado.",
+      "roupa": "Jaqueta jeans de manga bufante com peplum e botões frontais, calça jeans escura. Acessórios: bolsa de mão preta, brincos dourados.",
+      "pose": "Manequim em pose de moda, uma mão no peito, a outra segurando a bolsa.",
+      "iluminacao": "Interna, luz ambiente de loja (spots de luz), temperatura neutra a ligeiramente fria.",
+      "cenario": "Interior de loja de roupas (C&A), com araras, prateleiras e outros produtos desfocados ao fundo.",
+      "nota_comercial": 7
+    }
+  ],
+  "sintese": {
+    "padroes_dominantes": "Os padrões visuais dominantes apontam para uma estética que mescla o street style casual e despojado com elementos de lookbook profissional e clean. Há uma forte preferência por peças jeans (wide leg, baggy, flare, minissaias, jaquetas), com destaque para o fit oversized/folgado ou com detalhes de peplum. Cores neutras (branco, preto, tons de jeans, marrom) são a base, mas há inserção de cores vibrantes e estampas (camisas coloridas, suéteres temáticos, floral). Acessórios são essenciais para complementar os looks, como óculos de sol modernos, fones de ouvido, colares em camadas e bolsas statement. Há uma tendência a calçados confortáveis como tênis, mas também opções com salto para looks mais elaborados. A maioria das fotos é em luz natural ou de estúdio bem controlada, com temperatura neutra. As modelos são jovens, com diversidade de tons de pele e tipos de cabelo, e as poses variam entre o natural/casual (street style) e o profissional/dinâmico (lookbook), sempre buscando mostrar o caimento das peças. Há uma valorização da autenticidade e personalidade, mesmo em contextos de e-commerce.",
+    "persona_ideal": "A persona-modelo ideal é uma mulher jovem (20-30 anos), com biotipo magro a médio e estatura média a alta. Possui tom de pele morena (clara a escura), refletindo a diversidade brasileira. O cabelo pode variar de liso a ondulado, longo ou curto, incluindo estilos como box braids ou crespo, sempre com um aspecto natural e bem cuidado. Ela transmite uma vibe moderna, confiante e autêntica, com um toque de 'coolness' e personalidade. Pequenas tatuagens visíveis são aceitáveis e até adicionam ao estilo. Suas expressões são geralmente neutras, confiantes, ou levemente sorridentes, ocasionalmente com um toque de introspecção ou alegria. Ela é a representação de uma consumidora brasileira conectada com as tendências urbanas e que valoriza conforto e estilo, sem abrir mão da elegância e da individualidade.",
+    "recomendacoes_ecommerce": "Para o e-commerce brasileiro, recomendo uma abordagem híbrida de conteúdo visual: aproximadamente 60% de fotos de lookbook em estúdio e 40% de fotos de lifestyle/street style. As fotos de estúdio devem ter fundos limpos e cores sólidas (tons de azul claro, cinza, branco) para destacar o produto, com iluminação difusa e neutra. As poses devem ser profissionais, mas dinâmicas, mostrando o movimento e o caimento das peças. Para as fotos de lifestyle, priorize cenários urbanos (paredes texturizadas, ruas com vegetação, cafés, calçadas de pedras portuguesas) ou ambientes internos modernos e organizados, com luz natural. As poses devem ser autênticas, capturando momentos e expressões reais, que transmitam a personalidade da modelo e a aplicabilidade da roupa no dia a dia. Invista em modelos que representem a diversidade brasileira em termos de tom de pele e tipo de cabelo. Dê atenção especial aos acessórios, que devem complementar o look e serem facilmente identificáveis. O styling deve enfatizar o conforto e a versatilidade das peças, com um toque de tendências oversized, cintura baixa e elementos como peplum. Mantenha a qualidade da imagem em alta resolução e cores fiéis, essenciais para a conversão online, garantindo que o produto seja o foco principal, mesmo em contextos lifestyle."
+  },
+  "prompt_gerador": "Generate a high-resolution fashion e-commerce photograph for a Brazilian brand, capturing a blend of contemporary street style and polished lookbook aesthetics. The image should feature a young woman, approximately 20-30 years old, with a slim to medium build and a medium to tall stature. Her skin tone should range from medium to dark brown, authentically reflecting the diverse beauty of Brazil. Her hair can be styled naturally, either long and wavy, short and curly, or in sophisticated box braids, consistently appearing well-maintained. The model should project an aura of confidence, authenticity, and modern coolness, with a natural and engaging presence. Small, tasteful tattoos are acceptable and can subtly enhance her individual style. She should be dressed in a fashion-forward, casual outfit that seamlessly combines comfort with current trends. This ensemble could feature wide-leg or baggy jeans in a light to medium wash, paired with an oversized, vibrantly colored shirt (showcasing abstract patterns in hues like red, blue, yellow, and green), a chic cropped top, or a stylish knit sweater. Footwear should be trendy and comfortable, such as classic sneakers (e.g., in vibrant red or classic black and white) or modern platform sandals. Essential accessories to complete the look include stylish rectangular sunglasses, contemporary over-ear headphones (perhaps in a mint green tone), layered gold chain necklaces, and a large, textured tote bag (like a woven beige design) or a sleek black shoulder bag. The model's pose should be natural yet dynamic, whether standing confidently with hands casually in pockets, leaning relaxed against a textured wall, or captured in a graceful moment of movement, always effectively showcasing the fit and drape of the clothing. Her facial expression should be neutral, self-assured, or with a subtle, friendly smile, engaging directly with the camera or looking slightly off-camera to convey genuine interaction. The lighting should be soft and diffused, either natural daylight (suggesting a bright, warm environment) or professional studio lighting with a neutral temperature, ensuring optimal visibility of garment details and true-to-life color rendition without harsh shadows. The background should be a clean, minimalist studio setting with a solid light blue or light gray wall, or an authentic urban lifestyle backdrop such as a textured concrete wall, a street adorned with palm trees and a cobblestone sidewalk, or a modern, uncluttered interior space, ensuring the primary focus remains squarely on the fashion and the model."
+}

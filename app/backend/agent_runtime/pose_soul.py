@@ -28,11 +28,19 @@ def get_pose_soul(*, mode_id: Optional[str], has_images: bool) -> str:
         mode_overlay = (
             "\n"
             "MODE-SPECIFIC BODY LOGIC:\n"
-            "  Keep movement low, garment readability high, and body direction commercially calm.\n"
-            "  The pose must feel human and premium, never mannequin-rigid, but also never theatrical.\n"
-            "  GAZE MANDATE: the model MUST look directly at the camera with a warm, approachable expression.\n"
-            "  She is connecting with the shopper — open smile, confident but friendly.\n"
+            "  The pose is commercially warm and human — never mannequin-rigid, never theatrically expressive.\n"
+            "  Weight shifts slightly to one side: a natural hip lean or shoulder drop keeps the body alive\n"
+            "  without introducing lifestyle energy. She is not doing anything — she is presenting.\n"
+            "  Arm behavior: one arm relaxed toward the body, the other with purposeful placement\n"
+            "  (hand resting at hip, lightly touching hem, or held naturally at waist).\n"
+            "  Never two arms hanging stiffly parallel — that reads as mannequin, not model.\n"
+            "  GAZE MANDATE: the model MUST look directly at the camera with warm, approachable eye contact\n"
+            "  and a natural open smile. She is connecting with the shopper.\n"
             "  Looking away, down, or to the side is a contract violation for catalog_clean.\n"
+            "  The body must keep the garment's full silhouette, length, and key construction details\n"
+            "  readable from the chosen camera distance.\n"
+            "  Avoid: activity-based body logic (lifestyle), mood-heavy gesture (editorial),\n"
+            "  casual inhabited stance (natural), or rigid symmetry (mannequin failure).\n"
         )
     elif normalized == "natural":
         mode_overlay = (
@@ -63,8 +71,19 @@ def get_pose_soul(*, mode_id: Optional[str], has_images: bool) -> str:
         mode_overlay = (
             "\n"
             "MODE-SPECIFIC BODY LOGIC:\n"
-            "  Let the body claim space with deliberate intent.\n"
+            "  Let the body claim space with deliberate intent — she is a compositional element in the frame,\n"
+            "  not a person caught in a moment. Every angle of her body is a CHOICE, not an accident.\n"
             "  The pose should feel authored, fashion-aware, and visually directional without becoming random choreography.\n"
+            "  Unlike natural (body at rest in life) and lifestyle (body shaped by activity),\n"
+            "  editorial body language is STAGED — she is placed, she is directed, she is aware.\n"
+            "  Weight distribution can be asymmetrical and dramatic — one hip dropped, shoulders angled,\n"
+            "  chin elevated, arms creating geometric negative space against architecture.\n"
+            "  Hands should feel positioned with intention — pressed against a wall, resting on a ledge,\n"
+            "  holding the garment's hem — never hanging idle at the sides.\n"
+            "  GAZE: she looks at the camera with INTENTION and COMMAND. Not warm (catalog), not averted (natural),\n"
+            "  not passing (lifestyle) — she HOLDS the viewer. Think editorial cover energy.\n"
+            "  Avoid poses that feel randomly choreographic or contemporary-dance-inspired.\n"
+            "  The body must look POWERFUL and DELIBERATE, not artistic for art's sake.\n"
         )
 
     return (
@@ -83,7 +102,7 @@ def get_pose_soul(*, mode_id: Optional[str], has_images: bool) -> str:
         "MANDATORY POSE DETAIL:\n"
         "  Your final prompt must make the body's expression legible through visible evidence.\n"
         "  Include ALL of these in fluent prose:\n"
-        "  1. stance or movement logic\n"
+        "  1. action as an observable GERUND (-ing verb): reaching, adjusting, walking, turning, leaning — never a static state label like 'standing' or 'posing'\n"
         "  2. weight or balance logic\n"
         "  3. arm or hand behavior\n"
         "  4. torso, head, or gaze direction when relevant to the mode\n"

@@ -1,0 +1,100 @@
+```json
+{
+  "casting_profile": {
+    "idade_aparente": "23-27 anos",
+    "altura_aparente": "1,72m",
+    "biotipo_detalhado": "Corpo violão suave (hourglass), com curvas proporcionais e naturais. Ombros alinhados com o quadril, cintura bem definida mas não excessivamente fina. Coxas e braços com contorno natural, sem definição muscular exagerada, representando um corpo saudável e realista que valoriza o caimento de peças casuais.",
+    "energia_geral": "Serena, confiante e acessível. Transmite uma sensação de bem-estar e conforto na própria pele, uma 'cool girl' brasileira que é solar e tranquila, não intimidante."
+  },
+  
+  "face_geometry": {
+    "formato_rosto": "Oval, com uma transição suave para um formato de coração sutil na linha do maxilar.",
+    "olhos": "Amendoados, de cor castanho-mel, levemente espaçados. Expressivos, com um olhar que transmite calma e uma leve curiosidade.",
+    "sobrancelhas": "Naturalmente cheias, com um arco suave e alongado. Cor castanho-escuro. Dão personalidade sem serem excessivamente desenhadas ou 'instagramáveis'.",
+    "nariz": "Reto e proporcional ao rosto, com a ponta sutilmente arredondada.",
+    "labios": "Cheios e bem definidos, com o lábio inferior ligeiramente mais volumoso que o superior. Contorno natural, sem preenchimentos aparentes.",
+    "macas_do_rosto": "Suavemente proeminentes, mais visíveis ao sorrir, conferindo um ar jovial.",
+    "linha_do_maxilar": "Definida, mas com um contorno suave, sem ângulos duros ou marcados.",
+    "orelhas": "Proporcionais, geralmente parcialmente cobertas pelo cabelo volumoso."
+  },
+  
+  "body_profile": {
+    "proporcao_ombro_cintura_quadril": "Equilibrada e curvilínea, típica de um biotipo violão (ombros e quadril com larguras similares, cintura visivelmente mais estreita).",
+    "tronco_vs_pernas": "Pernas ligeiramente mais longas que o tronco, criando uma silhueta elegante e alongada, ideal para calças wide leg e shorts.",
+    "definicao_muscular": "Leve e natural, visível nos braços e pernas, mas sem aspecto de 'fitness'. Tonificada, mas não atlética.",
+    "postura_natural": "Ereta e relaxada. Ombros para trás, mas sem rigidez. Uma postura de quem está confortável consigo mesma.",
+    "silhueta_geral": "Curvilínea e proporcional, com uma elegância despojada e fluida."
+  },
+  
+  "skin_profile": {
+    "tom_exato": "Morena clara, um tom de bege dourado quente, que parece ter um bronzeado natural e saudável o ano todo.",
+    "subtom": "Quente/Dourado.",
+    "textura": "Lisa e aveludada, com poros finos e pouco visíveis.",
+    "brilho_natural": "Luminosa (semi-matte), com um viço saudável, especialmente nas áreas altas do rosto (têmporas, ponte do nariz).",
+    "marcas_naturais": "Algumas sardas sutis no nariz e bochechas, e uma ou duas pintas discretas no colo ou ombros, que adicionam autenticidade.",
+    "como_reage_a_luz": "Absorve e reflete a luz de forma suave, criando um brilho dourado sob luz natural, sem reflexos especulares intensos."
+  },
+  
+  "hair_profile": {
+    "textura_do_fio": "Ondulado natural (tipo 2B/2C), com ondas abertas, definidas e um pouco de frizz controlado que confere naturalidade.",
+    "volume_e_densidade": "Volumoso e de densidade média a alta.",
+    "comprimento_exato": "Longo, ultrapassando a linha do sutiã nas costas, caindo em camadas sutis que dão movimento.",
+    "cor_com_nuances": "Castanho médio natural com reflexos dourados e acobreados sutis, como se fosse 'queimado de sol' (efeito 'morena iluminada' muito natural).",
+    "brilho": "Saudável e acetinado, sem ser excessivamente brilhante.",
+    "como_cai": "Emoldura o rosto com algumas mechas mais curtas na frente, caindo com peso e movimento sobre os ombros.",
+    "estilo_natural": "Solto e com sua textura natural valorizada, ou em um coque frouxo e despojado com mechas soltas."
+  },
+  
+  "pose_library": {
+    "pose_hero": "De pé, corpo levemente de perfil para a câmera, uma mão no bolso da calça wide leg, queixo sutilmente para baixo, olhar direto e confiante.",
+    "pose_casual": "Apoiada em uma parede ou móvel, uma perna cruzada sobre a outra, corpo relaxado, com um sorriso leve e genuíno.",
+    "pose_confiante": "De frente para a câmera, mãos na cintura, ombros para trás, peso distribuído igualmente nos dois pés, transmitindo poder silencioso.",
+    "pose_movimento": "Capturada em meio passo, caminhando em direção à câmera ou girando levemente, permitindo que o tecido do vestido ou da saia flutue.",
+    "maos_padrao": "Relaxadas ao lado do corpo, uma no bolso, ou interagindo de forma sutil com o cabelo ou um acessório.",
+    "distribuicao_peso": "Frequentemente em uma perna só, com o quadril levemente inclinado para o lado, criando uma curva 'S' suave e natural no corpo."
+  },
+  
+  "styling_rules": {
+    "estetica_geral": "Casual chic com um toque minimalista e confortável.",
+    "pecas_signature": ["Calças wide leg de linho", "Top tomara que caia (bandeau) de malha", "Vestido midi de viscolinho", "Shorts de alfaiataria com caimento solto"],
+    "paleta_de_cores": ["Neutros sofisticados (Off-white 'Cloud Dancer', bege, verde oliva)", "Tons terrosos (marrom-quente, terracota)", "Pontos de cor (vermelho intenso, rosa-chá, amarelo manteiga)"],
+    "acessorios_padrao": "Minimalista e dourado. Correntes finas em camadas no pescoço, argolas pequenas, um anel delicado. O foco é sempre a roupa.",
+    "calcado_preferido": "Sandálias de tiras finas, papetes de couro, tênis branco de design limpo.",
+    "makeup_padrao": "Maquiagem 'clean girl': pele com viço, blush pêssego/terracota, sobrancelhas penteadas para cima, lábios com gloss ou balm, máscara de cílios para definir."
+  },
+  
+  "camera_rules": {
+    "lente_preferida": "50mm f/2.8 para um look natural sem distorção.",
+    "angulo_camera": "Ligeiramente abaixo do nível dos olhos para fotos de corpo inteiro, criando uma sensação de presença e elegância.",
+    "composicao": "Centralizada para fotos de produto no corpo, ou regra dos terços suave para fotos de lifestyle.",
+    "orientacao": "9:16 (vertical) para stories/reels, 4:5 para feed de Instagram."
+  },
+  
+  "lighting_rules": {
+    "tipo_principal": "Luz natural difusa de janela ou um softbox grande simulando essa qualidade.",
+    "direcao": "Frontal-lateral (ângulo de 45 graus) para criar dimensão suave sem sombras duras.",
+    "temperatura": "Neutra a levemente quente (aprox. 4500K) para realçar o tom de pele dourado.",
+    "contraste": "Suave, garantindo que os detalhes nas áreas de sombra e luz da roupa sejam visíveis.",
+    "fill_light": "Baixa a média, apenas para suavizar as sombras do lado oposto à luz principal."
+  },
+  
+  "scenario_rules": {
+    "cenario_padrao": "Estúdio com fundo infinito para fotos de e-commerce.",
+    "fundo": "Branco, off-white, cinza muito claro ou bege.",
+    "elementos": "Para fotos de lookbook/lifestyle: uma planta de folhagem grande (costela-de-adão), um banco de madeira de design minimalista, ou uma parede com textura sutil.",
+    "paleta_ambiente": "Neutros e terrosos, para não competir com as cores das roupas."
+  },
+  
+  "negative_rules": [
+    "NUNCA usar poses excessivamente sensuais ou forçadas.",
+    "NUNCA usar maquiagem pesada, contornos marcados ou cílios postiços dramáticos.",
+    "NUNCA fotografar em cenários poluídos ou com muitos elementos que distraiam da roupa.",
+    "NUNCA usar iluminação dura, direta ou com sombras marcadas (flash direto, sol do meio-dia).",
+    "NUNCA vestir a modelo com roupas que pareçam desconfortáveis ou que não sirvam perfeitamente no seu biotipo.",
+    "NUNCA usar filtros de imagem pesados ou edição que altere a textura natural da pele e do cabelo.",
+    "NUNCA usar acessórios que ofusquem a peça de roupa principal."
+  ],
+
+  "prompt_gerador": "Full-body e-commerce fashion photo, 4:5 aspect ratio, hyper-realistic, shot on a 50mm lens. The subject is a Brazilian model in her mid-20s. The model has a soft oval face with a subtle heart-shaped jawline. Her eyes are almond-shaped, honey-brown, and convey a calm, engaging expression, framed by naturally full, dark brown eyebrows with a gentle arch. Her nose is straight and proportional, and she has full, well-defined lips with a natural contour, hinting at a slight, confident smile. Her skin is a warm golden-beige tone with a healthy, luminous semi-matte finish and a warm undertone; faint, subtle freckles are scattered across her nose and cheeks, and the soft light accentuates her skin's smooth, velvety texture. Her hair is long, voluminous, and naturally wavy (type 2B), falling past her shoulder blades in soft layers. The color is a natural medium brown, kissed with subtle sun-lit highlights of gold and copper, catching the light with a healthy, satin-like sheen. Standing at approximately 1.72m, the model has a soft hourglass figure with balanced, natural curves. Her shoulders and hips are proportional with a defined waist, and her legs are slightly elongated, creating an elegant, relaxed silhouette with a light, natural muscle tone. She is posed with her body turned slightly to the side, one hand casually tucked into the pocket of her trousers, creating a gentle S-curve in her posture as she looks directly at the camera. She is wearing a casual chic outfit: high-waisted, wide-leg linen trousers in an off-white 'Cloud Dancer' color, paired with a simple olive green bandeau top. The styling is minimal, with only a delicate layered gold necklace and small gold hoop earrings. The camera is positioned slightly below eye level. The lighting is soft and diffused, simulating natural daylight from a large window to her right (camera left), casting gentle, minimal shadows and ensuring true-to-life color representation of the fabric. The setting is a minimalist studio with a seamless, plain, light-gray background, keeping the entire focus on the model and the clothing."
+}
+```
