@@ -109,7 +109,46 @@ def _select_edit_anchor_rows(
         if str(identity_risk or "").strip().lower() == "high"
         else _DEFAULT_EDIT_ANCHOR_LIMIT
     )
-    return list(rows[:limit])
+    if not rows or limit <= 0:
+        return []
+
+    selected: list[dict[str, Any]] = []
+    used_hashes: set[str] = set()
+
+    def _append_if_new(row: Optional[dict[str, Any]]) -> None:
+        if not row:
+            return
+        sha = str(row.get("sha1") or "")
+        if sha and sha in used_hashes:
+            return
+        selected.append(row)
+        if sha:
+            used_hashes.add(sha)
+
+    def _detail_priority(row: dict[str, Any]) -> tuple[float, float, float]:
+        edge = float(row.get("local_edge", 0.0) or 0.0)
+        quality = float(row.get("local_quality_score", 0.0) or 0.0)
+        ratio = float(row.get("local_ratio", 1.0) or 1.0)
+        square_bias = 1.0 - min(abs(ratio - 1.0), 1.0)
+        return (edge, square_bias, quality)
+
+    # 1. Hero anchor: melhor leitura geral.
+    _append_if_new(rows[0])
+
+    # 2. Detail anchor: melhor leitura local de textura/detalhe entre os restantes.
+    if len(rows) > 1 and limit > 1:
+        remaining = [row for row in rows[1:] if str(row.get("sha1") or "") not in used_hashes]
+        if remaining:
+            detail_row = max(remaining, key=_detail_priority)
+            _append_if_new(detail_row)
+
+    # 3. Fill: completar o budget seguindo o ranking geral.
+    for row in rows:
+        if len(selected) >= limit:
+            break
+        _append_if_new(row)
+
+    return list(selected[:limit])
 
 
 def select_reference_subsets(

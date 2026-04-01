@@ -246,7 +246,6 @@ def _compile_prompt_v2(
         and contract
         and contract.get("enabled")
         and not suppress_reference_mechanics
-        and not (mode_id == "catalog_clean" and pipeline_mode == "reference_mode")
     ):
         struct_clauses, struct_discarded = _compress_structural_facts(contract)
         clauses.extend(struct_clauses)
@@ -255,7 +254,9 @@ def _compile_prompt_v2(
     # ── P1: Âncora de fidelidade de garment (reference_mode) ─────────
     # A referência é a ÚNICA fonte de verdade para a roupa.
     # Modelo e cenário são livres — apenas a roupa deve ser fiel.
-    if has_images and pipeline_mode == "reference_mode" and mode_id != "catalog_clean" and not suppress_reference_mechanics:
+    # catalog_clean partilha o mesmo fluxo de fidelidade de peça: a diferença
+    # do mode é apenas o backdrop neutro, não o tratamento da roupa.
+    if has_images and pipeline_mode == "reference_mode" and not suppress_reference_mechanics:
         clauses.append((
             "the uploaded reference image is the sole garment truth source — "
             "preserve exact color, fabric, pattern scale, construction, and silhouette",
@@ -267,7 +268,7 @@ def _compile_prompt_v2(
     # compile_edit_prompt() em fidelity.py. Evita repetição no prompt.
 
     # ── P1: Atypical silhouette / Complex matching (grounding full) ──
-    if grounding_mode == "full" and mode_id != "catalog_clean" and not suppress_reference_mechanics:
+    if grounding_mode == "full" and not suppress_reference_mechanics:
         clauses.append((
             "preserve garment geometry: opening behavior, sleeve architecture, hem shape, garment length",
             1, "grounding_atypical"

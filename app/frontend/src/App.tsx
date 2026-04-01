@@ -105,7 +105,7 @@ function buildAngleInstruction(draft: LightboxEditDraft): string {
 /* ── LightboxMeta: metadados técnicos colapsável ─────────── */
 function LightboxMeta({ item }: { item: MediaHistoryItem }) {
   const [open, setOpen] = useState(false);
-  const hasMeta = item.base_prompt || item.camera_and_realism || item.camera_profile;
+  const hasMeta = item.camera_and_realism || item.camera_profile;
   if (!hasMeta) return null;
   return (
     <div className="lightbox-meta">
@@ -127,12 +127,7 @@ function LightboxMeta({ item }: { item: MediaHistoryItem }) {
               <span className="lightbox-meta-value lightbox-meta-value--mono">{item.camera_and_realism}</span>
             </div>
           )}
-          {item.base_prompt && (
-            <div className="lightbox-meta-row">
-              <span className="lightbox-meta-label">Prompt base</span>
-              <span className="lightbox-meta-value lightbox-meta-value--mono">{item.base_prompt}</span>
-            </div>
-          )}
+
         </div>
       )}
     </div>
@@ -671,13 +666,13 @@ export default function App() {
                     </div>
                   ) : (
                     <>
-                      {(lightbox.item.prompt || lightbox.item.optimized_prompt) && (
+                      {(lightbox.item.base_prompt || lightbox.item.prompt || lightbox.item.optimized_prompt) && (
                         <div className="lightbox-prompt-section">
                           <div className="lightbox-prompt-header">
                             <span className="t-xs text-tertiary">Prompt</span>
                             <button
                               className="lightbox-copy-btn"
-                              onClick={() => navigator.clipboard.writeText(lightbox.item?.prompt || lightbox.item?.optimized_prompt || '')}
+                              onClick={() => navigator.clipboard.writeText(lightbox.item?.base_prompt || lightbox.item?.prompt || lightbox.item?.optimized_prompt || '')}
                               title="Copiar prompt"
                               aria-label="Copiar prompt"
                             >
@@ -685,7 +680,7 @@ export default function App() {
                             </button>
                           </div>
                           <p className="lightbox-prompt-text">
-                            {lightbox.item.prompt || lightbox.item.optimized_prompt}
+                            {lightbox.item.base_prompt || lightbox.item.prompt || lightbox.item.optimized_prompt}
                           </p>
                         </div>
                       )}

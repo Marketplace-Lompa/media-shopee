@@ -156,6 +156,8 @@ def test_executor_builds_structured_shell_for_freeform(monkeypatch) -> None:
     result = executor.execute_image_edit_request(request)
 
     assert result[0]["url"] == "/outputs/edittest01/gen_edittest01_1.png"
+    assert result[0]["_debug_transport"]["trimmed_source_prompt_context"].startswith("RAW photo")
+    assert result[0]["_debug_transport"]["prepared_prompt_snapshot"]["structured_edit_goal"] == "Edit this image: change only the background to an off-white studio."
     parts = captured["contents"][0].parts
     text_parts = [part.text for part in parts if getattr(part, "text", None)]
 
@@ -163,6 +165,58 @@ def test_executor_builds_structured_shell_for_freeform(monkeypatch) -> None:
     assert any("EDIT GOAL — APPLY ONLY THIS CHANGE" in text for text in text_parts)
     assert any("PRESERVATION RULES — DO NOT CHANGE THESE ELEMENTS" in text for text in text_parts)
     assert any("REFERENCE ITEM DESCRIPTION" in text for text in text_parts)
+
+
+def test_executor_adds_non_target_outfit_preservation_for_garment_replacement(monkeypatch) -> None:
+    captured: dict = {}
+
+    def fake_generate_content(*, model, contents, config):
+        captured["contents"] = contents
+        return _Simple(parts=[_Part(inline_data=_Blob(mime_type="image/png", data=b"png-bytes"))])
+
+    monkeypatch.setattr(executor.client.models, "generate_content", fake_generate_content)
+    monkeypatch.setattr(executor, "_prepare_reference_batch", lambda images, limit: list(images or []))
+    monkeypatch.setattr(executor, "_build_retry_reference_subset", lambda images, attempt, minimum_keep: list(images))
+    monkeypatch.setattr(executor, "_extract_image_from_response", lambda response, session_id, image_index, session_dir: {
+        "filename": f"gen_{session_id}_{image_index}.png",
+        "url": f"/outputs/{session_id}/gen_{session_id}_{image_index}.png",
+        "path": str(session_dir / f"gen_{session_id}_{image_index}.png"),
+        "size_kb": 12.3,
+        "mime_type": "image/png",
+    })
+    monkeypatch.setattr(executor, "_detect_image_mime", lambda data: "image/png")
+
+    request = ImageEditExecutionRequest(
+        source_image_bytes=b"source",
+        prepared_prompt=PreparedEditPrompt(
+            flow_mode="garment_replacement",
+            edit_type="garment_replacement",
+            display_prompt="Replace only the placeholder garment.",
+            model_prompt="Replace only the placeholder garment.",
+            change_summary_ptbr="Trocar a peça.",
+            confidence=0.9,
+            structured_edit_goal="Replace only the placeholder garment.",
+            structured_preserve_clause="Keep the person and scene unchanged.",
+            reference_item_description="Textured knit pullover.",
+            include_source_prompt_context=True,
+            include_reference_item_description=True,
+            use_structured_shell=True,
+        ),
+        aspect_ratio="4:5",
+        resolution="1K",
+        session_id="editgarment01",
+        source_prompt_context="Keep the current creative scene intent.",
+        reference_images_bytes=[b"ref1"],
+        lock_person=True,
+    )
+
+    result = executor.execute_image_edit_request(request)
+
+    parts = captured["contents"][0].parts
+    text_parts = [part.text for part in parts if getattr(part, "text", None)]
+
+    assert any("NON-TARGET OUTFIT PRESERVATION" in text for text in text_parts)
+    assert result[0]["_debug_transport"]["prepared_prompt_snapshot"]["display_prompt"] == "Replace only the placeholder garment."
 
 
 def test_prepare_guided_angle_prompt_is_independent_from_freeform() -> None:

@@ -99,7 +99,9 @@ def _get_mode_styling_mandate(mode_id: Optional[str]) -> str:
     if normalized == "catalog_clean":
         return (
             "Choose quiet, commercially complete styling. The look should read clean, discreet, and supportive. "
-            "Do not let fashion finishing compete with garment readability."
+            "Do not let fashion finishing compete with garment readability. "
+            "Commercially quiet does not mean repetitive: choose one specific lower-body and footwear resolution when needed, "
+            "and do not default to the same dark trouser plus ankle-boot formula across different garments."
         )
     if normalized == "natural":
         return (

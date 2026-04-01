@@ -80,6 +80,7 @@ from agent_runtime.editing.contracts import PreparedEditPrompt
 
 class _FakePlan:
     base_scene_prompt = "PLANNER BASE PROMPT"
+    stage2_scene_context = "Preserve the chosen scene, pose, capture, and styling from the base image."
     summary = {
         "creative_source": "reference_planner",
         "base_strategy": "creative_base_then_garment_replacement",
@@ -89,6 +90,7 @@ class _FakePlan:
     def to_dict(self) -> dict:
         return {
             "base_scene_prompt": self.base_scene_prompt,
+            "stage2_scene_context": self.stage2_scene_context,
             "summary": dict(self.summary),
             "fallback_applied": False,
         }
@@ -222,6 +224,184 @@ def test_upload_flow_uses_single_base_and_lock_person_stage2(monkeypatch, tmp_pa
     assert len(captured["edit_requests"]) == 2
     assert all(request.lock_person is True for request in captured["edit_requests"])
     assert all(request.prepared_prompt.flow_mode == "garment_replacement" for request in captured["edit_requests"])
+    assert all(
+        request.source_prompt_context == _FakePlan.stage2_scene_context
+        for request in captured["edit_requests"]
+    )
     assert response["stage1_prompt"] == "PLANNER BASE PROMPT"
     assert response["art_direction_summary"]["creative_source"] == "reference_planner"
     assert len(response["images"]) == 2
+
+
+def test_stage1_retry_keeps_stage1_without_uploaded_references(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_generate_images(**kwargs):
+        captured["uploaded_images"] = list(kwargs.get("uploaded_images") or [])
+        return []
+
+    monkeypatch.setattr(generation_flow, "generate_images", fake_generate_images)
+
+    recovery = generation_flow._run_stage1_retry(
+        stage1_prompt="base prompt",
+        stage1_gate={"verdict": "hard_fail", "issue_codes": ["construction_drift"]},
+        structural_contract={"garment_subtype": "pullover"},
+        set_detection={},
+        stage1_candidate_count_val=1,
+        aspect_ratio="4:5",
+        resolution="1K",
+        structural_hint="waist-length pullover",
+        session_id="sess01",
+        classifier_summary={},
+        gate_policy={},
+        judge_reference_bytes=[],
+        fidelity_mode="balanceada",
+        selected_base_result={},
+        base_assessment={},
+        stage1_candidates=[],
+        selected_stage1_index=1,
+        reason_codes=set(),
+    )
+
+    assert captured["uploaded_images"] == []
+    assert recovery["applied"] is False
+
+
+def test_upload_flow_writes_observability_schema(monkeypatch, tmp_path) -> None:
+    base_file = tmp_path / "base.png"
+    final_file = tmp_path / "final.png"
+    base_file.write_bytes(b"base-image")
+    final_file.write_bytes(b"final-image")
+
+    selector_result = {
+        "items": [{"filename": "a.jpg", "local_quality_score": 0.91}],
+        "stats": {"identity_reference_risk": "low", "unique_count": 1, "duplicate_count": 0},
+        "selected_bytes": {
+            "base_generation": [b"img-a"],
+            "strict_single_pass": [b"img-a"],
+            "edit_anchors": [b"anchor-a"],
+            "identity_safe": [b"anchor-a"],
+        },
+        "selected_names": {
+            "base_generation": ["a.jpg"],
+            "strict_single_pass": ["a.jpg"],
+            "edit_anchors": ["a.jpg"],
+            "identity_safe": ["a.jpg"],
+        },
+        "unified_triage": {
+            "garment_hint": "mock neck knit pullover",
+            "image_analysis": "textured knit pullover",
+            "structural_contract": {"enabled": True, "garment_subtype": "pullover", "garment_length": "waist"},
+            "set_detection": {},
+            "lighting_signature": {"subject_read": "soft"},
+            "garment_aesthetic": {"vibe": "clean"},
+        },
+    }
+    captured_report: dict[str, object] = {}
+    captured_merge: dict[str, object] = {}
+
+    monkeypatch.setattr(generation_flow, "validate_generation_params", lambda **kwargs: None)
+    monkeypatch.setattr(generation_flow, "persist_review_inputs", lambda **kwargs: {"original_references": ["/outputs/ref.jpg"]})
+    monkeypatch.setattr(generation_flow, "persist_prompt_artifacts", lambda **kwargs: {"stage1_effective_prompt": "/outputs/prompt.txt"})
+    monkeypatch.setattr(generation_flow, "merge_v2_observability_report", lambda session_id, patch: captured_merge.setdefault("patch", patch) or {})
+    monkeypatch.setattr(generation_flow, "select_reference_subsets", lambda **kwargs: selector_result)
+    monkeypatch.setattr(generation_flow, "derive_reference_guard_config", lambda **kwargs: {})
+    monkeypatch.setattr(generation_flow, "derive_art_direction_selection_policy", lambda **kwargs: {})
+    monkeypatch.setattr(generation_flow, "stage1_candidate_count", lambda **kwargs: 1)
+    monkeypatch.setattr(generation_flow, "build_classifier_summary", lambda *args, **kwargs: {})
+    monkeypatch.setattr(generation_flow, "should_use_image_grounding", lambda **kwargs: False)
+    monkeypatch.setattr(generation_flow, "plan_reference_creative_flow", lambda **kwargs: _FakePlan())
+    monkeypatch.setattr(generation_flow, "assess_generated_image", lambda *args, **kwargs: {"candidate_score": 0.9, "technical_score": 0.8})
+    monkeypatch.setattr(
+        generation_flow,
+        "prepare_garment_replacement_prompt",
+        lambda **kwargs: PreparedEditPrompt(
+            flow_mode="garment_replacement",
+            edit_type="garment_replacement",
+            display_prompt="replace garment only",
+            model_prompt="replace garment only",
+            change_summary_ptbr="Trocar a peça.",
+            confidence=0.9,
+            structured_edit_goal="replace garment only",
+            structured_preserve_clause="keep person and scene untouched",
+            reference_item_description="cardigan replacement",
+            include_source_prompt_context=True,
+            include_reference_item_description=True,
+            use_structured_shell=True,
+        ),
+    )
+
+    def fake_generate_images(**kwargs):
+        return [
+            {
+                "filename": "base.png",
+                "url": "/outputs/base/base.png",
+                "path": str(base_file),
+                "size_kb": 1.0,
+                "mime_type": "image/png",
+                "_debug_transport": {
+                    "generator_effective_prompt": kwargs.get("prompt"),
+                    "generator_text_blocks": [kwargs.get("prompt")],
+                    "uploaded_reference_count": len(kwargs.get("uploaded_images") or []),
+                    "grounded_reference_count": 0,
+                },
+            }
+        ]
+
+    monkeypatch.setattr(generation_flow, "generate_images", fake_generate_images)
+    monkeypatch.setattr(
+        generation_flow,
+        "pick_best_stage1_candidate",
+        lambda *args, **kwargs: (
+            fake_generate_images(prompt="PLANNER BASE PROMPT")[0],
+            [{"assessment": {"candidate_score": 0.9, "technical_score": 0.8}, "fidelity_gate": None, "index": 1}],
+            1,
+        ),
+    )
+    monkeypatch.setattr(
+        generation_flow,
+        "execute_image_edit_request",
+        lambda request: [
+            {
+                "filename": "final.png",
+                "url": "/outputs/edit/final.png",
+                "path": str(final_file),
+                "size_kb": 1.0,
+                "mime_type": "image/png",
+                "_debug_transport": {
+                    "executor_text_blocks": ["BASE", "EDIT GOAL"],
+                    "trimmed_source_prompt_context": request.source_prompt_context,
+                },
+            }
+        ],
+    )
+
+    def fake_write_report(session_id, payload):
+        captured_report["payload"] = payload
+        return {"report_path": str(tmp_path / "report.json"), "report_url": "/outputs/report.json"}
+
+    monkeypatch.setattr(generation_flow, "write_v2_observability_report", fake_write_report)
+
+    generation_flow.run_generation_flow(
+        uploaded_bytes=[b"img-a"],
+        uploaded_filenames=["a.jpg"],
+        prompt="quero uma base observável",
+        mode="natural",
+        n_images=1,
+        aspect_ratio="4:5",
+        resolution="1K",
+        observability_context={
+            "transport": "cli",
+            "request_inputs": {"mode": "natural", "scene_preference": "auto_br", "fidelity_mode": "balanceada"},
+            "resolved_request": {"mode": "natural", "scene_preference": "auto_br", "fidelity_mode": "balanceada"},
+        },
+    )
+
+    payload = captured_report["payload"]
+    assert payload["request"]["inputs"]["transport"] == "cli"
+    assert payload["planner"]["plan"]["base_scene_prompt"] == "PLANNER BASE PROMPT"
+    assert payload["stage1"]["transport"]["generator_effective_prompt"] == "PLANNER BASE PROMPT"
+    assert payload["stage2"]["prepared_prompt"]["display_prompt"] == "replace garment only"
+    assert payload["response_surfaces"]["optimized_prompt"] == "replace garment only"
+    assert payload["response_surfaces"]["modal_prompt_surface"] == "PLANNER BASE PROMPT"
+    assert captured_merge["patch"]["response_payload"]["debug_report_url"] == "/outputs/report.json"

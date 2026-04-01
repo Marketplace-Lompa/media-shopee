@@ -145,6 +145,26 @@ def test_edit_anchors_are_sorted_and_capped(mock_analyze, mock_triage):
 
 
 @patch("agent_runtime.reference_selector._infer_unified_vision_triage", return_value=MOCK_TRIAGE)
+@patch(
+    "agent_runtime.reference_selector._analyze_image",
+    side_effect=[
+        {"score": 0.95, "luma": 118.0, "edge": 8.0, "ratio": 0.7},
+        {"score": 0.72, "luma": 122.0, "edge": 90.0, "ratio": 1.0},
+        {"score": 0.9, "luma": 121.0, "edge": 16.0, "ratio": 0.75},
+        {"score": 0.65, "luma": 119.0, "edge": 22.0, "ratio": 0.72},
+    ],
+)
+def test_edit_anchors_preserve_hero_and_detail_coverage(mock_analyze, mock_triage):
+    result = select_reference_subsets(
+        [FAKE_IMG_A, FAKE_IMG_B, FAKE_IMG_C, FAKE_IMG_D],
+        filenames=["hero.jpg", "detail.jpg", "alt.jpg", "extra.jpg"],
+    )
+
+    assert result["selected_names"]["edit_anchors"][0] == "hero.jpg"
+    assert "detail.jpg" in result["selected_names"]["edit_anchors"][:2]
+
+
+@patch("agent_runtime.reference_selector._infer_unified_vision_triage", return_value=MOCK_TRIAGE)
 def test_dedup_removes_duplicates(mock_triage):
     """Verifica que duplicatas por hash são removidas."""
     images = [FAKE_IMG_A, FAKE_IMG_A, FAKE_IMG_B]  # A aparece 2x

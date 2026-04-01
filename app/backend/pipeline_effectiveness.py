@@ -22,7 +22,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PIL import Image, ImageFilter, ImageOps, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageOps, ImageStat
 
 from config import (
     AUTO_FULL_COMPLEXITY_THRESHOLD,
@@ -119,6 +119,61 @@ _SIMPLE_TOKENS = ["camiseta", "t-shirt", "regata", "blusa básica", "blusa basic
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, v))
+
+
+def _estimate_human_realism(img: Image.Image) -> dict[str, Any]:
+    gray = img.convert("L")
+    w, h = gray.size
+    if w <= 0 or h <= 0:
+        return {"score": 0.0, "reason_codes": ["human_realism_unavailable"]}
+
+    top = gray.crop((0, 0, w, max(1, int(h * 0.42))))
+    center = gray.crop((int(w * 0.2), int(h * 0.12), int(w * 0.8), int(h * 0.72)))
+    lower = gray.crop((0, int(h * 0.58), w, h))
+
+    top_edges = top.filter(ImageFilter.FIND_EDGES)
+    center_edges = center.filter(ImageFilter.FIND_EDGES)
+    lower_edges = lower.filter(ImageFilter.FIND_EDGES)
+
+    top_var = float(ImageStat.Stat(top).var[0] or 0.0)
+    top_edge_var = float(ImageStat.Stat(top_edges).var[0] or 0.0)
+    center_edge_var = float(ImageStat.Stat(center_edges).var[0] or 0.0)
+    lower_edge_var = float(ImageStat.Stat(lower_edges).var[0] or 0.0)
+
+    left = top.crop((0, 0, max(1, top.width // 2), top.height))
+    right = top.crop((top.width - max(1, top.width // 2), 0, top.width, top.height))
+    right = ImageOps.mirror(right)
+    paired_width = min(left.width, right.width)
+    paired_height = min(left.height, right.height)
+    left = left.crop((0, 0, paired_width, paired_height))
+    right = right.crop((0, 0, paired_width, paired_height))
+    diff = ImageChops.difference(left, right)
+    symmetry_penalty = _clamp(1.0 - (ImageStat.Stat(diff).mean[0] / 64.0))
+
+    top_energy = _clamp(top_edge_var / 1600.0)
+    center_energy = _clamp(center_edge_var / 1800.0)
+    lower_energy = _clamp(lower_edge_var / 1800.0)
+    tonal_presence = _clamp(math.sqrt(max(top_var, 0.0)) / 48.0)
+
+    score = _clamp(
+        0.28 * top_energy
+        + 0.22 * center_energy
+        + 0.20 * tonal_presence
+        + 0.15 * (1.0 - symmetry_penalty)
+        + 0.15 * lower_energy
+    )
+
+    reason_codes: list[str] = []
+    if top_energy < 0.12 or tonal_presence < 0.18:
+        reason_codes.append("dead_gaze_or_flat_face")
+    if symmetry_penalty > 0.72:
+        reason_codes.append("eye_or_face_alignment_drift")
+    if lower_energy < 0.08 and center_energy < 0.10:
+        reason_codes.append("hand_or_limb_definition_low")
+    if 0.08 <= lower_energy <= 0.14 and 0.08 <= center_energy <= 0.14:
+        reason_codes.append("freeze_frame_pose_read")
+
+    return {"score": score, "reason_codes": reason_codes}
 
 
 def _load_json(path: Path, default: Any) -> Any:
@@ -914,7 +969,14 @@ def assess_generated_image(image_path: str, prompt: str, classifier_summary: dic
             exposure = _clamp(1.0 - abs(mean - 132.0) / 132.0)
             contrast = _clamp(std / 64.0)
             size_ok = 1.0 if min(w, h) >= 700 else 0.6
-            technical = _clamp(0.38 * sharpness + 0.25 * exposure + 0.22 * contrast + 0.15 * size_ok)
+            human_realism = _estimate_human_realism(img)
+            technical = _clamp(
+                0.30 * sharpness
+                + 0.20 * exposure
+                + 0.18 * contrast
+                + 0.12 * size_ok
+                + 0.20 * human_realism["score"]
+            )
 
             fidelity = _score_prompt_fidelity(prompt, classifier_summary, pipeline_mode="reference_mode")
             commercial = _score_prompt_commercial(prompt)
@@ -927,13 +989,19 @@ def assess_generated_image(image_path: str, prompt: str, classifier_summary: dic
                 reason_codes.append("bad_exposure_balance")
             if contrast < 0.20:
                 reason_codes.append("low_contrast")
+            reason_codes.extend(human_realism["reason_codes"])
             if candidate_score < 0.56:
                 reason_codes.append("candidate_score_low")
 
             return {
-                "pass": candidate_score >= 0.56 and technical >= 0.44,
+                "pass": (
+                    candidate_score >= 0.56
+                    and technical >= 0.44
+                    and human_realism["score"] >= 0.42
+                ),
                 "candidate_score": round(candidate_score, 3),
                 "technical_score": round(technical, 3),
+                "human_realism_score": round(human_realism["score"], 3),
                 "reason_codes": sorted(set(reason_codes)),
             }
     except Exception:
@@ -941,6 +1009,7 @@ def assess_generated_image(image_path: str, prompt: str, classifier_summary: dic
             "pass": False,
             "candidate_score": 0.0,
             "technical_score": 0.0,
+            "human_realism_score": 0.0,
             "reason_codes": ["candidate_assessment_failed"],
         }
 

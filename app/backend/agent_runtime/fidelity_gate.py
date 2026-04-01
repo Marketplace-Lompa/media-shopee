@@ -626,7 +626,9 @@ def build_fidelity_repair_patch(
         patches.append(model_patch[:260])
 
     if stage == "stage1":
-        patches.append("This is a neutral fidelity base pass, so keep a clean catalog composition and do not stylize around the garment.")
+        patches.append(
+            "This is a fidelity-preserving base repair pass, so correct only garment structure and readability drift while keeping the current mode direction, pose logic, camera language, and scene intent intact."
+        )
     else:
         patches.append("Keep the art direction fresh, but treat model identity, pose, camera, and environment as the only flexible layers around a locked garment object.")
 

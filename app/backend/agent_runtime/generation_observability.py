@@ -8,6 +8,19 @@ from typing import Any
 
 from config import OUTPUTS_DIR
 
+OBSERVABILITY_SCHEMA_VERSION = "v2.trace.1"
+
+
+def _deep_merge_dict(base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in patch.items():
+        current = merged.get(key)
+        if isinstance(current, dict) and isinstance(value, dict):
+            merged[key] = _deep_merge_dict(current, value)
+        else:
+            merged[key] = value
+    return merged
+
 
 def write_v2_observability_report(session_id: str, payload: dict[str, Any]) -> dict[str, str]:
     report_dir = OUTPUTS_DIR / f"v2diag_{session_id}"
@@ -15,6 +28,7 @@ def write_v2_observability_report(session_id: str, payload: dict[str, Any]) -> d
     report_path = report_dir / "report.json"
 
     body = dict(payload)
+    body.setdefault("schema_version", OBSERVABILITY_SCHEMA_VERSION)
     body["session_id"] = session_id
     body["written_at"] = int(time.time() * 1000)
 
@@ -27,6 +41,55 @@ def write_v2_observability_report(session_id: str, payload: dict[str, Any]) -> d
         "report_path": str(report_path),
         "report_url": f"/outputs/{report_dir.name}/{report_path.name}",
     }
+
+
+def merge_v2_observability_report(
+    session_id: str,
+    patch: dict[str, Any],
+) -> dict[str, str]:
+    report_dir = OUTPUTS_DIR / f"v2diag_{session_id}"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / "report.json"
+
+    current: dict[str, Any] = {}
+    if report_path.exists():
+        try:
+            current = json.loads(report_path.read_text(encoding="utf-8"))
+        except Exception:
+            current = {}
+
+    merged = _deep_merge_dict(current, patch)
+    merged.setdefault("schema_version", OBSERVABILITY_SCHEMA_VERSION)
+    merged["session_id"] = session_id
+    merged["written_at"] = int(time.time() * 1000)
+    report_path.write_text(
+        json.dumps(merged, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return {
+        "report_path": str(report_path),
+        "report_url": f"/outputs/{report_dir.name}/{report_path.name}",
+    }
+
+
+def persist_prompt_artifacts(
+    *,
+    session_id: str,
+    prompts: dict[str, str],
+) -> dict[str, str]:
+    prompts_dir = OUTPUTS_DIR / f"v2diag_{session_id}" / "prompts"
+    prompts_dir.mkdir(parents=True, exist_ok=True)
+
+    saved: dict[str, str] = {}
+    for name, text in prompts.items():
+        content = str(text or "").strip()
+        if not content:
+            continue
+        filename = f"{safe_asset_slug(name, fallback='prompt')}.txt"
+        target = prompts_dir / filename
+        target.write_text(content, encoding="utf-8")
+        saved[name] = f"/outputs/v2diag_{session_id}/prompts/{filename}"
+    return saved
 
 
 # ── Persistência de assets de review/diagnóstico ─────────────────────────

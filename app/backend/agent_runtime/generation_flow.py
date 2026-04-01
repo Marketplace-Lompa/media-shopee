@@ -54,6 +54,9 @@ from agent_runtime.creative_brief_builder import build_creative_brief_for_mode
 from agent_runtime.mode_profile import get_mode_profile
 from agent_runtime.modes import get_mode
 from agent_runtime.generation_observability import (
+    merge_v2_observability_report,
+    persist_review_inputs,
+    persist_prompt_artifacts,
     write_v2_observability_report,
 )
 from agent_runtime.reference_creative_planner import plan_reference_creative_flow
@@ -71,6 +74,70 @@ from request_validation import validate_generation_params
 VALID_MODES = {"catalog_clean", "natural", "lifestyle", "editorial_commercial"}
 VALID_SCENE_PREFS = {"auto_br", "indoor_br", "outdoor_br"}
 DEFAULT_MODE = "natural"
+_STAGE1_RETRY_RELEVANT_ISSUES = {
+    "wrong_subtype",
+    "closed_front_error",
+    "wrong_opening_logic",
+    "invented_sleeve_slit",
+    "invented_sleeves",
+    "set_piece_lost",
+    "construction_drift",
+    "silhouette_drift",
+    "hem_shape_drift",
+    "low_garment_readability",
+    "pose_over_occlusion",
+}
+
+
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def _public_image_payload(image: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "index": image.get("index"),
+        "filename": image.get("filename"),
+        "url": image.get("url"),
+        "path": image.get("path"),
+        "size_kb": image.get("size_kb"),
+        "mime_type": image.get("mime_type"),
+    }
+
+
+def _transport_trace_from_result(image: Optional[dict[str, Any]]) -> dict[str, Any]:
+    if not isinstance(image, dict):
+        return {}
+    raw = image.get("_debug_transport")
+    return dict(raw) if isinstance(raw, dict) else {}
+
+
+def _derive_response_surfaces(
+    *,
+    optimized_prompt: str,
+    stage1_prompt: str,
+    edit_prompt: str,
+) -> dict[str, Any]:
+    modal_prompt_surface = stage1_prompt or optimized_prompt
+    gallery_prompt_surface = optimized_prompt
+    return {
+        "optimized_prompt": optimized_prompt,
+        "stage1_prompt": stage1_prompt,
+        "edit_prompt": edit_prompt,
+        "history_base_prompt": stage1_prompt,
+        "modal_prompt_surface": modal_prompt_surface,
+        "gallery_prompt_surface": gallery_prompt_surface,
+        "surface_labels": {
+            "optimized_prompt": "convenience_surface",
+            "stage1_prompt": "stage1_runtime_surface",
+            "edit_prompt": "stage2_runtime_surface",
+            "modal_prompt_surface": "current_ux_surface",
+            "gallery_prompt_surface": "current_ux_surface",
+        },
+        "surface_sources": {
+            "modal_prompt_surface": "history.base_prompt || history.prompt || history.optimized_prompt",
+            "gallery_prompt_surface": "response.optimized_prompt",
+        },
+    }
 
 
 def _coerce_reference_guard_config(
@@ -292,6 +359,17 @@ def _targeted_stage2_repair_enabled() -> bool:
     return os.getenv("ENABLE_TARGETED_STAGE2_REPAIR", "true").strip().lower() != "false"
 
 
+def _stage1_retry_has_structural_need(stage1_gate: Optional[dict[str, Any]]) -> bool:
+    if not isinstance(stage1_gate, dict):
+        return False
+    issue_codes = {
+        str(item or "").strip().lower()
+        for item in (stage1_gate.get("issue_codes") or [])
+        if str(item or "").strip()
+    }
+    return bool(issue_codes & _STAGE1_RETRY_RELEVANT_ISSUES)
+
+
 # ── Text-only flow (sem referências) ─────────────────────────────────────
 
 def _run_text_only_flow(
@@ -419,17 +497,32 @@ def run_generation_flow(
     resolution: str = "1K",
     art_direction_request: Optional[dict[str, Any]] = None,
     on_stage: Optional[Callable[[str, dict[str, Any]], None]] = None,
+    observability_context: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Túnel unificado de geração — reference mode ou text-only.
 
     Returns dict compatível com GenerateResponse.
     """
     started = time.time()
+    started_ms = _now_ms()
     session_id = str(uuid.uuid4())[:8]
+    stage_events: list[dict[str, Any]] = []
+    timings: dict[str, Any] = {
+        "started_at_ms": started_ms,
+    }
+    request_observability = dict(observability_context or {})
 
     def _emit(stage: str, data: Optional[dict[str, Any]] = None) -> None:
+        payload = data or {}
+        stage_events.append(
+            {
+                "stage": stage,
+                "at_ms": _now_ms(),
+                "data": payload,
+            }
+        )
         if on_stage:
-            on_stage(stage, data or {})
+            on_stage(stage, payload)
 
     validate_generation_params(
         aspect_ratio=aspect_ratio,
@@ -463,11 +556,13 @@ def run_generation_flow(
             raw_name = str(uploaded_filenames[i] or "").strip()
         filenames.append(raw_name or f"upload_{i + 1}")
 
+    selector_started = time.perf_counter()
     selector_result = select_reference_subsets(
         uploaded_images=uploaded_bytes,
         filenames=filenames,
         user_prompt=prompt,
     )
+    timings["selector_ms"] = round((time.perf_counter() - selector_started) * 1000, 2)
 
     # Extrair dados do triage unificado
     unified_triage = selector_result.get("unified_triage") or {}
@@ -486,6 +581,16 @@ def run_generation_flow(
     selected_names = selector_result.get("selected_names", {}) or {}
     selector_stats = selector_result.get("stats", {}) or {}
     review_input_assets: dict[str, Any] = {}
+    try:
+        review_input_assets = persist_review_inputs(
+            session_id=session_id,
+            uploaded_bytes=uploaded_bytes,
+            uploaded_filenames=filenames,
+            selected_bytes=selected_bytes,
+            selected_names=selected_names,
+        )
+    except Exception as asset_exc:
+        review_input_assets = {"error": str(asset_exc)}
 
     # Construir pacotes de referência por estágio
     base_generation_bytes = list(selected_bytes.get("base_generation", []) or [])
@@ -533,7 +638,6 @@ def run_generation_flow(
 
 
     # O novo upload path gera a base sem referências visuais.
-    base_gen_bytes: list[bytes] = []
     base_gen_names: list[str] = []
     edit_reference_bytes = list(identity_safe_bytes or edit_anchor_bytes)
     edit_reference_names = list(identity_safe_names or edit_anchor_names)
@@ -608,6 +712,7 @@ def run_generation_flow(
             "references are garment-only evidence; avoid identity transfer and pose cloning",
         )
     effective_art_direction_request["directive_hints"] = directive_hints
+    planner_started = time.perf_counter()
     reference_creative_plan = plan_reference_creative_flow(
         mode_id=_mode_config.id,
         user_prompt=prompt,
@@ -620,17 +725,21 @@ def run_generation_flow(
         lighting_signature=lighting_signature,
         mode_guardrail_text=mode_guardrail_text,
     )
+    timings["planner_ms"] = round((time.perf_counter() - planner_started) * 1000, 2)
     planner_payload = reference_creative_plan.to_dict()
     planner_summary = dict(reference_creative_plan.summary or {})
+    stage2_scene_context = str(reference_creative_plan.stage2_scene_context or "").strip()
+    planner_trace = dict(getattr(reference_creative_plan, "debug_trace", {}) or {})
 
     # ── 2. Stage 1: base fiel da peça ─────────────────────────────────────
     _emit("stabilizing_garment", {"message": "Estabilizando a peça..."})
     stage1_prompt = str(reference_creative_plan.base_scene_prompt or "").strip()
 
     stage1_candidate_count_val = stage1_candidate_count(
-        fidelity_mode=fidelity_mode, selector_stats=selector_stats,
+        fidelity_mode=fidelity_mode, selector_stats=selector_stats, mode=mode,
     )
 
+    stage1_started = time.perf_counter()
     base_results = generate_images(
         prompt=stage1_prompt, thinking_level="MINIMAL",
         aspect_ratio=aspect_ratio, resolution=resolution,
@@ -640,6 +749,7 @@ def run_generation_flow(
         structural_hint=structural_hint,
         use_image_grounding=_use_image_grounding,
     )
+    timings["stage1_generate_ms"] = round((time.perf_counter() - stage1_started) * 1000, 2)
 
     if not base_results:
         raise RuntimeError("Stage 1 falhou: nenhuma imagem base gerada")
@@ -661,18 +771,20 @@ def run_generation_flow(
     stage1_needs_retry = bool(
         gate_policy.get("stage1_retry_enabled")
         and stage1_gate and stage1_gate.get("available")
+        and _stage1_retry_has_structural_need(stage1_gate)
         and (
             stage1_gate.get("verdict") == "hard_fail"
             or (str(fidelity_mode).strip().lower() == "estrita" and stage1_gate.get("verdict") == "soft_fail")
         )
     )
+    stage1_retry_started = time.perf_counter() if stage1_needs_retry else None
     if stage1_needs_retry:
         stage1_recovery = _run_stage1_retry(
             stage1_prompt=stage1_prompt, stage1_gate=stage1_gate,
             structural_contract=structural_contract, set_detection=set_detection,
             stage1_candidate_count_val=stage1_candidate_count_val,
             aspect_ratio=aspect_ratio, resolution=resolution,
-            base_gen_bytes=base_gen_bytes, structural_hint=structural_hint,
+            structural_hint=structural_hint,
             session_id=session_id, classifier_summary=classifier_summary,
             gate_policy=gate_policy, judge_reference_bytes=judge_reference_bytes,
             fidelity_mode=fidelity_mode,
@@ -689,12 +801,27 @@ def run_generation_flow(
             base_assessment = stage1_recovery["_assessment"]
             stage1_gate = stage1_recovery.get("_gate")
             selected_stage1_index = stage1_recovery["_index"]
+    if stage1_retry_started is not None:
+        timings["stage1_retry_ms"] = round((time.perf_counter() - stage1_retry_started) * 1000, 2)
 
     if stage1_gate and stage1_gate.get("available"):
         reason_codes.update(str(code) for code in (stage1_gate.get("issue_codes") or []))
 
+    retry_results = list(stage1_recovery.get("_retry_results") or [])
+    stage1_result_rows = list(base_results) + retry_results
+    stage1_candidate_assessments = []
+    for idx, bundle in enumerate(stage1_candidates):
+        candidate_image = stage1_result_rows[idx] if idx < len(stage1_result_rows) else {}
+        stage1_candidate_assessments.append(
+            {
+                **bundle,
+                "transport": _transport_trace_from_result(candidate_image if isinstance(candidate_image, dict) else {}),
+            }
+        )
+
     base_image_path = Path(selected_base_result["path"])
     base_image_bytes = base_image_path.read_bytes()
+    selected_stage1_transport = _transport_trace_from_result(selected_base_result)
 
     # ── 3. Stage 2: garment replacement sobre a mesma base ────────────────
     all_results: list[dict[str, Any]] = []
@@ -714,9 +841,10 @@ def run_generation_flow(
         image_analysis=image_analysis,
         set_detection=set_detection,
         mode_id=_mode_config.id,
-        source_prompt_context=stage1_prompt,
+        source_prompt_context=stage2_scene_context,
     )
 
+    stage2_started = time.perf_counter()
     for img_idx in range(n_images):
         _emit("creating_listing", {"message": f"Criando anúncio {img_idx + 1}/{n_images}...", "current": img_idx + 1, "total": n_images})
         try:
@@ -727,7 +855,7 @@ def run_generation_flow(
                 reference_guard_strength=reference_guard_strength,
                 reference_usage_rules=reference_usage_rules,
                 art_direction_summary=planner_summary,
-                source_prompt_context=stage1_prompt,
+                source_prompt_context=stage2_scene_context,
                 base_image_bytes=base_image_bytes, base_image_path=base_image_path,
                 aspect_ratio=aspect_ratio, resolution=resolution,
                 stage2_thinking_level=stage2_thinking_level,
@@ -764,6 +892,7 @@ def run_generation_flow(
                 "error": str(stage2_exc),
             })
             failed_indices.append(img_idx + 1)
+    timings["stage2_ms"] = round((time.perf_counter() - stage2_started) * 1000, 2)
 
     if not all_results:
         raise RuntimeError("Stage 2 falhou: nenhuma imagem final gerada")
@@ -773,13 +902,21 @@ def run_generation_flow(
     from agent_runtime.normalize_user_intent import normalize_user_intent
     user_intent_payload = normalize_user_intent(prompt or "")
 
+    optimized_prompt = last_primary_edit_prompt or stage1_prompt
+    final_edit_prompt = last_applied_edit_prompt or last_primary_edit_prompt or stage1_prompt
+    response_surfaces = _derive_response_surfaces(
+        optimized_prompt=optimized_prompt,
+        stage1_prompt=stage1_prompt,
+        edit_prompt=final_edit_prompt,
+    )
+
     response: dict[str, Any] = {
         "session_id": session_id,
         "pipeline_version": "v2",
         "pipeline_mode": "reference_mode_strict" if str(fidelity_mode).strip().lower() == "estrita" else "reference_mode",
-        "optimized_prompt": last_primary_edit_prompt or stage1_prompt,
+        "optimized_prompt": optimized_prompt,
         "stage1_prompt": stage1_prompt,
-        "edit_prompt": last_applied_edit_prompt or last_primary_edit_prompt or stage1_prompt,
+        "edit_prompt": final_edit_prompt,
         "user_intent": user_intent_payload,
         "images": all_results,
         "failed_indices": failed_indices,
@@ -809,52 +946,204 @@ def run_generation_flow(
             "stage1_recovery": stage1_recovery,
         },
     }
+    response_payload = build_generation_response_payload(
+        response,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        preset=mode,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+    )
+    response_payload["mode"] = mode
+    request_inputs = dict(request_observability.get("request_inputs") or {})
+    resolved_request = dict(request_observability.get("resolved_request") or {})
+    transport_kind = str(request_observability.get("transport") or "direct").strip().lower()
+    job_meta = dict(request_observability.get("job") or {})
+    prompt_artifacts = persist_prompt_artifacts(
+        session_id=session_id,
+        prompts={
+            "planner_input": str(((planner_trace.get("input") or {}) if isinstance(planner_trace.get("input"), dict) else {}).get("instruction_prompt") or ""),
+            "stage1_effective_prompt": str(selected_stage1_transport.get("generator_effective_prompt") or stage1_prompt),
+            "stage2_primary_prompt": last_primary_edit_prompt,
+            "stage2_applied_prompt": final_edit_prompt,
+        },
+    )
 
+    report_started = time.perf_counter()
     observability_meta = write_v2_observability_report(session_id, {
         "fidelity_gate": gate_policy,
-            "request": {
-            "prompt": prompt, "user_intent": user_intent_payload,
-            "mode": mode, "scene_preference": scene_preference,
-            "fidelity_mode": fidelity_mode, "n_images": n_images,
-            "aspect_ratio": aspect_ratio, "resolution": resolution,
-            "uploaded_count": len(uploaded_bytes), "uploaded_filenames": filenames,
+        "job": {
+            **job_meta,
+            "transport": transport_kind,
+            "pipeline_stage_events": stage_events,
+        },
+        "request": {
+            "prompt": prompt,
+            "user_intent": user_intent_payload,
+            "mode": mode,
+            "scene_preference": scene_preference,
+            "fidelity_mode": fidelity_mode,
+            "n_images": n_images,
+            "aspect_ratio": aspect_ratio,
+            "resolution": resolution,
+            "uploaded_count": len(uploaded_bytes),
+            "uploaded_filenames": filenames,
+            "transport": transport_kind,
             "art_direction_request": art_direction_request,
             "effective_art_direction_request": effective_art_direction_request,
             "reference_creative_plan": planner_payload,
+            "stage2_scene_context": stage2_scene_context,
             "reference_guard_strength": reference_guard_strength,
             "reference_guard_rules": reference_usage_rules,
             "identity_guard": identity_guard,
             "mode_guardrails": mode_guardrails,
             "identity_reference_risk": identity_risk,
             "lighting_signature": lighting_signature,
-
             "action_context": last_art_direction.get("action_context"),
+            "inputs": {
+                "prompt": request_inputs.get("prompt", prompt),
+                "mode": request_inputs.get("mode", mode),
+                "scene_preference": request_inputs.get("scene_preference", scene_preference),
+                "fidelity_mode": request_inputs.get("fidelity_mode", fidelity_mode),
+                "n_images": request_inputs.get("n_images", n_images),
+                "aspect_ratio": request_inputs.get("aspect_ratio", aspect_ratio),
+                "resolution": request_inputs.get("resolution", resolution),
+                "uploaded_filenames": filenames,
+                "uploaded_count": len(uploaded_bytes),
+                "transport": transport_kind,
+            },
+            "resolution": {
+                "resolved_mode": resolved_request.get("mode", mode),
+                "resolved_scene_preference": resolved_request.get("scene_preference", scene_preference),
+                "resolved_fidelity_mode": resolved_request.get("fidelity_mode", fidelity_mode),
+            },
         },
         "selector": {
-            "stats": selector_stats, "selected_names": selected_names,
-            "runtime_budget": reference_budget, "lighting_signature": lighting_signature,
-            "runtime_reference_names": {"stage1": base_gen_names, "stage2": edit_reference_names},
+            "stats": selector_stats,
+            "selected_names": selected_names,
+            "selected_counts": {
+                "base_generation": len(base_generation_names),
+                "edit_anchors": len(edit_anchor_names),
+                "identity_safe": len(identity_safe_names),
+                "strict_single_pass": len(strict_single_pass_names),
+            },
+            "analysis_rows": selector_result.get("items", []),
+            "runtime_budget": reference_budget,
+            "lighting_signature": lighting_signature,
+            "runtime_reference_names": {
+                "analysis": base_generation_names,
+                "stage1": base_gen_names,
+                "stage2": edit_reference_names,
+                "replacement": edit_reference_names,
+            },
+            "analysis_reference_names": list(base_generation_names),
+            "replacement_reference_names": list(edit_reference_names),
             "items": selector_result.get("items", []),
             "unified_triage": unified_triage,
         },
+        "triage": {
+            "outputs": {
+                "garment_hint": (unified_triage.get("garment_hint") if isinstance(unified_triage, dict) else ""),
+                "image_analysis": image_analysis,
+                "structural_contract": structural_contract,
+                "set_detection": set_detection,
+                "garment_aesthetic": garment_aesthetic,
+                "lighting_signature": lighting_signature,
+                "identity_risk": identity_risk,
+                "reference_guard_strength": reference_guard_strength,
+                "reference_usage_rules": reference_usage_rules,
+            }
+        },
+        "planner": {
+            "input": (planner_trace.get("input") or {}) if isinstance(planner_trace, dict) else {},
+            "output": (planner_trace.get("output") or {}) if isinstance(planner_trace, dict) else {},
+            "plan": {key: value for key, value in planner_payload.items() if key != "debug_trace"},
+        },
         "stage1": {
             "prompt": stage1_prompt,
+            "stage2_scene_context": stage2_scene_context,
+            "orchestration": {
+                "base_scene_prompt": stage1_prompt,
+                "candidate_count": stage1_candidate_count_val,
+                "session_id": f"v2base_{session_id}",
+                "uploaded_images_count": 0,
+                "use_image_grounding": _use_image_grounding,
+                "structural_hint": structural_hint,
+            },
+            "transport": selected_stage1_transport,
+            "selection": {
+                "candidate_assessments": stage1_candidate_assessments,
+                "selected_candidate": _public_image_payload(selected_base_result),
+                "selection_reason": {
+                    "selected_index": selected_stage1_index,
+                    "selected_candidate_score": base_assessment.get("candidate_score"),
+                    "selected_technical_score": base_assessment.get("technical_score"),
+                    "gate_verdict": (stage1_gate or {}).get("verdict") if isinstance(stage1_gate, dict) else None,
+                },
+            },
             "strategy": {"candidate_count": stage1_candidate_count_val, "selected_index": selected_stage1_index},
+            "analysis_reference_names": list(base_generation_names),
             "reference_names": list(base_gen_names),
-            "candidates": stage1_candidates,
-            "result": {"filename": selected_base_result.get("filename"), "url": selected_base_result.get("url"), "path": selected_base_result.get("path")},
+            "candidates": stage1_candidate_assessments,
+            "result": _public_image_payload(selected_base_result),
             "assessment": base_assessment,
             "fidelity_gate": stage1_gate,
             "recovery": stage1_recovery,
         },
-        "stage2": {"runs": observability_runs},
+        "stage2": {
+            "scene_context": stage2_scene_context,
+            "prepared_prompt": {
+                "display_prompt": str(prepared_replacement_prompt.display_prompt or ""),
+                "model_prompt": str(prepared_replacement_prompt.model_prompt or ""),
+                "structured_edit_goal": str(prepared_replacement_prompt.structured_edit_goal or ""),
+                "structured_preserve_clause": str(prepared_replacement_prompt.structured_preserve_clause or ""),
+                "reference_item_description": str(prepared_replacement_prompt.reference_item_description or ""),
+                "source_prompt_context": stage2_scene_context,
+                "flow_mode": str(prepared_replacement_prompt.flow_mode or ""),
+                "lock_person": True,
+            },
+            "transport": ((observability_runs[-1].get("transport") or {}) if observability_runs else {}),
+            "replacement_reference_names": list(edit_reference_names),
+            "runs": observability_runs,
+        },
+        "response_surfaces": response_surfaces,
+        "response_payload": response_payload,
         "response": {
-            "failed_indices": failed_indices, "repair_applied": any_repair_applied,
+            "failed_indices": failed_indices,
+            "repair_applied": any_repair_applied,
             "reason_codes": sorted(reason_codes),
-            "images": [{"filename": img.get("filename"), "url": img.get("url"), "path": img.get("path")} for img in all_results],
+            "images": [_public_image_payload(img) for img in all_results],
+        },
+        "artifacts": {
+            "inputs": review_input_assets,
+            "prompts": prompt_artifacts,
+        },
+        "timings": {
+            **timings,
+            "total_ms": round((_now_ms() - started_ms), 2),
         },
     })
     response.update(observability_meta)
+    final_response_payload = build_generation_response_payload(
+        response,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        preset=mode,
+        scene_preference=scene_preference,
+        fidelity_mode=fidelity_mode,
+    )
+    final_response_payload["mode"] = mode
+    timings["report_ms"] = round((time.perf_counter() - report_started) * 1000, 2)
+    merge_v2_observability_report(
+        session_id,
+        {
+            "response_payload": final_response_payload,
+            "timings": {
+                **timings,
+                "total_ms": round((_now_ms() - started_ms), 2),
+            },
+        },
+    )
 
     _emit("done", {"message": "Finalizado"})
     return response
@@ -871,7 +1160,6 @@ def _run_stage1_retry(
     stage1_candidate_count_val: int,
     aspect_ratio: str,
     resolution: str,
-    base_gen_bytes: list[bytes],
     structural_hint: Optional[str],
     session_id: str,
     classifier_summary: dict[str, Any],
@@ -891,13 +1179,25 @@ def _run_stage1_retry(
         structural_contract=structural_contract, set_detection=set_detection,
     )
     stage1_retry_prompt = f"{stage1_prompt} {stage1_repair_patch}".strip()
-    recovery: dict[str, Any] = {"applied": False}
+    recovery: dict[str, Any] = {
+        "applied": False,
+        "attempts": [
+            {
+                "kind": "stage1_retry",
+                "before_prompt": stage1_prompt,
+                "repair_patch": stage1_repair_patch,
+                "after_prompt": stage1_retry_prompt,
+                "uploaded_images_count": 0,
+                "selected": False,
+            }
+        ],
+    }
     try:
         retry_results = generate_images(
             prompt=stage1_retry_prompt, thinking_level="MINIMAL",
             aspect_ratio=aspect_ratio, resolution=resolution,
             n_images=stage1_candidate_count_val,
-            uploaded_images=base_gen_bytes,
+            uploaded_images=[],
             session_id=f"v2base_retry_{session_id}",
             structural_hint=structural_hint,
         )
@@ -924,18 +1224,48 @@ def _run_stage1_retry(
                     "_assessment": retry_bundle.get("assessment") or {},
                     "_gate": retry_bundle.get("fidelity_gate"),
                     "_index": int(retry_bundle.get("index", selected_stage1_index)),
+                    "_retry_results": retry_results,
+                    "_retry_candidates": retry_candidates,
                     "selected": "retry",
                     "trigger_verdict": initial_stage1_gate.get("verdict") if isinstance(initial_stage1_gate, dict) else None,
                     "prompt_patch": stage1_repair_patch,
                     "retry_prompt": stage1_retry_prompt,
+                    "attempts": [
+                        {
+                            "kind": "stage1_retry",
+                            "before_prompt": stage1_prompt,
+                            "repair_patch": stage1_repair_patch,
+                            "after_prompt": stage1_retry_prompt,
+                            "uploaded_images_count": 0,
+                            "assessment": retry_bundle.get("assessment") or {},
+                            "fidelity_gate": retry_bundle.get("fidelity_gate"),
+                            "selected": True,
+                            "transport": _transport_trace_from_result(retry_selected),
+                        }
+                    ],
                 }
             else:
                 recovery = {
                     "applied": False,
+                    "_retry_results": retry_results,
+                    "_retry_candidates": retry_candidates,
                     "selected": "initial",
                     "trigger_verdict": initial_stage1_gate.get("verdict") if isinstance(initial_stage1_gate, dict) else None,
                     "prompt_patch": stage1_repair_patch,
                     "retry_prompt": stage1_retry_prompt,
+                    "attempts": [
+                        {
+                            "kind": "stage1_retry",
+                            "before_prompt": stage1_prompt,
+                            "repair_patch": stage1_repair_patch,
+                            "after_prompt": stage1_retry_prompt,
+                            "uploaded_images_count": 0,
+                            "assessment": retry_bundle.get("assessment") or {},
+                            "fidelity_gate": retry_bundle.get("fidelity_gate"),
+                            "selected": False,
+                            "transport": _transport_trace_from_result(retry_selected),
+                        }
+                    ],
                 }
             stage1_candidates.extend(retry_candidates)
     except Exception as retry_exc:
@@ -943,6 +1273,16 @@ def _run_stage1_retry(
             "applied": False, "selected": "initial",
             "trigger_verdict": initial_stage1_gate.get("verdict") if isinstance(initial_stage1_gate, dict) else None,
             "prompt_patch": stage1_repair_patch, "retry_prompt": stage1_retry_prompt,
+            "attempts": [
+                {
+                    "kind": "stage1_retry",
+                    "before_prompt": stage1_prompt,
+                    "repair_patch": stage1_repair_patch,
+                    "after_prompt": stage1_retry_prompt,
+                    "uploaded_images_count": 0,
+                    "selected": False,
+                }
+            ],
             "error": str(retry_exc),
         }
     return recovery
@@ -1009,6 +1349,7 @@ def _run_stage2_iteration(
     result = edit_results[0]
     result["index"] = img_idx + 1
     result["art_direction_summary"] = art_direction.get("summary", {})
+    initial_transport = _transport_trace_from_result(result)
 
     final_assessment = assess_generated_image(str(result.get("path", "")), primary_edit_prompt, classifier_summary)
     final_gate = (
@@ -1071,6 +1412,10 @@ def _run_stage2_iteration(
             "art_direction": art_direction,
             "edit_prompt": primary_edit_prompt,
             "applied_edit_prompt": selected_edit_prompt,
+            "transport": {
+                "initial": initial_transport,
+                "selected": _transport_trace_from_result(result),
+            },
             "edit_reference_names": edit_reference_names,
             "result": {"filename": result.get("filename"), "url": result.get("url"), "path": result.get("path")},
             "assessment": final_assessment,
@@ -1129,6 +1474,7 @@ def _run_stage2_recovery(
 
     recovery_info: dict[str, Any] = {
         "applied": False, "selected": "initial",
+        "events": [],
         "localized_repair": {
             "enabled": localized_repair_enabled,
             "eligible": localized_repair_plan.get("mode") == "targeted_repair",
@@ -1197,6 +1543,23 @@ def _run_stage2_recovery(
                 recovery_info["_updated_assessment"] = localized_assessment
                 recovery_info["_updated_gate"] = localized_gate
                 recovery_info["_updated_prompt"] = localized_prompt
+            recovery_info["events"].append(
+                {
+                    "kind": "targeted_repair",
+                    "before_prompt": edit_prompt,
+                    "patch": localized_prompt,
+                    "after_prompt": localized_prompt,
+                    "source_image_kind": "localized_source",
+                    "reference_pack_used": {
+                        "edit_reference_bytes": len(edit_reference_bytes),
+                        "judge_reference_bytes": len(judge_reference_bytes),
+                    },
+                    "assessment_before": final_assessment,
+                    "assessment_after": localized_assessment,
+                    "selected": use_localized,
+                    "transport": _transport_trace_from_result(localized_result if isinstance(localized_result, dict) else {}),
+                }
+            )
             recovery_info["localized_repair"] = {
                 "enabled": True, "eligible": True,
                 "strategy": localized_repair_plan.get("mode"),
@@ -1210,6 +1573,23 @@ def _run_stage2_recovery(
                 "repair_fidelity_gate": localized_gate,
             }
         except Exception as localized_exc:
+            recovery_info["events"].append(
+                {
+                    "kind": "targeted_repair",
+                    "before_prompt": edit_prompt,
+                    "patch": localized_prompt,
+                    "after_prompt": localized_prompt,
+                    "source_image_kind": "localized_source",
+                    "reference_pack_used": {
+                        "edit_reference_bytes": len(edit_reference_bytes),
+                        "judge_reference_bytes": len(judge_reference_bytes),
+                    },
+                    "assessment_before": final_assessment,
+                    "assessment_after": None,
+                    "selected": False,
+                    "error": str(localized_exc),
+                }
+            )
             recovery_info["localized_repair"] = {
                 "enabled": True, "eligible": True,
                 "strategy": localized_repair_plan.get("mode"),
@@ -1289,6 +1669,23 @@ def _run_stage2_recovery(
                 recovery_info["_updated_assessment"] = retry_assessment
                 recovery_info["_updated_gate"] = retry_gate
                 recovery_info["_updated_prompt"] = retry_prompt
+            recovery_info["events"].append(
+                {
+                    "kind": "full_retry",
+                    "before_prompt": edit_prompt,
+                    "patch": retry_patch,
+                    "after_prompt": retry_prompt,
+                    "source_image_kind": "base_image",
+                    "reference_pack_used": {
+                        "edit_reference_bytes": len(edit_reference_bytes),
+                        "judge_reference_bytes": len(judge_reference_bytes),
+                    },
+                    "assessment_before": _current_assessment,
+                    "assessment_after": retry_assessment,
+                    "selected": use_retry,
+                    "transport": _transport_trace_from_result(retry_result if isinstance(retry_result, dict) else {}),
+                }
+            )
             recovery_info["full_retry"] = {
                 "eligible": True, "applied": use_retry,
                 "selected": "retry" if use_retry else "initial",
@@ -1300,6 +1697,23 @@ def _run_stage2_recovery(
                 "retry_fidelity_gate": retry_gate,
             }
         except Exception as retry_exc:
+            recovery_info["events"].append(
+                {
+                    "kind": "full_retry",
+                    "before_prompt": edit_prompt,
+                    "patch": retry_patch,
+                    "after_prompt": retry_prompt,
+                    "source_image_kind": "base_image",
+                    "reference_pack_used": {
+                        "edit_reference_bytes": len(edit_reference_bytes),
+                        "judge_reference_bytes": len(judge_reference_bytes),
+                    },
+                    "assessment_before": _current_assessment,
+                    "assessment_after": None,
+                    "selected": False,
+                    "error": str(retry_exc),
+                }
+            )
             recovery_info["full_retry"] = {
                 "eligible": True, "applied": False, "selected": "initial",
                 "trigger_verdict": initial_final_gate.get("verdict") if isinstance(initial_final_gate, dict) else None,

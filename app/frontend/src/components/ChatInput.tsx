@@ -123,9 +123,13 @@ export function ChatInput({
                     if (validFiles.length > 0) {
                         setFiles(prev => [...prev, ...validFiles].slice(0, 14));
                     }
+                    // Limpa só após os arquivos estarem carregados
+                    onClearExternalData?.();
                 });
+            } else {
+                // Sem referências para buscar — limpa imediatamente
+                onClearExternalData?.();
             }
-            onClearExternalData?.();
         }
     }, [externalData, onClearExternalData]);
 

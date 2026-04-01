@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 import time
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from google.genai import types
 
@@ -63,11 +63,21 @@ def _build_guided_angle_base_instruction() -> str:
     )
 
 
+def _build_non_target_outfit_instruction(flow_mode: str) -> str:
+    if str(flow_mode or "").strip().lower() != "garment_replacement":
+        return ""
+    return (
+        "NON-TARGET OUTFIT PRESERVATION: Keep every visible clothing item, accessory, and styling element outside "
+        "the replacement target exactly as shown in the base image, including trousers, skirts, footwear, belts, bags, "
+        "jewelry, scarves, and any non-target layers."
+    )
+
+
 def _build_content_parts(
     *,
     request: ImageEditExecutionRequest,
     current_references: list[bytes],
-) -> list[types.Part]:
+) -> tuple[list[types.Part], dict[str, Any]]:
     hi_res = types.MediaResolution.MEDIA_RESOLUTION_HIGH
     is_guided_angle = request.prepared_prompt.flow_mode == "guided_angle"
     base_instruction = (
@@ -87,6 +97,11 @@ def _build_content_parts(
         if is_guided_angle
         else [types.Part(text=base_instruction), source_image_part]
     )
+    non_target_outfit_instruction = _build_non_target_outfit_instruction(
+        request.prepared_prompt.flow_mode,
+    )
+    if non_target_outfit_instruction:
+        parts.append(types.Part(text=non_target_outfit_instruction))
 
     if current_references:
         parts.append(types.Part(text=_reference_role_instruction("edit")))
@@ -101,16 +116,17 @@ def _build_content_parts(
                 )
             )
 
+    trimmed_source_prompt_context = ""
     if request.prepared_prompt.include_source_prompt_context:
-        source_prompt_context = _trim_source_prompt_context(request.source_prompt_context)
-        if source_prompt_context:
+        trimmed_source_prompt_context = _trim_source_prompt_context(request.source_prompt_context)
+        if trimmed_source_prompt_context:
             parts.append(
                 types.Part(
                     text=(
                         "ORIGINAL GENERATION PROMPT CONTEXT — semantic guidance only. "
                         "Use it to preserve the original scene logic and aesthetic intent when useful, "
                         "but do not treat it as a script to copy verbatim.\n"
-                        f"{source_prompt_context}"
+                        f"{trimmed_source_prompt_context}"
                     )
                 )
             )
@@ -148,7 +164,27 @@ def _build_content_parts(
     else:
         parts.append(types.Part(text=request.prepared_prompt.model_prompt))
 
-    return parts
+    text_blocks = [
+        str(part.text).strip()
+        for part in parts
+        if isinstance(getattr(part, "text", None), str) and str(part.text).strip()
+    ]
+    return parts, {
+        "executor_text_blocks": text_blocks,
+        "trimmed_source_prompt_context": trimmed_source_prompt_context,
+        "flow_mode": request.prepared_prompt.flow_mode,
+        "lock_person": bool(request.lock_person),
+        "prepared_prompt_snapshot": {
+            "display_prompt": str(request.prepared_prompt.display_prompt or ""),
+            "model_prompt": str(request.prepared_prompt.model_prompt or ""),
+            "structured_edit_goal": str(request.prepared_prompt.structured_edit_goal or ""),
+            "structured_preserve_clause": str(request.prepared_prompt.structured_preserve_clause or ""),
+            "reference_item_description": str(request.prepared_prompt.reference_item_description or ""),
+            "include_source_prompt_context": bool(request.prepared_prompt.include_source_prompt_context),
+            "include_reference_item_description": bool(request.prepared_prompt.include_reference_item_description),
+            "use_structured_shell": bool(request.prepared_prompt.use_structured_shell),
+        },
+    }
 
 
 def execute_image_edit_request(request: ImageEditExecutionRequest) -> list[dict]:
@@ -171,7 +207,7 @@ def execute_image_edit_request(request: ImageEditExecutionRequest) -> list[dict]
             attempt,
             minimum_keep=2,
         )
-        content_parts = _build_content_parts(
+        content_parts, transport_debug = _build_content_parts(
             request=request,
             current_references=current_references,
         )
@@ -224,4 +260,15 @@ def execute_image_edit_request(request: ImageEditExecutionRequest) -> list[dict]
         image_index=1,
         session_dir=session_dir,
     )
+    result["_debug_transport"] = {
+        **transport_debug,
+        "reference_counts": {
+            "prepared": len(prepared_reference_images),
+            "current": len(current_references),
+        },
+        "thinking_level": effective_thinking_level,
+        "use_image_grounding": bool(request.use_image_grounding),
+        "response_modalities": ["IMAGE"] if EDIT_IMAGE_ONLY_MODALITY else ["TEXT", "IMAGE"],
+        "attempt": attempt,
+    }
     return [result]

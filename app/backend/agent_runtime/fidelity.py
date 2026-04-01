@@ -42,6 +42,16 @@ _REFERENCE_USAGE_RULES_HIGH_GUARD = [
     "Keep identity transfer from references at zero; deliberately separate the new face, hair silhouette, body, and age impression from any visible person in the references.",
 ]
 
+_REAL_FRONT_CLOSURE_SUBTYPES = {
+    "standard_cardigan",
+    "jacket",
+    "blazer",
+    "vest",
+    "bolero",
+    "blouse",
+    "dress",
+}
+
 
 # ── Guardrails de modo ───────────────────────────────────────────────────
 
@@ -333,17 +343,52 @@ def _collect_lock_clauses(structural_contract: Optional[dict[str, Any]]) -> list
     if length in _LENGTH_PHRASES:
         locks.append(f"maintain {_LENGTH_PHRASES[length]} as shown in the reference")
 
-    front = str(contract.get("front_opening", "") or "").strip().lower()
-    if front == "open":
-        locks.append("keep the front visibly open")
-    elif front == "closed":
-        locks.append("keep the front closure intact")
+    opening_lock = _render_front_opening_lock(contract)
+    if opening_lock:
+        locks.append(opening_lock)
 
-    must_keep = [str(item).strip() for item in (contract.get("must_keep", []) or []) if str(item).strip()]
-    if must_keep:
-        locks.append("preserve: " + ", ".join(must_keep[:2]))
+    # Filtra must_keep: apenas atributos estruturais entram no lock textual.
+    # Atributos de superfície/padrão (texture, relief, diamond, geometric...)
+    # NÃO são injetados como texto — o Nano os extrai diretamente das imagens.
+    # Injetar esses termos causa espalhamento de textura para zonas lisas.
+    _SURFACE_TERMS = (
+        "texture", "textura", "relief", "relevo", "diamond", "losango",
+        "geometric", "geométric", "pattern", "padrão", "jacquard", "argyle",
+        "cable", "waffle", "pointelle", "intarsia", "chevron", "stripe",
+        "listras", "xadrez", "plaid", "grid", "check",
+    )
+    must_keep_raw = [str(item).strip() for item in (contract.get("must_keep", []) or []) if str(item).strip()]
+    must_keep_structural = [
+        item for item in must_keep_raw
+        if not any(term in item.lower() for term in _SURFACE_TERMS)
+    ]
+    if must_keep_structural:
+        locks.append("preserve: " + ", ".join(must_keep_structural[:2]))
 
     return locks
+
+
+def _render_front_opening_lock(contract: Optional[dict[str, Any]]) -> str:
+    payload = contract or {}
+    front = str(payload.get("front_opening", "") or "").strip().lower()
+    subtype = str(payload.get("garment_subtype", "") or "").strip().lower()
+    continuity = str(payload.get("opening_continuity", "") or "").strip().lower()
+
+    if front == "open":
+        if continuity == "continuous":
+            return "keep the front visibly open as one continuous uninterrupted edge"
+        return "keep the front visibly open"
+
+    if front == "partial":
+        return "preserve the partial front opening exactly as shown"
+
+    if front != "closed":
+        return ""
+
+    if subtype in _REAL_FRONT_CLOSURE_SUBTYPES and continuity != "continuous":
+        return "keep the front closure fully closed as shown"
+
+    return "keep the front fully closed with no visible opening or placket break"
 
 
 def _closed_neckline_guard(structural_contract: Optional[dict[str, Any]]) -> str:
@@ -473,24 +518,27 @@ def build_reference_policy(
 _PATTERN_KEYWORDS = (
     "stripe", "chevron", "diagonal", "radiating", "concentric",
     "plaid", "grid", "check", "argyle", "listras", "listra", "xadrez",
+    "geometric", "diamond", "relief", "ribbed", "textured", "jacquard",
+    "intarsia", "pointelle", "cable", "waffle",
 )
 
 
 def build_pattern_lock(image_analysis: Optional[str]) -> str:
-    """Gera lock de padrão visual se detectado na análise da imagem."""
-    ia_text = str(image_analysis or "").strip()
-    if not ia_text or not any(w in ia_text.lower() for w in _PATTERN_KEYWORDS):
-        return ""
-    _max = 400
-    _chunk = ia_text[:_max]
-    _dot = _chunk.rfind(".")
-    ia_trunc = _chunk[:_dot + 1].strip() if _dot > 100 else _chunk.rstrip(",. ")
-    return (
-        f"CRITICAL — preserve the exact surface pattern geometry from the references: {ia_trunc}. "
-        "Do not reinterpret stripe direction, pattern angle, or pattern scale. "
-        "If the pattern appears diagonal or chevron in the references, "
-        "it must remain diagonal or chevron in the output."
-    )
+    """Retorna sempre string vazia — padrão visual é guiado 100% pelas imagens.
+
+    Histórico de decisão:
+    - v1: injetava ia_trunc com 'geometric diamond relief' → Nano espalhava
+      textura para mangas lisas (texto sem ancoragem de zona).
+    - v2: 'zone-by-zone exactly as shown' → instrução abstrata piorou; Nano
+      aplicou textura em toda a peça sem referência de zona.
+    - v3 (atual): sem texto de padrão. Nano extrai distribuição de zona
+      diretamente das imagens de referência. Qualquer instrução textual de
+      padrão conflita com a percepção visual do modelo.
+
+    A detecção de padrão (_PATTERN_KEYWORDS) ainda vive no arquivo para uso
+    em outras decisões (ex: grounding). Não remove a função.
+    """
+    return ""
 
 
 # ── Decisão de grounding visual ──────────────────────────────────────────
@@ -504,6 +552,8 @@ _GROUNDING_PATTERN_KEYWORDS = (
     "chevron", "diagonal", "radiating", "concentric", "crochet",
     "crochê", "handmade", "artisanal", "boucle", "bouclê",
     "patchwork", "jacquard", "intarsia", "fair isle",
+    # Padrões de malha com relevo — ativam image grounding para fidelidade de zona
+    "geometric", "diamond", "relief", "cable", "waffle", "pointelle",
 )
 
 
@@ -672,13 +722,20 @@ def prepare_garment_replacement_prompt(
         exclude_primary_piece=True,
     )
     garment_material = derive_garment_material_text(structural_contract, image_analysis)
+    pattern_lock = build_pattern_lock(image_analysis)
     garment_label = _clean_text(garment_hint, limit=120) or "the hero garment"
     structural_sentence = structural_hint or garment_label
+    # Âncora de preservação única — fica no topo, antes de qualquer constraint de peça
+    preserve_clause = (
+        "Preserve exactly: the base image person (face, identity, skin tone, hair, body proportions), "
+        "pose, expression, camera angle, framing, environment, background, and lighting. "
+        "Preserve all visible non-target outfit items and accessories exactly as shown — "
+        "trousers, skirts, footwear, belts, jewelry, bags, scarves, and any styling layers outside the replacement target. "
+        "Do not redesign the scene or the model."
+    )
+
     replacement_goal_parts = [
-        (
-            "Replace only the placeholder garment in the base image with the real uploaded product, "
-            "keeping the same wearer, pose, camera, framing, lighting, and scene."
-        ),
+        "Replace only the placeholder garment in the base image with the real uploaded product.",
         f"Use the uploaded references only as garment evidence for {garment_label}.",
         f"Match the real product's structural identity: {structural_sentence}.",
     ]
@@ -686,18 +743,14 @@ def prepare_garment_replacement_prompt(
         replacement_goal_parts.append(
             "Preserve these product constraints during replacement: " + "; ".join(structure_guards) + "."
         )
+    if pattern_lock:
+        replacement_goal_parts.append(pattern_lock)
     if required_labels:
         replacement_goal_parts.append(
             "Treat these coordinated members as part of the same replacement set: "
             + ", ".join(required_labels)
             + "."
         )
-
-    preserve_clause = (
-        "Preserve exactly the base image person identity, face, skin tone, hair, body proportions, pose, "
-        "expression, camera angle, framing, environment, background, and lighting behavior. "
-        "Do not redesign the scene or the model while replacing the garment."
-    )
 
     reference_item_description_parts = [
         f"Hero product: {garment_label}.",
@@ -707,6 +760,15 @@ def prepare_garment_replacement_prompt(
     if image_analysis:
         reference_item_description_parts.append(
             "Reference garment analysis: " + _clean_text(image_analysis, limit=400) + "."
+        )
+        # Qualificador crítico: a análise textual é âncora estrutural (silhueta,
+        # comprimento, abertura). Para distribuição de textura e padrão por zona,
+        # as imagens são a única fonte verdade — o texto não define quais zonas
+        # têm relevo e quais são lisas.
+        reference_item_description_parts.append(
+            "Surface texture zone distribution: follow the reference images exclusively. "
+            "Do not apply any texture, relief, or pattern to areas that appear smooth or plain in the reference photos. "
+            "Text analysis is structural guidance only — images override text for texture zone allocation."
         )
     if structure_guards:
         reference_item_description_parts.append(
@@ -724,10 +786,7 @@ def prepare_garment_replacement_prompt(
     reference_item_description = " ".join(
         part.strip() for part in reference_item_description_parts if part and part.strip()
     )
-    display_prompt = (
-        f"{structured_goal} {preserve_clause} "
-        "Use the original generation prompt context only to preserve the creative scene intent."
-    ).strip()
+    display_prompt = structured_goal.strip()
 
     return PreparedEditPrompt(
         flow_mode="garment_replacement",

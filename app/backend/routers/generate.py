@@ -5,10 +5,12 @@ Pipeline com suporte a jobs assíncronos (submit + polling).
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Callable, List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
+from agent_runtime.generation_observability import merge_v2_observability_report
 from agent_runtime.generation_flow import (
     build_generation_response,
     normalize_generation_options,
@@ -99,6 +101,23 @@ async def generate(
             aspect_ratio=aspect_ratio,
             resolution=resolution,
             on_stage=None,
+            observability_context={
+                "transport": "sync",
+                "request_inputs": {
+                    "prompt": prompt,
+                    "mode": requested_mode,
+                    "scene_preference": scene_preference,
+                    "fidelity_mode": fidelity_mode,
+                    "n_images": n_images,
+                    "aspect_ratio": aspect_ratio,
+                    "resolution": resolution,
+                },
+                "resolved_request": {
+                    "mode": normalized_mode,
+                    "scene_preference": normalized_scene_preference,
+                    "fidelity_mode": normalized_fidelity_mode,
+                },
+            },
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
@@ -120,6 +139,7 @@ def _run_v2_pipeline_and_persist(
     aspect_ratio: str,
     resolution: str,
     on_stage: Optional[Callable[[str, dict], None]] = None,
+    observability_context: Optional[dict] = None,
 ) -> GenerateResponse:
     """Wrapper que roda pipeline_v2, persiste historico, e retorna GenerateResponse."""
     raw = run_pipeline_v2(
@@ -134,6 +154,7 @@ def _run_v2_pipeline_and_persist(
         aspect_ratio=aspect_ratio,
         resolution=resolution,
         on_stage=on_stage,
+        observability_context=observability_context,
     )
     persist_generation_history(
         raw,
@@ -220,9 +241,22 @@ async def generate_async(
             "has_guided_brief": bool(guided_brief),
         }
     )
+    queued_at = int(time.time() * 1000)
 
     def _worker() -> None:
+        stage_transitions = [
+            {"status": "queued", "at_ms": queued_at},
+            {"status": "running", "at_ms": int(time.time() * 1000)},
+        ]
+
         def _stage_cb(stage: str, data: dict) -> None:
+            stage_transitions.append(
+                {
+                    "status": str(stage or "").strip(),
+                    "at_ms": int(time.time() * 1000),
+                    "event": data or {},
+                }
+            )
             update_stage(job_id, stage, data)
 
         try:
@@ -239,8 +273,52 @@ async def generate_async(
                 aspect_ratio=aspect_ratio,
                 resolution=resolution,
                 on_stage=_stage_cb,
+                observability_context={
+                    "transport": "async",
+                    "request_inputs": {
+                        "prompt": prompt,
+                        "mode": requested_mode,
+                        "scene_preference": scene_preference,
+                        "fidelity_mode": fidelity_mode,
+                        "n_images": n_images,
+                        "aspect_ratio": aspect_ratio,
+                        "resolution": resolution,
+                    },
+                    "resolved_request": {
+                        "mode": normalized_mode,
+                        "scene_preference": normalized_scene_preference,
+                        "fidelity_mode": normalized_fidelity_mode,
+                    },
+                    "job": {
+                        "id": job_id,
+                        "status_transitions": stage_transitions,
+                        "timestamps": {
+                            "queued_at_ms": queued_at,
+                        },
+                    },
+                },
             )
             stage = "done_partial" if response.failed_indices else "done"
+            stage_transitions.append(
+                {
+                    "status": stage,
+                    "at_ms": int(time.time() * 1000),
+                }
+            )
+            if response.debug_report_path:
+                merge_v2_observability_report(
+                    response.session_id or "",
+                    {
+                        "job": {
+                            "id": job_id,
+                            "status_transitions": stage_transitions,
+                            "timestamps": {
+                                "queued_at_ms": queued_at,
+                                "completed_at_ms": int(time.time() * 1000),
+                            },
+                        }
+                    },
+                )
             complete_job(job_id, response.model_dump(), stage=stage)
         except Exception as e:
             fail_job(job_id, str(e))

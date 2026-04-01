@@ -59,6 +59,8 @@ def get_styling_soul(
             "MODE-SPECIFIC STYLING LOGIC:\n"
             "  Keep the look commercially complete, quiet, and premium.\n"
             "  If feet are visible, finish the look with discreet coherent footwear rather than barefoot presentation unless the brief explicitly asks for it.\n"
+            "  Quiet does not mean generic: choose one specific completion family that serves this garment.\n"
+            "  Avoid defaulting to the same dark trouser plus ankle-boot solution whenever the hero product is a top-layer knit.\n"
         )
     elif normalized == "natural":
         mode_overlay = (

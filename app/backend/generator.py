@@ -215,7 +215,7 @@ def _build_content_parts(
     grounded_images: List[bytes],
     structural_hint: Optional[str] = None,
     scope: str = "garment",
-) -> List[types.Part]:
+) -> tuple[List[types.Part], dict[str, Any]]:
     """Constrói content_parts para geração — compartilhado entre sync e async."""
     _effective_prompt = prompt
     if uploaded_images and not any(
@@ -260,7 +260,18 @@ def _build_content_parts(
             )
 
     content_parts.append(types.Part(text=_effective_prompt))
-    return content_parts
+    text_blocks = [
+        str(part.text).strip()
+        for part in content_parts
+        if isinstance(getattr(part, "text", None), str) and str(part.text).strip()
+    ]
+    return content_parts, {
+        "generator_effective_prompt": _effective_prompt,
+        "generator_text_blocks": text_blocks,
+        "uploaded_reference_count": len(uploaded_images),
+        "grounded_reference_count": len(grounded_images),
+        "scope": scope,
+    }
 
 
 def _build_tools(use_image_grounding: bool) -> Optional[list]:
@@ -373,7 +384,7 @@ async def generate_images_async(
             current_uploaded = _build_retry_reference_subset(prepared_uploaded_images, attempt, minimum_keep=2)
             current_grounded = _build_retry_reference_subset(prepared_grounded_images, attempt, minimum_keep=1)
 
-            content_parts = _build_content_parts(
+            content_parts, transport_debug = _build_content_parts(
                 prompt=prompt,
                 uploaded_images=current_uploaded,
                 grounded_images=current_grounded,
@@ -416,6 +427,13 @@ async def generate_images_async(
                     _extract_image_from_response,
                     response, session_id=session_id, image_index=image_index, session_dir=session_dir,
                 )
+                result["_debug_transport"] = {
+                    **transport_debug,
+                    "thinking_level": effective_thinking_level,
+                    "use_image_grounding": bool(use_image_grounding),
+                    "response_modalities": ["TEXT", "IMAGE"],
+                    "attempt": attempt,
+                }
                 return result
 
             except Exception as exc:
@@ -615,7 +633,7 @@ def generate_images(
             current_uploaded = _build_retry_reference_subset(prepared_uploaded_images, attempt, minimum_keep=2)
             current_grounded = _build_retry_reference_subset(prepared_grounded_images, attempt, minimum_keep=1)
 
-            content_parts = _build_content_parts(
+            content_parts, transport_debug = _build_content_parts(
                 prompt=prompt,
                 uploaded_images=current_uploaded,
                 grounded_images=current_grounded,
@@ -677,6 +695,13 @@ def generate_images(
         result = _extract_image_from_response(
             response, session_id=session_id, image_index=image_index, session_dir=session_dir,
         )
+        result["_debug_transport"] = {
+            **transport_debug,
+            "thinking_level": effective_thinking_level,
+            "use_image_grounding": bool(use_image_grounding),
+            "response_modalities": ["TEXT", "IMAGE"],
+            "attempt": attempt,
+        }
         results.append(result)
 
     return results

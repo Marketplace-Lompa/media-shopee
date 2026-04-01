@@ -321,8 +321,12 @@ def stage1_candidate_count(
     *,
     fidelity_mode: str,
     selector_stats: Optional[dict[str, Any]],
+    mode: Optional[str] = None,
 ) -> int:
     if str(fidelity_mode).strip().lower() == "estrita":
+        return 2
+    normalized_mode = str(mode or "").strip().lower()
+    if normalized_mode in {"natural", "lifestyle"}:
         return 2
     if bool((selector_stats or {}).get("complex_garment")):
         return 2

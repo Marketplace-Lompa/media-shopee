@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
 from google.genai import types
 
 from agent_runtime.fidelity import (
-    build_reference_edit_art_direction,
     build_structure_guard_clauses,
     build_structural_hint,
 )
@@ -20,6 +19,7 @@ from agent_runtime.styling_direction import (
     derive_styling_context,
     normalize_styling_direction_payload,
 )
+from agent_runtime.model_soul import get_model_soul
 from agent_runtime.structural import get_set_member_labels
 
 
@@ -28,16 +28,28 @@ _CASTING_SCHEMA = {
     "required": [
         "profile_hint",
         "age_band",
+        "face_geometry",
+        "eye_logic",
+        "skin_read",
         "face_hair_presence",
+        "hair_logic",
+        "body_frame",
         "body_read",
         "expression_read",
+        "makeup_read",
     ],
     "properties": {
         "profile_hint": {"type": "string"},
         "age_band": {"type": "string"},
+        "face_geometry": {"type": "string"},
+        "eye_logic": {"type": "string"},
+        "skin_read": {"type": "string"},
         "face_hair_presence": {"type": "string"},
+        "hair_logic": {"type": "string"},
+        "body_frame": {"type": "string"},
         "body_read": {"type": "string"},
         "expression_read": {"type": "string"},
+        "makeup_read": {"type": "string"},
     },
 }
 
@@ -100,15 +112,42 @@ class ReferenceCreativePlan:
     pose_direction: dict[str, Any]
     capture_direction: dict[str, Any]
     base_scene_prompt: str
+    stage2_scene_context: str
     summary: dict[str, str]
     fallback_applied: bool = False
+    debug_trace: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 def _clean_text(value: Any, *, limit: int = 220) -> str:
-    return " ".join(str(value or "").strip().split())[:limit].strip()
+    text = " ".join(str(value or "").strip().split())
+    if len(text) <= limit:
+        return text
+
+    min_boundary = max(int(limit * 0.6), 1)
+    strong_cutoffs = [
+        text.rfind(". ", 0, limit + 1) + 1,
+        text.rfind("; ", 0, limit + 1) + 1,
+    ]
+    clause_cutoff = text.rfind(", ", 0, limit + 1) + 1
+    word_cutoff = text.rfind(" ", 0, limit + 1)
+    strong_candidates = [cut for cut in strong_cutoffs if cut >= min_boundary]
+    if strong_candidates:
+        return text[: max(strong_candidates)].rstrip(" ,;:-")
+    if clause_cutoff >= min_boundary:
+        return text[:clause_cutoff].rstrip(" ,;:-")
+    if word_cutoff >= min_boundary:
+        return text[:word_cutoff].rstrip(" ,;:-")
+    return text[:limit].rstrip(" ,;:-")
+
+
+def _sentence_text(value: Any, *, limit: int = 220) -> str:
+    text = _clean_text(value, limit=limit).rstrip(" .;,:-")
+    if not text:
+        return ""
+    return text + "."
 
 
 def _normalize_compact_object(
@@ -130,16 +169,25 @@ def _build_default_styling_direction(styling_context: dict[str, Any]) -> dict[st
 
     completion_slots: list[str]
     primary_completion = "none"
-    footwear_direction = "discreet mode-aligned footwear only if it remains visible in frame"
+    footwear_direction = (
+        "choose one discreet, mode-aligned footwear family only if it remains visible in frame; "
+        "do not default automatically to ankle boots or the same safe neutral shoe"
+    )
 
     if topology == "coordinated_set":
         completion_slots = ["footwear"]
     elif hero_family == "top_layer":
         completion_slots = ["lower_body", "footwear"]
-        primary_completion = "quiet lower-body completion that does not compete with the hero garment"
+        primary_completion = (
+            "choose one quiet lower-body completion family that supports the hero garment without competing with it; "
+            "do not fall back to the same dark tailored trouser formula"
+        )
     elif hero_family == "lower_body":
         completion_slots = ["top_layer", "footwear"]
-        primary_completion = "quiet upper-body completion that keeps the lower-body hero visible"
+        primary_completion = (
+            "choose one quiet upper-body completion family that keeps the lower-body hero visible "
+            "without reusing the same safe styling formula"
+        )
     elif hero_family == "one_piece":
         completion_slots = ["footwear"]
         primary_completion = "none"
@@ -151,14 +199,19 @@ def _build_default_styling_direction(styling_context: dict[str, Any]) -> dict[st
         "hero_family": hero_family,
         "hero_components": components,
         "completion_slots": completion_slots,
-        "completion_strategy": "Keep the look commercially complete without competing with the hero garment.",
+        "completion_strategy": (
+            "Keep the look commercially complete without competing with the hero garment, "
+            "but make a specific completion choice rather than a median catalog default."
+        ),
         "primary_completion": primary_completion,
         "secondary_completion": "none",
         "footwear_direction": footwear_direction,
         "accessories_optional": "none",
         "outer_layer_optional": "none",
         "finish_logic": "Let finishing choices stay subordinate to the hero garment and the active mode.",
-        "direction_summary": "Resolve only the visibly necessary completion around the hero garment.",
+        "direction_summary": (
+            "Resolve only the visibly necessary completion around the hero garment, with a distinct but commercially quiet choice."
+        ),
         "confidence": 0.55,
     }
 
@@ -190,12 +243,50 @@ def _build_default_scene_direction(mode_id: str) -> dict[str, str]:
     }
 
 
+def _mode_aesthetic_context(mode_id: str) -> str:
+    """Traduz o mode_id em contexto visual denso para o modelo de imagem.
+    Nunca passa o nome do mode — passa o que ele significa visualmente.
+    """
+    normalized = str(mode_id or "natural").strip().lower()
+    if normalized == "catalog_clean":
+        return (
+            "The image aesthetic is clean and product-forward: neutral studio light, "
+            "white or light-grey backdrop, no environmental storytelling. "
+            "The woman's presence is composed and commercially legible — she serves the garment read, not a narrative."
+        )
+    if normalized == "lifestyle":
+        return (
+            "The image aesthetic is socially alive and situationally grounded: "
+            "a real Brazilian environment with ambient light, lived-in surfaces, and activity context. "
+            "The woman belongs inside the scene — she is mid-something, not posed for the camera."
+        )
+    if normalized == "editorial_commercial":
+        return (
+            "The image aesthetic is authored and visually deliberate: "
+            "strong architectural setting, controlled directional light, "
+            "and a woman whose presence commands the frame. "
+            "Every element is a choice — nothing is accidental or unresolved."
+        )
+    # natural / default
+    return (
+        "The image aesthetic is observational and real: "
+        "an ordinary Brazilian everyday setting with natural unforced light and modest lived-in surfaces. "
+        "The woman reads as encountered, not produced — her presence is unconsidered and believable."
+    )
+
+
 def _build_default_pose_direction(mode_id: str) -> dict[str, str]:
     normalized = str(mode_id or "natural").strip().lower()
     if normalized == "catalog_clean":
         return {
-            "stance": "commercial near-frontal presentation with slight weight shift",
-            "arm_logic": "one arm relaxed and one arm purposefully placed without blocking the garment",
+            "stance": (
+                "commercial standing presentation with a specific body decision such as a subtle cross-step, offset planted stance, "
+                "or asymmetrical weight shift; do not default to the same hand-on-hip catalog pose"
+            ),
+            "arm_logic": (
+                "choose one commercially useful arm solution that keeps the garment open to view, "
+                "without repeating the same waist-touch or mirror-symmetry formula"
+            ),
             "garment_visibility": "keep full silhouette, length, and front read clear",
         }
     if normalized == "lifestyle":
@@ -221,9 +312,13 @@ def _build_default_capture_direction(mode_id: str) -> dict[str, str]:
     normalized = str(mode_id or "natural").strip().lower()
     if normalized == "catalog_clean":
         return {
-            "framing": "medium to medium-full commercial framing",
-            "angle": "near-frontal 5 to 15 degree body rotation",
-            "crop_logic": "show the garment fully without portrait-first cropping",
+            "framing": (
+                "clean commercial framing chosen specifically for the garment, ranging from full-body to medium-full rather than one fixed crop"
+            ),
+            "angle": (
+                "subtle commercial body rotation between near-frontal and clean three-quarter, not always the same eye-level centered relation"
+            ),
+            "crop_logic": "show the garment fully without portrait-first cropping, while allowing slight variation in subject placement",
             "lens_feel": "clean neutral fashion perspective",
         }
     if normalized == "lifestyle":
@@ -252,34 +347,64 @@ def _build_default_casting_direction(mode_id: str) -> dict[str, str]:
     normalized = str(mode_id or "natural").strip().lower()
     if normalized == "catalog_clean":
         return {
-            "profile_hint": "a commercially attractive adult Brazilian woman with approachable direct presence",
-            "age_band": "late 20s to early 30s",
-            "face_hair_presence": "clean face read, commercially polished hair, and warm camera presence",
-            "body_read": "balanced commercial silhouette with calm posture",
-            "expression_read": "approachable direct expression with light warmth",
+            "profile_hint": (
+                "a specifically cast adult Brazilian woman with a concrete facial signature chosen for this garment; "
+                "do not default to the same median polished catalog archetype"
+            ),
+            "age_band": "adult, with the age presence chosen deliberately for the garment rather than defaulting to late 20s/early 30s every time",
+            "face_geometry": "choose one concrete facial geometry with clear brow, eye, nose, mouth, and jaw structure; avoid generic beauty-face shorthand",
+            "eye_logic": "eyes must feel alive, aligned, and commercially present — never vacant, glassy, or divergent",
+            "skin_read": "natural commercial skin with believable undertone and microtexture, not waxed or over-smoothed",
+            "face_hair_presence": (
+                "commit to one memorable facial and hair logic with visible specificity; "
+                "do not recycle the same sleek center-part, same smile, or same catalog beauty shorthand"
+            ),
+            "hair_logic": "choose a specific real hair behavior, density, length, and parting that supports the face rather than repeating the same polished fall",
+            "body_frame": "describe a believable frame and proportion read that makes the garment sit naturally on the body",
+            "body_read": "her posture communicates ease with the garment and commercial clarity without collapsing into the same repeated showroom body language",
+            "expression_read": "direct and shopper-aware, but choose one specific expression register rather than defaulting to the same open smile or drained blank stare",
+            "makeup_read": "visible makeup must stay believable and commercially light, never mask-like or over-airbrushed",
         }
     if normalized == "editorial_commercial":
         return {
-            "profile_hint": "a striking adult Brazilian woman with deliberate fashion presence",
+            "profile_hint": "a visually commanding adult Brazilian woman — her presence reads immediately at thumbnail scale; she was cast because of something specific about her face, not despite it",
             "age_band": "late 20s to mid 30s",
-            "face_hair_presence": "clear facial geometry and confident hair silhouette",
-            "body_read": "strong body line with authored posture",
-            "expression_read": "controlled commanding expression",
+            "face_geometry": "facial geometry with clear editorial structure and distinct brow-eye-mouth architecture",
+            "eye_logic": "eyes focused and alive, with intentional directional energy",
+            "skin_read": "real skin with controlled polish and visible natural texture",
+            "face_hair_presence": "her facial geometry is the reason she was cast — name what that quality is; her hair styling is a deliberate creative decision, not a default fall",
+            "hair_logic": "hair styling chosen as part of the authored image, with explicit shape and movement logic",
+            "body_frame": "body frame with clear line, proportion, and silhouette authority",
+            "body_read": "she occupies her space with intention — her posture is authored, the garment is something she selected",
+            "expression_read": "controlled and in command — not cold, but self-aware; the camera comes to her, not the other way around",
+            "makeup_read": "visible makeup should support authority and precision without becoming mask-like",
         }
     if normalized == "lifestyle":
         return {
-            "profile_hint": "an adult Brazilian woman with socially alive, activity-ready presence",
+            "profile_hint": "a socially alive adult Brazilian woman — her presence has individual personality, not just physical correctness; she gives the impression of being mid-something",
             "age_band": "mid 20s to early 30s",
-            "face_hair_presence": "fresh approachable face and natural movement in the hair",
-            "body_read": "active everyday body read with believable energy",
-            "expression_read": "socially open expression",
+            "face_geometry": "clear face geometry with memorable asymmetry and lived-in specificity",
+            "eye_logic": "eyes alert and alive inside the action, never vacant or beauty-portrait frozen",
+            "skin_read": "real skin with daylight credibility, natural texture, and lived tone variation",
+            "face_hair_presence": "her face communicates a point of view — something in her features or expression says she has opinions; her hair moves with her rather than staying composed",
+            "hair_logic": "hair behavior must feel lived, mobile, and plausible for the scene rather than arranged for portrait flattery",
+            "body_frame": "body/frame read should feel plausible for someone actually inhabiting the activity",
+            "body_read": "she reads as someone in the middle of something — self-directed, not waiting to be photographed",
+            "expression_read": "open and forward-moving — her energy goes toward something in her world, the camera catches her rather than she poses for it",
+            "makeup_read": "visible makeup should read as personal daily grooming, not shoot styling",
         }
     return {
-        "profile_hint": "an adult Brazilian woman with everyday, non-performative presence",
+        "profile_hint": "a naturally attractive adult Brazilian woman — her beauty reads as real and encountered, not aspirational or produced; she could be someone you know",
         "age_band": "mid 20s to early 30s",
-        "face_hair_presence": "fresh natural face read and believable lived-in hair behavior",
-        "body_read": "relaxed realistic body presence without over-styled polish",
-        "expression_read": "quiet attentive expression",
+        "face_geometry": "specific face geometry with believable asymmetry and non-generic proportions",
+        "eye_logic": "eyes must look attentive and alive in the world, never deadened or artificially centered",
+        "skin_read": "skin should preserve natural texture, undertone, and slight unevenness that confirms reality",
+        "face_hair_presence": "her face and hair carry the minor imperfections that confirm she is real — nothing has been corrected into artificiality; her styling is the absence of styling",
+        "hair_logic": "hair should feel minimally handled, naturally falling, and not arranged for beauty-portrait perfection",
+        "body_frame": "a believable body/frame read that helps the garment sit naturally rather than mannequin-neatly",
+        "body_read": "her body language is unconsidered — she is not presenting herself to anyone, she is simply present in the frame",
+        "expression_read": "she is not performing for the camera — her attention is somewhere else, her face is at natural rest",
+        "makeup_read": "visible makeup should stay minimal and plausibly real-life",
     }
 
 
@@ -348,30 +473,29 @@ def _build_base_scene_prompt(
     garment_hint = _clean_text(garment_identity.get("garment_hint"), limit=160)
     structure_guards = list(garment_identity.get("structure_guards") or [])
     required_set_members = list(garment_identity.get("required_set_members") or [])
-    soul_stack = build_reference_edit_art_direction(mode_id=mode_id, creative_brief=None)
     mode_styling_mandate = _clean_text(styling_context.get("mode_styling_mandate"), limit=200)
 
     parts = [
-        "BASE GENERATION STAGE: create the woman, scene, pose, and camera first; the garment will be replaced in a later edit pass.",
-        soul_stack,
-        (
-            "Use a placeholder garment that matches the uploaded product's structural identity only. "
-            "Do not attempt surface transfer from the references in this stage."
-        ),
+        _mode_aesthetic_context(mode_id),
     ]
     if structural_hint:
         parts.append(f"Structural garment identity: {structural_hint}.")
     elif garment_hint:
         parts.append(f"Garment identity: {garment_hint}.")
     if structure_guards:
-        parts.append("Keep these product constraints legible in the placeholder: " + "; ".join(structure_guards) + ".")
+        parts.append("The garment worn must show these structural characteristics clearly: " + "; ".join(structure_guards) + ".")
     if required_set_members:
         parts.append(
-            "Preserve these coordinated set members as separate placeholder pieces: "
+            "She is wearing a coordinated set — these separate pieces must also appear: "
             + ", ".join(required_set_members)
             + "."
         )
 
+    parts.append(
+        "This woman is visually specific and individually cast for this garment — "
+        "not a placeholder face, not a generic type. "
+        "Her physical description in the prompt must read as a real individual choice, not a category."
+    )
     parts.append(
         "Casting direction: "
         + " ".join(
@@ -379,9 +503,15 @@ def _build_base_scene_prompt(
             for sentence in [
                 _clean_text(casting_direction.get("profile_hint"), limit=200),
                 _clean_text(casting_direction.get("age_band"), limit=100),
+                _clean_text(casting_direction.get("face_geometry"), limit=180),
+                _clean_text(casting_direction.get("eye_logic"), limit=180),
+                _clean_text(casting_direction.get("skin_read"), limit=180),
                 _clean_text(casting_direction.get("face_hair_presence"), limit=180),
+                _clean_text(casting_direction.get("hair_logic"), limit=180),
+                _clean_text(casting_direction.get("body_frame"), limit=180),
                 _clean_text(casting_direction.get("body_read"), limit=180),
                 _clean_text(casting_direction.get("expression_read"), limit=180),
+                _clean_text(casting_direction.get("makeup_read"), limit=140),
             ]
             if sentence
         )
@@ -429,11 +559,49 @@ def _build_base_scene_prompt(
         + "."
     )
     parts.append(
-        "Do not copy any reference person's identity, pose, background, or framing. "
-        "The uploads are garment-analysis evidence only for this base stage."
+        "Do not replicate any person, pose, background, or framing visible in the reference images. "
+        "The references exist only to establish the garment's physical form."
     )
 
     return " ".join(part.strip() for part in parts if part and part.strip())
+
+
+def _build_stage2_scene_context(
+    *,
+    mode_id: str,
+    casting_direction: dict[str, Any],
+    styling_direction: dict[str, Any],
+    scene_direction: dict[str, Any],
+    pose_direction: dict[str, Any],
+    capture_direction: dict[str, Any],
+) -> str:
+    limit = 700
+    parts = [
+        f"Preserve the base image's {str(mode_id or 'natural').strip().lower()} creative intent.",
+        "Presence: " + _sentence_text(casting_direction.get("profile_hint"), limit=120),
+        "Scene: " + _sentence_text(scene_direction.get("setting"), limit=150),
+        "Lighting: " + _sentence_text(scene_direction.get("lighting_logic"), limit=150),
+        "Pose: " + _sentence_text(pose_direction.get("stance"), limit=140),
+        "Capture: " + _sentence_text(capture_direction.get("framing"), limit=120),
+        "Angle: " + _sentence_text(capture_direction.get("angle"), limit=120),
+    ]
+    optional_parts = [
+        "Expression: " + _sentence_text(casting_direction.get("expression_read"), limit=120),
+        "Arms: " + _sentence_text(pose_direction.get("arm_logic"), limit=130),
+    ]
+
+    chosen = [part for part in parts if part and not part.endswith(": .")]
+    current = " ".join(chosen)
+    for candidate in optional_parts:
+        clean_candidate = candidate.strip()
+        if not clean_candidate or clean_candidate.endswith(": ."):
+            continue
+        proposal = f"{current} {clean_candidate}".strip()
+        if len(proposal) <= limit:
+            chosen.append(clean_candidate)
+            current = proposal
+
+    return current
 
 
 def build_reference_creative_plan_fallback(
@@ -485,7 +653,15 @@ def build_reference_creative_plan_fallback(
         capture_direction=capture_direction,
         styling_context=styling_context,
     )
-    return ReferenceCreativePlan(
+    stage2_scene_context = _build_stage2_scene_context(
+        mode_id=mode_id,
+        casting_direction=casting_direction,
+        styling_direction=styling_direction,
+        scene_direction=scene_direction,
+        pose_direction=pose_direction,
+        capture_direction=capture_direction,
+    )
+    plan = ReferenceCreativePlan(
         garment_identity=garment_identity,
         casting_direction=casting_direction,
         styling_direction=styling_direction,
@@ -493,9 +669,26 @@ def build_reference_creative_plan_fallback(
         pose_direction=pose_direction,
         capture_direction=capture_direction,
         base_scene_prompt=base_scene_prompt,
+        stage2_scene_context=stage2_scene_context,
         summary=summary,
         fallback_applied=True,
     )
+    debug_trace = {
+        "input": {
+            "instruction_prompt": "",
+            "input_parts_text_blocks": [],
+            "mode_id": str(mode_id or "natural").strip().lower(),
+            "garment_hint": garment_identity.get("garment_hint", ""),
+            "image_analysis": garment_identity.get("image_analysis", ""),
+        },
+        "output": {
+            "raw_response_text": "",
+            "parsed_response_payload": {},
+            "normalized_plan": plan.to_dict(),
+            "fallback_applied": True,
+        },
+    }
+    return ReferenceCreativePlan(**{**plan.to_dict(), "debug_trace": debug_trace})
 
 
 def plan_reference_creative_flow(
@@ -547,6 +740,10 @@ def plan_reference_creative_flow(
     set_info = styling_context.get("set_info") or {}
     lighting = lighting_signature or {}
 
+    model_soul = str(get_model_soul(garment_context=garment_text, mode_id=mode_id) or "")
+    scene_soul = str(get_scene_soul(mode_id=mode_id, has_images=True) or "")
+    pose_soul = str(get_pose_soul(mode_id=mode_id, has_images=True) or "")
+    capture_soul = str(get_capture_soul(mode_id=mode_id, has_images=True) or "")
     instruction = (
         "Build a structured creative plan for an upload-based fashion generation flow.\n\n"
         "This is the BASE generation stage before garment replacement.\n"
@@ -557,15 +754,27 @@ def plan_reference_creative_flow(
         "OUTPUT RULES:\n"
         "- Keep every field compact and concrete.\n"
         "- Casting must describe a NEW adult Brazilian woman.\n"
+        "- Casting must make a specific choice, not a median commercial archetype.\n"
+        "- Casting must make the face, eyes, skin, hair, frame, expression, and visible makeup readable as a real human choice.\n"
+        "- Eyes must read as alive and aligned; avoid vacant, glassy, or divergent-eye results.\n"
         "- Styling must stay subordinate to the hero garment and follow the active mode.\n"
+        "- Styling must choose a concrete completion family when completion is needed; do not answer with generic neutral completion language only.\n"
         "- Scene must describe a believable Brazilian setting through visible cues.\n"
         "- Pose must describe observable body behavior, not abstract adjectives.\n"
+        "- Pose must choose one distinct commercial body solution; do not fall back to the same safe standing formula.\n"
         "- Capture must describe framing, angle, crop logic, and lens feel.\n"
+        "- Capture must choose one concrete commercial relation; do not default to the same centered catalog view.\n"
         "- Return strict JSON only.\n\n"
+        "ANTI-REPETITION RULES:\n"
+        "- Do not output the same polished brunette catalog woman by default.\n"
+        "- Do not default to the same direct open-smile expression unless it is clearly the best choice for this garment.\n"
+        "- Do not default to dark tailored trousers plus ankle boots as the universal completion for every top-layer garment.\n"
+        "- Do not default to the same hand-on-hip near-frontal catalog pose.\n\n"
         "<MODE_IDENTITY>\n" + "\n".join(mode_lines) + "\n</MODE_IDENTITY>\n\n"
-        "<SCENE_SOUL>\n" + str(get_scene_soul(mode_id=mode_id, has_images=True) or "") + "\n</SCENE_SOUL>\n\n"
-        "<POSE_SOUL>\n" + str(get_pose_soul(mode_id=mode_id, has_images=True) or "") + "\n</POSE_SOUL>\n\n"
-        "<CAPTURE_SOUL>\n" + str(get_capture_soul(mode_id=mode_id, has_images=True) or "") + "\n</CAPTURE_SOUL>\n\n"
+        "<MODEL_SOUL>\n" + model_soul + "\n</MODEL_SOUL>\n\n"
+        "<SCENE_SOUL>\n" + scene_soul + "\n</SCENE_SOUL>\n\n"
+        "<POSE_SOUL>\n" + pose_soul + "\n</POSE_SOUL>\n\n"
+        "<CAPTURE_SOUL>\n" + capture_soul + "\n</CAPTURE_SOUL>\n\n"
         "<STYLING_SOUL>\n" + styling_soul + "\n</STYLING_SOUL>\n\n"
         "<MODE_STYLING_MANDATE>\n" + mode_styling_mandate + "\n</MODE_STYLING_MANDATE>\n\n"
         "<MODE_GUARDRAILS>\n" + _clean_text(mode_guardrail_text, limit=500) + "\n</MODE_GUARDRAILS>\n\n"
@@ -596,6 +805,9 @@ def plan_reference_creative_flow(
         "</JOB_CONTEXT>"
     )
 
+    raw_response_text = ""
+    parsed_payload: dict[str, Any] = {}
+    planner_error = ""
     try:
         response = generate_structured_json(
             parts=[types.Part(text=instruction)],
@@ -604,11 +816,14 @@ def plan_reference_creative_flow(
             max_tokens=1600,
             thinking_budget=0,
         )
+        raw_response_text = str(getattr(response, "text", "") or "").strip()
         parsed = _decode_agent_response(response)
+        parsed_payload = dict(parsed) if isinstance(parsed, dict) else {}
     except Exception as exc:
+        planner_error = str(exc)
         repaired = try_repair_truncated_json(str(exc))
         if repaired is None:
-            return build_reference_creative_plan_fallback(
+            fallback_plan = build_reference_creative_plan_fallback(
                 mode_id=mode_id,
                 garment_hint=garment_hint,
                 structural_contract=structural_contract,
@@ -616,7 +831,32 @@ def plan_reference_creative_flow(
                 image_analysis=image_analysis,
                 styling_context=styling_context,
             )
+            debug_trace = dict(fallback_plan.debug_trace or {})
+            debug_trace["input"] = {
+                "instruction_prompt": instruction,
+                "input_parts_text_blocks": [instruction],
+                "mode_id": str(mode_id or "natural").strip().lower(),
+                "souls": {
+                    "mode_identity": mode_lines,
+                    "model": model_soul,
+                    "scene": scene_soul,
+                    "pose": pose_soul,
+                    "capture": capture_soul,
+                    "styling": styling_soul,
+                },
+                "styling_context": styling_context,
+                "garment_identity": garment_identity,
+            }
+            debug_trace["output"] = {
+                "raw_response_text": raw_response_text,
+                "parsed_response_payload": {},
+                "normalized_plan": fallback_plan.to_dict(),
+                "fallback_applied": True,
+                "error": planner_error,
+            }
+            return ReferenceCreativePlan(**{**fallback_plan.to_dict(), "debug_trace": debug_trace})
         parsed = repaired
+        parsed_payload = dict(parsed) if isinstance(parsed, dict) else {}
 
     casting_direction = _normalize_compact_object(
         parsed.get("casting_direction") if isinstance(parsed, dict) else None,
@@ -663,6 +903,14 @@ def plan_reference_creative_flow(
         capture_direction=capture_direction,
         styling_context=styling_context,
     )
+    stage2_scene_context = _build_stage2_scene_context(
+        mode_id=mode_id,
+        casting_direction=casting_direction,
+        styling_direction=styling_direction,
+        scene_direction=scene_direction,
+        pose_direction=pose_direction,
+        capture_direction=capture_direction,
+    )
     if not _clean_text(base_scene_prompt, limit=200):
         return build_reference_creative_plan_fallback(
             mode_id=mode_id,
@@ -673,6 +921,43 @@ def plan_reference_creative_flow(
             styling_context=styling_context,
         )
 
+    normalized_plan = {
+        "garment_identity": garment_identity,
+        "casting_direction": casting_direction,
+        "styling_direction": styling_direction,
+        "scene_direction": scene_direction,
+        "pose_direction": pose_direction,
+        "capture_direction": capture_direction,
+        "base_scene_prompt": base_scene_prompt,
+        "stage2_scene_context": stage2_scene_context,
+        "summary": summary,
+        "fallback_applied": False,
+    }
+    debug_trace = {
+        "input": {
+            "instruction_prompt": instruction,
+            "input_parts_text_blocks": [instruction],
+            "mode_id": str(mode_id or "natural").strip().lower(),
+            "souls": {
+                "mode_identity": mode_lines,
+                "model": model_soul,
+                "scene": scene_soul,
+                "pose": pose_soul,
+                "capture": capture_soul,
+                "styling": styling_soul,
+            },
+            "styling_context": styling_context,
+            "garment_identity": garment_identity,
+        },
+        "output": {
+            "raw_response_text": raw_response_text,
+            "parsed_response_payload": parsed_payload,
+            "normalized_plan": normalized_plan,
+            "fallback_applied": False,
+            "error": planner_error,
+        },
+    }
+
     return ReferenceCreativePlan(
         garment_identity=garment_identity,
         casting_direction=casting_direction,
@@ -681,6 +966,8 @@ def plan_reference_creative_flow(
         pose_direction=pose_direction,
         capture_direction=capture_direction,
         base_scene_prompt=base_scene_prompt,
+        stage2_scene_context=stage2_scene_context,
         summary=summary,
         fallback_applied=False,
+        debug_trace=debug_trace,
     )
